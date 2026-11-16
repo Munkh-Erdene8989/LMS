@@ -16,3 +16,6 @@ next-env.d.ts
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# local MCP config (API түлхүүр агуулна)
+.mcp.json
