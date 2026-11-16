@@ -48,6 +48,13 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - `VERIFY_MN_API_KEY` / `RESEND_API_KEY` хоосон бол dev-д fake: имэйлийн код API-ийн консолд хэвлэгдэнэ.
 - Endpoint-д нэвтрэлт шаардах: `@Auth()`, role шаардах: `@Auth('ADMIN')`, хэрэглэгч авах: `@CurrentUser()`.
 
+## Админ
+
+- Эхний админ: тухайн утас/имэйлээр нэг удаа нэвтэрсний дараа `pnpm --filter @lms/api admin:grant <утас|имэйл>`. Дараа нь `/admin`.
+- Тохиргоо уншихдаа `SettingsService.get('creditPriceMnt')`. Шинэ тохиргоо: `apps/api/src/admin/settings.registry.ts` + `SettingKey`.
+- Админы өөрчлөлт бүрийг `AuditService.record(tx, …)`-аар өөрчлөлттэй **нэг transaction-д** бичнэ.
+- Хууль эрх зүйн баримт: `/admin/legal`-д ноорог → нийтлэх. Нийтэд `/legal/terms`, `/legal/privacy`, `/legal/teacher-agreement`.
+
 ## Мэдэгдэл ба дараалал
 
 - Мэдэгдэл илгээх цорын ганц арга: `NotificationsService.notify({ userId, type, params, link })`. Имэйлтэй бол имэйл автоматаар дараалалд орно.

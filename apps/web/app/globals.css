@@ -137,3 +137,40 @@ body {
   border-left: 4px solid var(--fg);
   background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
+
+.page.wide {
+  max-width: 1040px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table code {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.site-footer {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 24px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.site-footer a {
+  color: inherit;
+}

@@ -114,6 +114,11 @@ export default function MePage() {
       </section>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {user.roles.includes('ADMIN') && (
+          <a className="btn" href="/admin">
+            {t('admin.title')}
+          </a>
+        )}
         <button className="btn btn-ghost" onClick={() => logout(false)}>
           {t('me.logout')}
         </button>

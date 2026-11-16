@@ -7,6 +7,7 @@ import { QueueModule } from './queue/queue.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuthModule } from './auth/auth.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
     NotificationsModule,
     HealthModule,
     AuthModule,
+    AdminModule,
     MaintenanceModule,
   ],
 })

@@ -13,14 +13,33 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/// Платформын тохиргоо (key-value). Ticket 04 өргөтгөнө.
+/// Платформын тохиргоо (key-value). Мөр байхгүй бол кодын анхдагч утга (apps/api/src/admin/settings.registry.ts).
 model Setting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt @map("updated_at")
   createdAt DateTime @default(now()) @map("created_at")
 
+  revisions SettingRevision[]
+
   @@map("settings")
+}
+
+/// Тохиргооны өөрчлөлт бүр (хувилбар).
+model SettingRevision {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String
+  /// Өмнөх утга (анх өөрчлөхөд анхдагч утга)
+  previous    Json
+  value       Json
+  changedById String?  @map("changed_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  setting   Setting @relation(fields: [key], references: [key], onDelete: Cascade)
+  changedBy User?   @relation("SettingRevisions", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([key, createdAt(sort: Desc)])
+  @@map("setting_revisions")
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +77,11 @@ model User {
   identifiers   Identifier[]
   sessions      Session[]
   notifications Notification[]
+
+  settingRevisions SettingRevision[] @relation("SettingRevisions")
+  auditLogs        AuditLog[]        @relation("AuditActor")
+  legalDocuments   LegalDocument[]   @relation("LegalAuthor")
+  legalAcceptances LegalAcceptance[]
 
   @@map("users")
 }
@@ -154,4 +178,71 @@ model Notification {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Админ (ticket 04)
+// ---------------------------------------------------------------------------
+
+/// Админы (болон системийн) үйлдэл бүр. Зөвхөн нэмэгдэнэ, засагдахгүй.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// null = систем (CLI, cron)
+  actorId    String?  @map("actor_id") @db.Uuid
+  /// жишээ: `setting.update`, `legal.publish`, `user.role.grant`
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+enum LegalDocType {
+  TERMS
+  PRIVACY
+  TEACHER_AGREEMENT
+}
+
+/// Хууль эрх зүйн баримтын хувилбар. `publishedAt` null = ноорог (засаж болно); нийтэлсэн нь өөрчлөгдөхгүй.
+model LegalDocument {
+  id          String       @id @default(uuid()) @db.Uuid
+  type        LegalDocType
+  version     Int
+  title       String
+  body        String
+  publishedAt DateTime?    @map("published_at")
+  createdById String?      @map("created_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  createdBy   User?             @relation("LegalAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  acceptances LegalAcceptance[]
+
+  @@unique([type, version])
+  @@index([type, publishedAt])
+  @@map("legal_documents")
+}
+
+/// Хэрэглэгч тухайн хувилбарыг хэзээ зөвшөөрсөн.
+model LegalAcceptance {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  ip         String?
+  acceptedAt DateTime @default(now()) @map("accepted_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document LegalDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, documentId])
+  @@map("legal_acceptances")
 }

@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "admin:grant": "tsc -p tsconfig.build.json && node dist/cli/grant-admin.js"
   },
   "dependencies": {
     "@lms/db": "workspace:*",
