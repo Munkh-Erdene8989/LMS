@@ -1,0 +1,24 @@
+// Supabase Postgres.
+// DATABASE_URL: transaction pooler (6543, ?pgbouncer=true) — апп ажиллах үед.
+// DIRECT_URL:   session pooler (5432) — migration-д.
+// Тест нь `?schema=lms_test` бүхий тусдаа URL ашиглана (apps/api/test).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// Платформын тохиргоо (key-value). Ticket 04 өргөтгөнө.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("settings")
+}
