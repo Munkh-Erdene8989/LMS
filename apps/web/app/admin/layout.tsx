@@ -12,6 +12,7 @@ const NAV: [href: string, label: MessageKey][] = [
   ['/admin/teacher-applications', 'teacher.navApplications'],
   ['/admin/course-reviews', 'course.navReviews'],
   ['/admin/categories', 'course.navCategories'],
+  ['/admin/credit-packages', 'credits.navAdmin'],
   ['/admin/audit', 'admin.navAudit'],
   ['/admin/legal', 'admin.navLegal'],
 ];

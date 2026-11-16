@@ -90,6 +90,10 @@ model User {
   courses         Course[]
   reviewedCourses Course[] @relation("CourseReviewer")
 
+  payments      Payment[]
+  creditLots    CreditLot[]
+  creditEntries CreditLedgerEntry[]
+
   @@map("users")
 }
 
@@ -435,4 +439,154 @@ model Lesson {
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
   @@map("lessons")
+}
+
+// ---------------------------------------------------------------------------
+// Кредит ба төлбөр (ticket 08)
+// Балансыг зөвхөн apps/api/src/credits/credits.service.ts өөрчилнө.
+// ---------------------------------------------------------------------------
+
+/// Админаас тохируулдаг цэнэглэх багц. `isTest` = зөвхөн админд харагдах туршилтын (100₮) багц.
+model CreditPackage {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  credits   Int
+  priceMnt  Int      @map("price_mnt")
+  active    Boolean  @default(true)
+  isTest    Boolean  @default(false) @map("is_test")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@index([active, position])
+  @@map("credit_packages")
+}
+
+enum PaymentStatus {
+  /// Нэхэмжлэх үүссэн, төлөгдөөгүй
+  PENDING
+  /// QPay payment check-ээр баталгаажиж, кредит олгогдсон
+  PAID
+  /// Төлсөн дүн нэхэмжлэхтэй таарахгүй — кредит олгоогүй, админ шалгана
+  AMOUNT_MISMATCH
+  /// Нэхэмжлэх үүсгэж чадаагүй
+  FAILED
+}
+
+enum PaymentPurpose {
+  CREDIT_TOPUP
+}
+
+/// QPay төлбөр. Худалдан авах үеийн дүн, кредит, кредитийн ₮ үнийг хадгална.
+model Payment {
+  id                String         @id @default(uuid()) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  purpose           PaymentPurpose @default(CREDIT_TOPUP)
+  packageId         String?        @map("package_id") @db.Uuid
+  status            PaymentStatus  @default(PENDING)
+  amountMnt         Int            @map("amount_mnt")
+  credits           Int
+  /// Тухайн үеийн `creditPriceMnt` тохиргоо (тайланд)
+  creditPriceMnt    Int            @map("credit_price_mnt")
+  isTest            Boolean        @default(false) @map("is_test")
+  /// Callback URL-д орох таамаглашгүй токен
+  callbackToken     String         @unique @map("callback_token")
+  providerInvoiceId String?        @unique @map("provider_invoice_id")
+  providerPaymentId String?        @map("provider_payment_id")
+  qrText            String?        @map("qr_text") @db.Text
+  qrImage           String?        @map("qr_image") @db.Text
+  shortUrl          String?        @map("short_url") @db.Text
+  /// QPay `urls[]` — банкны апп-ын deeplink-үүд
+  deeplinks         Json           @default("[]")
+  /// QPay-ээс төлөгдсөн гэж ирсэн дүн (таарахгүй үед шалгахад)
+  paidAmountMnt     Int?           @map("paid_amount_mnt")
+  paidAt            DateTime?      @map("paid_at")
+  lastCheckedAt     DateTime?      @map("last_checked_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  package CreditPackage? @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  lot     CreditLot?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+enum CreditEntryType {
+  TOPUP
+  SUBSCRIPTION_GRANT
+  SPEND
+  EXPIRE
+  ADMIN_ADJUST
+}
+
+/// Нэг удаагийн кредит орлого. `remaining` нь зөвхөн CreditsService-ээр (хэрэглэгчийн мөрийг түгжиж) өөрчлөгдөнө.
+model CreditLot {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  /// TOPUP | SUBSCRIPTION_GRANT | ADMIN_ADJUST
+  source    CreditEntryType
+  initial   Int
+  remaining Int
+  expiresAt DateTime        @map("expires_at")
+  /// EXPIRE бичилт хийгдсэн огноо (давхар дуусгахгүй)
+  expiredAt DateTime?       @map("expired_at")
+  paymentId String?         @unique @map("payment_id") @db.Uuid
+  isTest    Boolean         @default(false) @map("is_test")
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  payment     Payment?           @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  allocations CreditAllocation[]
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, remaining])
+  @@map("credit_lots")
+}
+
+/// Append-only ledger. `amount` тэмдэгтэй: орлого +, зарлага −. Засагдахгүй, устгагдахгүй.
+model CreditLedgerEntry {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  type      CreditEntryType
+  amount    Int
+  /// Тест төлбөрөөс (эсвэл тест lot-оос) үүссэн — тайланд тусад нь
+  isTest    Boolean         @default(false) @map("is_test")
+  /// Админ засварын шалтгаан г.м
+  reason    String?
+  /// ADMIN_ADJUST хийсэн админ
+  actorId   String?         @map("actor_id") @db.Uuid
+  /// Зарцуулалтын объект (жишээ нь `lesson_purchase`, id) — ticket 09
+  refType   String?         @map("ref_type")
+  refId     String?         @map("ref_id")
+  paymentId String?         @map("payment_id") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  allocations CreditAllocation[]
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([type, createdAt])
+  @@index([refType, refId])
+  @@map("credit_ledger_entries")
+}
+
+/// Бичилт аль lot-ыг хэдээр өөрчилсөн (FIFO зарцуулалт олон lot хамардаг).
+model CreditAllocation {
+  id      String @id @default(uuid()) @db.Uuid
+  entryId String @map("entry_id") @db.Uuid
+  lotId   String @map("lot_id") @db.Uuid
+  /// Тэмдэгтэй: grant +, spend/expire −
+  amount  Int
+
+  entry CreditLedgerEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  lot   CreditLot         @relation(fields: [lotId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([lotId])
+  @@map("credit_allocations")
 }

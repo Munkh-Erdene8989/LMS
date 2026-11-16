@@ -10,6 +10,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { AdminModule } from './admin/admin.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { CreditsModule } from './credits/credits.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CatalogModule } from './catalog/catalog.module';
     AdminModule,
     TeacherModule,
     CatalogModule,
+    CreditsModule,
     MaintenanceModule,
   ],
 })

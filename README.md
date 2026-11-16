@@ -68,6 +68,23 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Арын ажил: `JobQueue`-д `register(name, handler, { attempts, backoffMs })`, `add()`, cron бол `schedule(name, '30 3 * * *')` (Улаанбаатарын цагаар).
 - `REDIS_URL` хоосон бол dev-д process доторх дараалал (cron ажиллахгүй). Тестэд `t.queue.drain()` / `t.queue.runScheduled(name)`.
 
+## Кредит ба төлбөр
+
+- Балансыг өөрчлөх **цорын ганц** арга: `CreditsService` (`apps/api/src/credits/credits.service.ts`, global). `credit_lots` / `credit_ledger_entries`-д шууд бичихгүй.
+- Зарцуулах (ticket 09): өөрийн бичилтүүдтэй **нэг transaction-д**:
+  ```ts
+  await prisma.$transaction(async (tx) => {
+    const spent = await credits.spend(tx, { userId, credits: n, refType: 'lesson', refId: lessonId });
+    // entitlement, багшийн орлого… (spent.isTest — тест кредит эсэх)
+  }, CREDIT_TX_OPTIONS);
+  ```
+  Хүрэлцэхгүй бол `INSUFFICIENT_CREDITS` (409) шидэж, transaction бүхэлдээ буцна. FIFO: хамгийн эрт дуусах lot-оос.
+- Олгох (ticket 17): `credits.grant(tx, { userId, credits, source: 'SUBSCRIPTION_GRANT', paymentId })` — lot нь `creditValidityMonths` тохиргоогоор дуусна; нэг `paymentId` нэг л lot (unique).
+- Дуусгавар (ticket 16): `credits.expireDue(now)` — idempotent, cron-оос дуудна. Админ засвар: `credits.adjust({ userId, delta, reason, actorId })` (audit + `ADMIN_ADJUST`).
+- Бүх өөрчлөлт хэрэглэгчийн мөрийг (`users … FOR NO KEY UPDATE`) түгжинэ → зэрэг зарцуулалт сөрөг баланс үүсгэхгүй. Transaction-д `CREDIT_TX_OPTIONS` (урт timeout) өгнө.
+- QPay: `QPAY_*` хоосон бол dev-д fake (нэхэмжлэх шууд төлөгдсөнд тооцогдоно → `/credits` дээр "Төлбөр шалгах"). Callback-д итгэхгүй — үргэлж `POST /v2/payment/check`-ээр дахин шалгана. Тестэд `t.qpay.markPaid(invoiceId)`.
+- Тест багц (`isTest`) зөвхөн админд; түүний төлбөр, lot, ledger `isTest = true` — тайланд тусад нь.
+
 ## Нууц түлхүүр
 
 `.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс харна уу.
