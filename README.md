@@ -48,6 +48,13 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - `VERIFY_MN_API_KEY` / `RESEND_API_KEY` хоосон бол dev-д fake: имэйлийн код API-ийн консолд хэвлэгдэнэ.
 - Endpoint-д нэвтрэлт шаардах: `@Auth()`, role шаардах: `@Auth('ADMIN')`, хэрэглэгч авах: `@CurrentUser()`.
 
+## Мэдэгдэл ба дараалал
+
+- Мэдэгдэл илгээх цорын ганц арга: `NotificationsService.notify({ userId, type, params, link })`. Имэйлтэй бол имэйл автоматаар дараалалд орно.
+- Мэдэгдлийн текст: `apps/api/src/i18n/mn.json` → `notifications.<TYPE>`.
+- Арын ажил: `JobQueue`-д `register(name, handler, { attempts, backoffMs })`, `add()`, cron бол `schedule(name, '30 3 * * *')` (Улаанбаатарын цагаар).
+- `REDIS_URL` хоосон бол dev-д process доторх дараалал (cron ажиллахгүй). Тестэд `t.queue.drain()` / `t.queue.runScheduled(name)`.
+
 ## Нууц түлхүүр
 
 `.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс харна уу.

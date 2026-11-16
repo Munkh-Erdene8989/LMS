@@ -26,9 +26,18 @@ const EnvSchema = z.object({
   COOKIE_PATH_PREFIX: z.string().regex(/^(\/[\w-]+)*$/).default(''),
   /** Express `trust proxy`: API-ийн өмнөх proxy hop-ын тоо (rate limit-ийн client IP-д). */
   TRUST_PROXY: z.coerce.number().int().min(0).default(1),
+  /** BullMQ дараалал. Байхгүй бол (dev) process доторх дараалал, cron ажиллахгүй. Production-д заавал. */
+  REDIS_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  /** Энэ process арын ажлыг гүйцэтгэх эсэх (дараа нь тусдаа worker service болговол `false`). */
+  WORKERS_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  /** Имэйл дэх линкүүдийн суурь хаяг */
+  PUBLIC_WEB_URL: z.string().url().default('http://localhost:3000'),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
-  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY'] as const) {
+  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY', 'REDIS_URL'] as const) {
     if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'production-д шаардлагатай' });
   }
 });

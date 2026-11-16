@@ -55,8 +55,9 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  identifiers Identifier[]
-  sessions    Session[]
+  identifiers   Identifier[]
+  sessions      Session[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -115,4 +116,42 @@ model Session {
   @@index([userId])
   @@index([familyId])
   @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Мэдэгдэл (ticket 03)
+// ---------------------------------------------------------------------------
+
+enum EmailStatus {
+  /**
+   * Хэрэглэгч имэйлгүй — зөвхөн in-app
+   */
+  NONE
+  QUEUED
+  SENT
+  FAILED
+}
+
+/**
+ * In-app мэдэгдэл (хонх). Текстийг уншихдаа translation-аас `type` + `params`-аар үүсгэнэ.
+ */
+model Notification {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  /**
+   * `apps/api/src/i18n/mn.json` → `notifications.<type>`
+   */
+  type        String
+  params      Json        @default("{}")
+  link        String?
+  readAt      DateTime?   @map("read_at")
+  emailStatus EmailStatus @default(NONE) @map("email_status")
+  emailSentAt DateTime?   @map("email_sent_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("notifications")
 }

@@ -54,5 +54,12 @@
     "roleLEARNER": "Суралцагч",
     "roleTEACHER": "Багш",
     "roleADMIN": "Админ"
+  },
+  "notifications": {
+    "title": "Мэдэгдэл",
+    "bellUnread": "Мэдэгдэл ({count} уншаагүй)",
+    "empty": "Одоогоор мэдэгдэл алга.",
+    "markAllRead": "Бүгдийг уншсан болгох",
+    "loadMore": "Цааш үзэх"
   }
 }

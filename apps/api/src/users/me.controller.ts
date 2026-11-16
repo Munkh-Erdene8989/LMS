@@ -6,6 +6,7 @@ import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { StartSchema, VerifySchema } from '../auth/auth.controller';
 import { OtpService } from '../auth/otp.service';
 import { ZodPipe } from '../zod-pipe';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from './users.service';
 
 const ProfileSchema = z
@@ -21,6 +22,7 @@ export class MeController {
   constructor(
     private readonly users: UsersService,
     private readonly otp: OtpService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get()
@@ -61,6 +63,14 @@ export class MeController {
       res.status(202);
       return result;
     }
-    return { status: 'verified', user: await this.users.link(user.id, result.type, result.value) };
+    const updated = await this.users.link(user.id, result.type, result.value);
+    // Аюулгүй байдлын мэдэгдэл: хуучин имэйл байвал тэнд ч очно.
+    await this.notifications.notify({
+      userId: user.id,
+      type: 'IDENTIFIER_LINKED',
+      params: { value: result.value },
+      link: '/me',
+    });
+    return { status: 'verified', user: updated };
   }
 }

@@ -7,6 +7,8 @@ import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { EMAIL_SENDER, FakeEmailSender } from '../src/adapters/email';
 import { FakePhoneVerifier, PHONE_VERIFIER } from '../src/adapters/phone-verifier';
+import { InMemoryJobQueue } from '../src/queue/in-memory-queue';
+import { JOB_QUEUE } from '../src/queue/job-queue';
 
 export interface TestApp {
   app: INestApplication;
@@ -16,6 +18,8 @@ export interface TestApp {
   prisma: PrismaService;
   phone: FakePhoneVerifier;
   email: FakeEmailSender;
+  /** Гараар удирддаг дараалал: `t.queue.drain()` хүлээгдэж буй ажлуудыг ажиллуулна. */
+  queue: InMemoryJobQueue;
   /** Тестийн schema-ийн бүх хүснэгтийг цэвэрлэж, fake-уудыг хоосолно. */
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -36,12 +40,15 @@ export interface TestAppOptions {
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestApp> {
   const phone = new FakePhoneVerifier();
   const email = new FakeEmailSender();
+  const queue = new InMemoryJobQueue('manual');
 
   let builder = Test.createTestingModule({ imports: [AppModule, ...(options.imports ?? [])] })
     .overrideProvider(PHONE_VERIFIER)
     .useValue(phone)
     .overrideProvider(EMAIL_SENDER)
-    .useValue(email);
+    .useValue(email)
+    .overrideProvider(JOB_QUEUE)
+    .useValue(queue);
   if (options.override) builder = options.override(builder);
 
   const moduleRef = await builder.compile();
@@ -59,10 +66,12 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     prisma,
     phone,
     email,
+    queue,
     reset: async () => {
       await truncateAll(prisma);
       phone.clear();
       email.clear();
+      queue.clear();
     },
     close: () => app.close(),
   };

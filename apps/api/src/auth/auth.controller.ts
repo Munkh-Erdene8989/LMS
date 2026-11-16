@@ -3,6 +3,7 @@ import type { OtpStartResponse, OtpVerifyResponse } from '@lms/shared';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ENV, type Env } from '../env';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService, toAuthUser } from '../users/users.service';
 import { ZodPipe } from '../zod-pipe';
 import { Auth, CurrentUser, type CurrentUserInfo } from './auth.guard';
@@ -26,6 +27,7 @@ export class AuthController {
     private readonly otp: OtpService,
     private readonly sessions: SessionService,
     private readonly users: UsersService,
+    private readonly notifications: NotificationsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -50,6 +52,7 @@ export class AuthController {
       return result;
     }
     const { user, isNew } = await this.users.findOrCreateByIdentifier(result.type, result.value);
+    if (isNew) await this.notifications.notify({ userId: user.id, type: 'WELCOME', link: '/me' });
     const tokens = await this.sessions.issue(user, { userAgent: req.headers['user-agent'] });
     setAuthCookies(res, this.env, tokens.access, tokens.refresh);
     return { status: 'verified', user: toAuthUser(user), isNew };

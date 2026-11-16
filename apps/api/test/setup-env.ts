@@ -11,3 +11,4 @@ process.env.COOKIE_PATH_PREFIX = '';
 // Тест гадны сервис рүү хэзээ ч хүрэхгүй (harness fake-ээр override хийдэг ч давхар хамгаалалт).
 delete process.env.VERIFY_MN_API_KEY;
 delete process.env.RESEND_API_KEY;
+delete process.env.REDIS_URL;
