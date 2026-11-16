@@ -22,3 +22,6 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# dev файл хадгалалт (Supabase-гүй үед)
+apps/api/.storage/

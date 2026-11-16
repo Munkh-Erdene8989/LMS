@@ -1,0 +1,40 @@
+import { HttpStatus } from '@nestjs/common';
+import { ApiError } from '../auth/errors';
+
+export const CatalogErrors = {
+  courseNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Курс олдсонгүй.'),
+  sectionNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Бүлэг олдсонгүй.'),
+  lessonNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Хичээл олдсонгүй.'),
+  categoryNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Ангилал олдсонгүй.'),
+  courseInReview: () =>
+    new ApiError(HttpStatus.CONFLICT, 'COURSE_IN_REVIEW', 'Курс шалгагдаж байгаа тул засах боломжгүй.'),
+  lessonInReview: () =>
+    new ApiError(HttpStatus.CONFLICT, 'LESSON_IN_REVIEW', 'Хичээл шалгагдаж байгаа тул засах боломжгүй.'),
+  contentLocked: () =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'LESSON_CONTENT_LOCKED',
+      'Нийтлэгдсэн хичээлийн агуулгыг засах боломжгүй (худалдан авсан суралцагчид бий). Шинэ хичээл нэмнэ үү.',
+    ),
+  typeChangeForbidden: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'CONTENT_TYPE_MISMATCH', 'Агуулга хичээлийн төрөлтэй таарахгүй байна.'),
+  lessonTypeUnavailable: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'LESSON_TYPE_UNAVAILABLE', 'Энэ төрлийн хичээл удахгүй нэмэгдэнэ.'),
+  sectionNotEmpty: () =>
+    new ApiError(HttpStatus.CONFLICT, 'SECTION_NOT_EMPTY', 'Бүлэгт хичээл байгаа тул устгах боломжгүй.'),
+  courseNotDeletable: () =>
+    new ApiError(HttpStatus.CONFLICT, 'COURSE_NOT_DELETABLE', 'Нийтлэгдсэн эсвэл шалгагдаж буй курсийг устгах боломжгүй.'),
+  invalidCurriculum: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_CURRICULUM', 'Бүлэг, хичээлийн жагсаалт курстэй таарахгүй байна.'),
+  notReady: (problems: string[]) =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'NOT_READY', `Илгээхэд дутуу: ${problems.join('; ')}`),
+  nothingToSubmit: () =>
+    new ApiError(HttpStatus.CONFLICT, 'NOTHING_TO_SUBMIT', 'Шалгуулах шинэ хичээл алга.'),
+  invalidStatus: () =>
+    new ApiError(HttpStatus.CONFLICT, 'INVALID_STATUS', 'Курс энэ үйлдэлд тохирох төлөвт биш байна.'),
+  invalidUpload: (reason: string) => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_UPLOAD', reason),
+  categoryDepth: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'CATEGORY_DEPTH', 'Ангилал зөвхөн 2 түвшинтэй байна.'),
+  categoryInUse: () =>
+    new ApiError(HttpStatus.CONFLICT, 'CATEGORY_IN_USE', 'Ангилалд курс эсвэл дэд ангилал байгаа тул устгах боломжгүй.'),
+};

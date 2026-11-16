@@ -7,6 +7,7 @@ import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { EMAIL_SENDER, FakeEmailSender } from '../src/adapters/email';
 import { FakePhoneVerifier, PHONE_VERIFIER } from '../src/adapters/phone-verifier';
+import { FakeStorage, STORAGE } from '../src/adapters/storage';
 import { InMemoryJobQueue } from '../src/queue/in-memory-queue';
 import { JOB_QUEUE } from '../src/queue/job-queue';
 
@@ -20,6 +21,8 @@ export interface TestApp {
   email: FakeEmailSender;
   /** Гараар удирддаг дараалал: `t.queue.drain()` хүлээгдэж буй ажлуудыг ажиллуулна. */
   queue: InMemoryJobQueue;
+  /** `t.storage.put(bucket, key, info)` — browser upload хийсэн мэт */
+  storage: FakeStorage;
   /** Тестийн schema-ийн бүх хүснэгтийг цэвэрлэж, fake-уудыг хоосолно. */
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -41,6 +44,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const phone = new FakePhoneVerifier();
   const email = new FakeEmailSender();
   const queue = new InMemoryJobQueue('manual');
+  const storage = new FakeStorage();
 
   let builder = Test.createTestingModule({ imports: [AppModule, ...(options.imports ?? [])] })
     .overrideProvider(PHONE_VERIFIER)
@@ -48,7 +52,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(EMAIL_SENDER)
     .useValue(email)
     .overrideProvider(JOB_QUEUE)
-    .useValue(queue);
+    .useValue(queue)
+    .overrideProvider(STORAGE)
+    .useValue(storage);
   if (options.override) builder = options.override(builder);
 
   const moduleRef = await builder.compile();
@@ -67,11 +73,13 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     phone,
     email,
     queue,
+    storage,
     reset: async () => {
       await truncateAll(prisma);
       phone.clear();
       email.clear();
       queue.clear();
+      storage.clear();
     },
     close: () => app.close(),
   };

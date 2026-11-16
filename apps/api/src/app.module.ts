@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { AdminModule } from './admin/admin.module';
 import { TeacherModule } from './teacher/teacher.module';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TeacherModule } from './teacher/teacher.module';
     AuthModule,
     AdminModule,
     TeacherModule,
+    CatalogModule,
     MaintenanceModule,
   ],
 })

@@ -33,11 +33,14 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  /** Supabase Storage (PDF, зураг). Байхгүй бол dev-д local диск (`apps/api/.storage`). Production-д заавал. */
+  SUPABASE_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   /** Имэйл дэх линкүүдийн суурь хаяг */
   PUBLIC_WEB_URL: z.string().url().default('http://localhost:3000'),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
-  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY', 'REDIS_URL'] as const) {
+  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY', 'REDIS_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const) {
     if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'production-д шаардлагатай' });
   }
 });

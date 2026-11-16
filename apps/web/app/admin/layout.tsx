@@ -10,6 +10,8 @@ import { t, type MessageKey } from '@/lib/i18n';
 const NAV: [href: string, label: MessageKey][] = [
   ['/admin', 'admin.navSettings'],
   ['/admin/teacher-applications', 'teacher.navApplications'],
+  ['/admin/course-reviews', 'course.navReviews'],
+  ['/admin/categories', 'course.navCategories'],
   ['/admin/audit', 'admin.navAudit'],
   ['/admin/legal', 'admin.navLegal'],
 ];

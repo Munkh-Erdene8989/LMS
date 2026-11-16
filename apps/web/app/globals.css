@@ -174,3 +174,128 @@ body {
 .site-footer a {
   color: inherit;
 }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.course-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.course-row img,
+.course-row .cover-placeholder {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.cover-placeholder {
+  background: var(--border);
+}
+
+.cover-preview {
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.badge-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.s-PUBLISHED,
+.s-APPROVED {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.s-REJECTED {
+  color: var(--err);
+  border-color: var(--err);
+}
+
+.s-IN_REVIEW {
+  color: #b45309;
+  border-color: #b45309;
+}
+
+.section-block {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.lesson-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lesson-row small {
+  color: var(--muted);
+}
+
+.lesson-editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.btn-icon {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.markdown pre {
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.markdown code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}

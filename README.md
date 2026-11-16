@@ -55,6 +55,12 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Админы өөрчлөлт бүрийг `AuditService.record(tx, …)`-аар өөрчлөлттэй **нэг transaction-д** бичнэ.
 - Хууль эрх зүйн баримт: `/admin/legal`-д ноорог → нийтлэх. Нийтэд `/legal/terms`, `/legal/privacy`, `/legal/teacher-agreement`.
 
+## Курс ба файл
+
+- Курсийн төлөв: `DRAFT → IN_REVIEW → PUBLISHED | REJECTED`. Нийтлэгдсэн курсийн шинэ хичээл тусдаа шалгагдана; нийтлэгдсэн хичээлийн агуулга түгжигдэнэ.
+- Шинэ хичээлийн төрөл: `apps/api/src/catalog/lesson-types.ts`-д entry + `AVAILABLE_LESSON_TYPES`.
+- Файл: API `UploadTicket` (signed URL) өгнө → browser шууд PUT → API `info()`-оор шалгаж хүлээн авна. `SUPABASE_URL` хоосон бол local диск.
+
 ## Мэдэгдэл ба дараалал
 
 - Мэдэгдэл илгээх цорын ганц арга: `NotificationsService.notify({ userId, type, params, link })`. Имэйлтэй бол имэйл автоматаар дараалалд орно.

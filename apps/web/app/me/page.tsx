@@ -114,6 +114,11 @@ export default function MePage() {
       </section>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {user.roles.includes('TEACHER') && (
+          <a className="btn" href="/teacher/courses">
+            {t('course.myCourses')}
+          </a>
+        )}
         {!user.roles.includes('TEACHER') && (
           <a className="btn btn-ghost" href="/teacher/apply">
             {t('teacher.title')}

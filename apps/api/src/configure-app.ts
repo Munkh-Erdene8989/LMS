@@ -7,5 +7,7 @@ export function configureApp(app: INestApplication, env: Pick<Env, 'WEB_ORIGIN' 
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
   // Proxy-ийн ард: rate limit-д бодит client IP (`X-Forwarded-For`).
   (app as NestExpressApplication).set('trust proxy', env.TRUST_PROXY);
+  // Dev storage (LocalDiskStorage) файл upload: PDF, зургийг raw body-оор хүлээн авна.
+  (app as NestExpressApplication).useBodyParser('raw', { type: ['application/pdf', 'image/*'], limit: '60mb' });
   app.enableShutdownHooks();
 }

@@ -7,6 +7,8 @@ import {
   VerifyMnPhoneVerifier,
   type PhoneVerifier,
 } from './phone-verifier';
+import { DevStorageController } from './dev-storage.controller';
+import { LOCAL_STORAGE_ROOT, LocalDiskStorage, STORAGE, SupabaseStorage, type StorageAdapter } from './storage';
 
 const log = new Logger('Adapters');
 
@@ -16,6 +18,7 @@ const log = new Logger('Adapters');
  */
 @Global()
 @Module({
+  controllers: [DevStorageController],
   providers: [
     {
       provide: PHONE_VERIFIER,
@@ -41,7 +44,20 @@ const log = new Logger('Adapters');
         };
       },
     },
+    {
+      provide: STORAGE,
+      inject: [ENV],
+      useFactory: async (env: Env): Promise<StorageAdapter> => {
+        if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+          const storage = new SupabaseStorage(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+          await storage.ensureBuckets();
+          return storage;
+        }
+        log.warn('SUPABASE_URL алга — файлыг local дискэнд хадгална (dev)');
+        return new LocalDiskStorage(LOCAL_STORAGE_ROOT, env.JWT_SECRET, env.COOKIE_PATH_PREFIX);
+      },
+    },
   ],
-  exports: [PHONE_VERIFIER, EMAIL_SENDER],
+  exports: [PHONE_VERIFIER, EMAIL_SENDER, STORAGE],
 })
 export class AdaptersModule {}

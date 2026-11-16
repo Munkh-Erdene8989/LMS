@@ -87,6 +87,9 @@ model User {
   reviewedApplications TeacherApplication[] @relation("ApplicationReviewer")
   bankAccount          BankAccount?
 
+  courses         Course[]
+  reviewedCourses Course[] @relation("CourseReviewer")
+
   @@map("users")
 }
 
@@ -304,4 +307,132 @@ model BankAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("bank_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Каталог: ангилал, курс, section, lesson (ticket 06)
+// ---------------------------------------------------------------------------
+
+/// 2 түвшний ангилал: parentId null = үндсэн ангилал.
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  name      String
+  slug      String   @unique
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+  courses  Course[]
+
+  @@index([parentId, position])
+  @@map("categories")
+}
+
+enum CourseLevel {
+  ALL
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum CourseStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+model Course {
+  id           String       @id @default(uuid()) @db.Uuid
+  teacherId    String       @map("teacher_id") @db.Uuid
+  title        String
+  description  String       @default("")
+  /// Storage `public` bucket дахь зураг
+  coverKey     String?      @map("cover_key")
+  categoryId   String?      @map("category_id") @db.Uuid
+  level        CourseLevel  @default(ALL)
+  /// Курсийг бүтнээр нь авах үнэ (кредит). Худалдан авалтын үед өмнө төлсөн lesson-ы кредит хасагдана.
+  priceCredits Int?         @map("price_credits")
+  status       CourseStatus @default(DRAFT)
+  reviewNote   String?      @map("review_note")
+  reviewedById String?      @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?    @map("reviewed_at")
+  submittedAt  DateTime?    @map("submitted_at")
+  publishedAt  DateTime?    @map("published_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  teacher    User      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  reviewedBy User?     @relation("CourseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sections   Section[]
+  lessons    Lesson[]
+
+  @@index([teacherId])
+  @@index([status, submittedAt])
+  @@map("courses")
+}
+
+model Section {
+  id        String   @id @default(uuid()) @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  title     String
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, position])
+  @@map("sections")
+}
+
+/// Lesson-ы төрөл. Төрөл бүрийн `content`-ийн хэлбэр: apps/api/src/catalog/lesson-types.ts
+enum LessonType {
+  VIDEO
+  TEXT
+  PDF
+  QUIZ
+  ASSIGNMENT
+  LIVE
+}
+
+/// Lesson бүрийн шалгалтын төлөв. Нийтлэгдсэн курсэд шинэ lesson тусдаа шалгагдана;
+/// APPROVED lesson дахин шалгалтад орохгүй тул худалдан авсан хэрэглэгчийн эрх алдагдахгүй.
+enum LessonReviewStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Lesson {
+  id            String             @id @default(uuid()) @db.Uuid
+  courseId      String             @map("course_id") @db.Uuid
+  sectionId     String             @map("section_id") @db.Uuid
+  title         String
+  type          LessonType
+  position      Int
+  priceCredits  Int                @default(0) @map("price_credits")
+  isFreePreview Boolean            @default(false) @map("is_free_preview")
+  /// Төрлөөс хамаарах контент (text: markdown; pdf: storage key, нэр, хэмжээ)
+  content       Json               @default("{}")
+  reviewStatus  LessonReviewStatus @default(DRAFT) @map("review_status")
+  reviewNote    String?            @map("review_note")
+  approvedAt    DateTime?          @map("approved_at")
+  /// Нийтлэгдсэн lesson-ыг устгахын оронд архивлана (худалдан авсан хүмүүст хэвээр).
+  archivedAt    DateTime?          @map("archived_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+
+  @@index([courseId, reviewStatus])
+  @@index([sectionId, position])
+  @@map("lessons")
 }
