@@ -106,6 +106,20 @@ export class LegalService {
 
   /** Хэрэглэгч одоогийн хувилбарыг зөвшөөрнө. Хуучин хувилбарын дугаар ирвэл татгалзана. */
   async accept(userId: string, type: LegalDocType, version: number, ip?: string): Promise<LegalStatus> {
+    await this.acceptCurrent(userId, type, version, ip);
+    return (await this.status(userId)).find((s) => s.type === type)!;
+  }
+
+  /**
+   * Одоогийн нийтлэгдсэн хувилбарыг зөвшөөрч, зөвшөөрлийн бичлэгийг буцаана (давхар бол хуучныг).
+   * `version` нь хэрэглэгчийн уншсан хувилбар — одоогийнхтой таарахгүй бол татгалзана.
+   */
+  async acceptCurrent(
+    userId: string,
+    type: LegalDocType,
+    version: number,
+    ip?: string,
+  ): Promise<{ id: string; acceptedAt: Date; version: number }> {
     const doc = await this.current(type);
     if (!doc) throw notFound();
     if (doc.version !== version) {
@@ -114,12 +128,12 @@ export class LegalService {
         message: 'Баримтын шинэ хувилбар гарсан байна. Дахин уншаад зөвшөөрнө үү.',
       });
     }
-    await this.prisma.legalAcceptance.upsert({
+    const acceptance = await this.prisma.legalAcceptance.upsert({
       where: { userId_documentId: { userId, documentId: doc.id } },
       create: { userId, documentId: doc.id, ip: ip ?? null },
       update: {},
     });
-    return (await this.status(userId)).find((s) => s.type === type)!;
+    return { id: acceptance.id, acceptedAt: acceptance.acceptedAt, version: doc.version };
   }
 
   /** Бусад модульд (жишээ нь багшийн өргөдөл): одоогийн хувилбарыг зөвшөөрсөн эсэх. */

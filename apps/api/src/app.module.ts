@@ -8,6 +8,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AuthModule } from './auth/auth.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { AdminModule } from './admin/admin.module';
+import { TeacherModule } from './teacher/teacher.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
     HealthModule,
     AuthModule,
     AdminModule,
+    TeacherModule,
     MaintenanceModule,
   ],
 })

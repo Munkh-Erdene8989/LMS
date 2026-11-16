@@ -83,6 +83,10 @@ model User {
   legalDocuments   LegalDocument[]   @relation("LegalAuthor")
   legalAcceptances LegalAcceptance[]
 
+  teacherApplication   TeacherApplication?
+  reviewedApplications TeacherApplication[] @relation("ApplicationReviewer")
+  bankAccount          BankAccount?
+
   @@map("users")
 }
 
@@ -243,6 +247,61 @@ model LegalAcceptance {
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   document LegalDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
 
+  teacherApplications TeacherApplication[]
+
   @@unique([userId, documentId])
   @@map("legal_acceptances")
+}
+
+// ---------------------------------------------------------------------------
+// Багшийн өргөдөл (ticket 05)
+// ---------------------------------------------------------------------------
+
+enum TeacherApplicationStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+/// Хэрэглэгч бүрт нэг өргөдөл; буцаагдвал засаж дахин илгээнэ (ижил мөр).
+model TeacherApplication {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  userId                String                   @unique @map("user_id") @db.Uuid
+  status                TeacherApplicationStatus
+  displayName           String                   @map("display_name")
+  bio                   String
+  expertise             String
+  sampleUrl             String                   @map("sample_url")
+  /// Илгээх үед зөвшөөрсөн багшийн гэрээний хувилбар
+  agreementAcceptanceId String                   @map("agreement_acceptance_id") @db.Uuid
+  submittedAt           DateTime                 @map("submitted_at")
+  /// Буцаасан шалтгаан (зөвшөөрөхөд null)
+  reviewNote            String?                  @map("review_note")
+  reviewedById          String?                  @map("reviewed_by_id") @db.Uuid
+  reviewedAt            DateTime?                @map("reviewed_at")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  updatedAt             DateTime                 @updatedAt @map("updated_at")
+
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy          User?           @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  agreementAcceptance LegalAcceptance @relation(fields: [agreementAcceptanceId], references: [id], onDelete: NoAction)
+
+  @@index([status, submittedAt])
+  @@map("teacher_applications")
+}
+
+/// Payout-д ашиглах банкны данс. Хэрэглэгч бүрт нэг.
+model BankAccount {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  /// `@lms/shared` → BANKS
+  bank          String
+  accountNumber String   @map("account_number")
+  holderName    String   @map("holder_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bank_accounts")
 }
