@@ -38,7 +38,15 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 
 - Тест хийх цорын ганц seam: **API-ийн HTTP түвшин**. Бодит Postgres, гадны сервисүүд (SMS, имэйл, QPay, Mux) fake.
 - Тест `DATABASE_URL_TEST`-д заасан schema-д (`lms_test`) ажиллаж, тест бүрийн өмнө тэр schema-ийн хүснэгтүүдийг цэвэрлэнэ. `public` schema-г заавал хориглосон.
-- Шинэ тест: `apps/api/test/*.spec.ts`, `createTestApp()`-аар апп үүсгэнэ.
+- Шинэ тест: `apps/api/test/*.spec.ts`, `createTestApp()`-аар апп үүсгэнэ. Нэвтэрсэн хэрэглэгч хэрэгтэй бол `loginByEmail()` / `loginByPhone()`.
+
+## Нэвтрэлт
+
+- Утас: verify.mn — хэрэглэгч бидний өгсөн кодыг өөрийн утаснаас 144773 руу SMS-ээр илгээнэ, бид төлөвийг шалгана.
+- Имэйл: Resend-ээр 6 оронтой код.
+- Browser API руу web-ийн `/api/*` proxy-оор хандана (cookie first-party). API-ийн `COOKIE_PATH_PREFIX` нь `/api` байх ёстой.
+- `VERIFY_MN_API_KEY` / `RESEND_API_KEY` хоосон бол dev-д fake: имэйлийн код API-ийн консолд хэвлэгдэнэ.
+- Endpoint-д нэвтрэлт шаардах: `@Auth()`, role шаардах: `@Auth('ADMIN')`, хэрэглэгч авах: `@CurrentUser()`.
 
 ## Нууц түлхүүр
 

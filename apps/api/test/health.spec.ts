@@ -33,7 +33,7 @@ describe('Тестийн орчин', () => {
   });
 
   it('гадны сервисүүд fake-ээр орлуулагдсан', async () => {
-    expect(t.sms.sent).toEqual([]);
+    expect(t.phone.sessions).toEqual([]);
     expect(t.email.sent).toEqual([]);
   });
 });
@@ -42,12 +42,12 @@ describe('GET /health — DB унасан үед', () => {
   let t: TestApp;
 
   beforeAll(async () => {
-    t = await createTestApp((b) =>
+    t = await createTestApp({ override: (b) =>
       b.overrideProvider(PrismaService).useValue({
         $queryRaw: () => Promise.reject(new Error('connection refused')),
         $disconnect: () => Promise.resolve(),
       }),
-    );
+    });
   });
   afterAll(() => t.close());
 

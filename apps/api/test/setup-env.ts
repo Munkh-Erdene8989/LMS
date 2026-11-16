@@ -5,3 +5,9 @@ const url = testDatabaseUrl();
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = url;
 process.env.DIRECT_URL = url;
+process.env.JWT_SECRET = 'test-secret-test-secret-test-secret-0123456789';
+// Тест API-г web proxy-гүй шууд дууддаг.
+process.env.COOKIE_PATH_PREFIX = '';
+// Тест гадны сервис рүү хэзээ ч хүрэхгүй (harness fake-ээр override хийдэг ч давхар хамгаалалт).
+delete process.env.VERIFY_MN_API_KEY;
+delete process.env.RESEND_API_KEY;

@@ -19,3 +19,6 @@ Thumbs.db
 
 # local MCP config (API түлхүүр агуулна)
 .mcp.json
+
+# Claude Code local settings
+.claude/settings.local.json

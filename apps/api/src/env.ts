@@ -14,7 +14,27 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL шаардлагатай'),
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET дор хаяж 32 тэмдэгт байх ёстой'),
+  /** Байхгүй бол (dev) fake adapter ашиглаж, кодыг консолд хэвлэнэ. Production-д заавал. */
+  VERIFY_MN_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('LMS <onboarding@resend.dev>'),
+  /**
+   * Browser API-г web-ийн proxy-оор (`/api/*` → API) дууддаг тул refresh cookie-ийн path-д
+   * энэ угтварыг нэмнэ (жишээ нь `/api` → `Path=/api/auth`). API-г шууд дуудвал хоосон.
+   */
+  COOKIE_PATH_PREFIX: z.string().regex(/^(\/[\w-]+)*$/).default(''),
+  /** Express `trust proxy`: API-ийн өмнөх proxy hop-ын тоо (rate limit-ийн client IP-д). */
+  TRUST_PROXY: z.coerce.number().int().min(0).default(1),
+}).superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY'] as const) {
+    if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'production-д шаардлагатай' });
+  }
 });
+
+/** DI token: parse хийсэн орчны хувьсагчид. */
+export const ENV = Symbol('ENV');
 
 export type Env = z.infer<typeof EnvSchema>;
 
