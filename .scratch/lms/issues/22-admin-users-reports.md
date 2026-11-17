@@ -4,7 +4,7 @@
 
 **Blocked by:** 09
 
-**Status:** API done, веб UI үлдсэн (needs-ui)
+**Status:** done (API + веб UI); зөвхөн dev schema migration гараар үлдсэн
 
 - [x] Хэрэглэгч хайх (утас, имэйл, нэр), дэлгэрэнгүй (баланс, худалдан авалт)
 - [x] Хаах / нээх; хаагдсан хэрэглэгч нэвтрэхгүй
@@ -20,5 +20,5 @@
 - Тест: `apps/api/test/admin-users.spec.ts` (17).
 
 ## Үлдсэн
-- [ ] Веб админ UI (хэрэглэгч, тохирол, тайлангийн хуудас) — API бэлэн.
+- [x] Веб админ UI: `apps/web/app/admin/{users,users/[id],payments,reports}` — хайлт, дэлгэрэнгүй, хаах/нээх, кредит ба орлого засах (idempotencyKey client-д), төлбөрийн тохирол (баталгаажуулалттай), тайлан (test тусдаа).
 - [ ] `public` (dev) schema-д migration хэрэгжүүлэх (`pnpm db:deploy`) — гараар.
