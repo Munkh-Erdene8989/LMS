@@ -560,6 +560,22 @@ model MuxWebhookEvent {
   @@map("mux_webhook_events")
 }
 
+/// Устгагдсан `lesson_videos` мөрийн Mux asset/upload (ticket 10 үлдэгдэл). Мөрийг DB trigger
+/// (`lesson_videos` AFTER DELETE — lesson/курс устгахад cascade-аар ч) бичнэ, тиймээс catalog нь media-г
+/// мэдэхгүй. `mux.orphan-cleanup` cron Mux-аас устгаад мөрийг арилгана; амжилтгүй бол дараагийн ажиллагаанд.
+model MuxOrphan {
+  /// Устгагдсан `lesson_videos.id`
+  videoId     String   @id @map("video_id") @db.Uuid
+  muxUploadId String   @map("mux_upload_id")
+  muxAssetId  String?  @map("mux_asset_id")
+  attempts    Int      @default(0)
+  lastError   String?  @map("last_error")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("mux_orphans")
+}
+
 // ---------------------------------------------------------------------------
 // Кредит ба төлбөр (ticket 08)
 // Балансыг зөвхөн apps/api/src/credits/credits.service.ts өөрчилнө.

@@ -56,6 +56,7 @@ beforeAll(async () => {
         },
       });
     }
+    if (req.method === 'PUT' && req.url === '/video/v1/uploads/up-1/cancel') return json(200, { data: { id: 'up-1', status: 'cancelled' } });
     if (req.method === 'DELETE' && req.url === '/video/v1/assets/gone') return json(404, { error: { type: 'not_found' } });
     if (req.method === 'DELETE') {
       res.writeHead(204);
@@ -100,6 +101,10 @@ describe('HttpMuxAdapter', () => {
     await expect(mux.deleteAsset('gone')).resolves.toBeUndefined();
     await expect(mux.deleteAsset('as-1')).resolves.toBeUndefined();
     await expect(mux.getAsset('nope')).rejects.toBeInstanceOf(MuxError);
+    // Хүлээгдэж буй upload-ыг цуцлах (устгасан lesson-ы видео)
+    await expect(mux.cancelUpload('up-1')).resolves.toBeUndefined();
+    expect(seen.at(-1)).toMatchObject({ method: 'PUT', path: '/video/v1/uploads/up-1/cancel' });
+    await expect(mux.cancelUpload('up-2')).rejects.toBeInstanceOf(MuxError);
   });
 
   it('playback token: RS256 JWT (sub, aud, exp, kid), base64 PEM ч хүлээн авна', () => {
