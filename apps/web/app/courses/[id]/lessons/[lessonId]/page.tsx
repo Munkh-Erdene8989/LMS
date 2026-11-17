@@ -6,6 +6,7 @@ import { t, type MessageKey } from '@/lib/i18n';
 import { fetchCourse, fetchLesson } from '@/lib/catalog';
 import { Markdown } from '../../../../markdown';
 import { LockedLesson, PurchaseProvider } from '../../../purchase-ui';
+import { LessonLearning } from './lesson-learning';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +69,12 @@ export default async function LessonPage({ params }: { params: Params }) {
           <small className="muted">{t('catalog.pdfExpires')}</small>
         </div>
       )}
+      <LessonLearning
+        lessonId={data.lesson.id}
+        type={data.lesson.type}
+        quiz={data.content.type === 'QUIZ' ? data.content : null}
+        loginHref={`/login?next=${encodeURIComponent(`/courses/${id}/lessons/${lessonId}`)}`}
+      />
     </main>
   );
 }

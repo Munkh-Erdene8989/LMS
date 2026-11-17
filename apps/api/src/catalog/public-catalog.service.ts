@@ -31,7 +31,7 @@ const FALLBACK_TEACHER_NAME = 'Багш';
 /** Нийтэд харагдах lesson — шалгагдсан, архивлаагүй. */
 const publicLessonWhere = { reviewStatus: 'APPROVED', archivedAt: null } as const satisfies Prisma.LessonWhereInput;
 
-const teacherSelect = {
+export const teacherSelect = {
   id: true,
   name: true,
   avatarUrl: true,
@@ -115,20 +115,13 @@ export class PublicCatalogService {
 
   /** Lesson-ы контент — эрх `LessonAccessPolicy`-оор. Нийтэд харагдахгүй lesson 404, эрхгүй бол 403. */
   async lesson(id: string, viewer: LessonViewer | null): Promise<PublicLessonContent> {
-    const lesson = await this.prisma.lesson.findFirst({
-      where: { id, reviewStatus: 'APPROVED', course: { status: 'PUBLISHED' } },
-      include: { course: { select: { id: true, title: true, teacherId: true } } },
-    });
-    if (!lesson) throw E.lessonNotFound();
-    const access = await this.access.access(lesson, viewer);
-    // Архивласан lesson нийтэд байхгүй мэт (preview ч гэсэн); эзэмшигч, багш, админд л.
-    if (lesson.archivedAt && (access === null || access === 'PREVIEW')) throw E.lessonNotFound();
-    if (!access) throw E.lessonLocked();
+    const { lesson, access } = await this.access.open(id, viewer);
     return {
       lesson: lessonItem(lesson),
       access,
       course: { id: lesson.course.id, title: lesson.course.title },
-      content: await toContent(lesson, this.storage, PREVIEW_PDF_TTL),
+      // Learner-ийн view: quiz-ийн зөв хариулт хэзээ ч ордоггүй (багш, админ ч энд хариугүй).
+      content: await toContent(lesson, this.storage, PREVIEW_PDF_TTL, false),
     };
   }
 
@@ -219,7 +212,7 @@ function viewerState(
   };
 }
 
-function teacherRef(u: TeacherRow): PublicTeacherRef {
+export function teacherRef(u: TeacherRow): PublicTeacherRef {
   const app = u.teacherApplication?.status === 'APPROVED' ? u.teacherApplication : null;
   return { id: u.id, name: app?.displayName || u.name || FALLBACK_TEACHER_NAME, avatarUrl: u.avatarUrl };
 }

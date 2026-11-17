@@ -18,6 +18,7 @@ import { t, type MessageKey } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
 import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
 import { Markdown } from '../../../markdown';
+import { QuizEditor, quizInputFrom } from './quiz-editor';
 
 type Run = (fn: () => Promise<{ data: CourseDetail } | void>) => Promise<boolean>;
 
@@ -428,6 +429,9 @@ function LessonEditor({
   const [preview, setPreview] = useState(lesson.isFreePreview);
   const [markdown, setMarkdown] = useState(lesson.content.type === 'TEXT' ? lesson.content.markdown : '');
   const [uploading, setUploading] = useState(false);
+  const [quiz, setQuiz] = useState(() => quizInputFrom(lesson.content));
+  // Хадгалсны дараа API-ийн өгсөн id-уудтай болгож синк хийнэ
+  useEffect(() => setQuiz(quizInputFrom(lesson.content)), [lesson.content]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -439,6 +443,7 @@ function LessonEditor({
           priceCredits: Number(price),
           isFreePreview: preview,
           ...(lesson.type === 'TEXT' && !contentLocked ? { content: { markdown } } : {}),
+          ...(lesson.type === 'QUIZ' && !contentLocked ? { content: quiz } : {}),
         },
       }),
     );
@@ -509,6 +514,9 @@ function LessonEditor({
             )}
           </div>
         )}
+
+        {lesson.type === 'QUIZ' &&
+          (contentLocked ? <LessonContentPreview lesson={lesson} /> : <QuizEditor value={quiz} onChange={setQuiz} />)}
 
         {lesson.problems.length > 0 && !contentLocked && (
           <p style={{ margin: 0, color: 'var(--err)' }}>

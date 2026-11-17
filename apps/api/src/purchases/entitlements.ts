@@ -44,6 +44,35 @@ export async function courseOwnership(db: Db, userId: string, courseId: string):
 }
 
 /** Тухайн lesson-ыг эзэмшиж буй эсэх (`courseOwnership`-ийн үр дүнгээс). */
-export function ownsFrom(o: CourseOwnership, lessonId: string): boolean {
+export function ownsFrom(o: Pick<CourseOwnership, 'ownsCourse' | 'lessonIds'>, lessonId: string): boolean {
   return o.ownsCourse || o.lessonIds.has(lessonId);
+}
+
+export interface OwnedCourse {
+  ownsCourse: boolean;
+  /** `Entitlement` мөртэй lesson-ууд */
+  lessonIds: Set<string>;
+  /** Анхны эзэмшил үүссэн огноо */
+  since: Date;
+}
+
+/**
+ * Хэрэглэгчийн эзэмшиж буй (lesson эсвэл бүтэн) бүх курс — "Миний сургалт" (ticket 12). Тухайн курсийн
+ * lesson-ы эзэмшлийг `ownsFrom(owned, lessonId)`-ээр шалгана.
+ */
+export async function ownedCourses(db: Db, userId: string, courseId?: string): Promise<Map<string, OwnedCourse>> {
+  const [lessons, courses] = await Promise.all([
+    db.entitlement.findMany({ where: { userId, courseId }, select: { courseId: true, lessonId: true, createdAt: true } }),
+    db.courseEntitlement.findMany({ where: { userId, courseId }, select: { courseId: true, createdAt: true } }),
+  ]);
+  const map = new Map<string, OwnedCourse>();
+  const entry = (id: string, at: Date) => {
+    let e = map.get(id);
+    if (!e) map.set(id, (e = { ownsCourse: false, lessonIds: new Set(), since: at }));
+    if (at < e.since) e.since = at;
+    return e;
+  };
+  for (const l of lessons) entry(l.courseId, l.createdAt).lessonIds.add(l.lessonId);
+  for (const c of courses) entry(c.courseId, c.createdAt).ownsCourse = true;
+  return map;
 }

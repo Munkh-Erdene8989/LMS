@@ -740,3 +740,67 @@ body {
 .sub-status-paused {
   color: var(--err);
 }
+
+/* Суралцах: явцын мөр, quiz (ticket 12) */
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+}
+
+.learning-card {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.learning-card img,
+.learning-card .cover-placeholder {
+  width: 128px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+@media (max-width: 480px) {
+  .learning-card {
+    grid-template-columns: 1fr;
+  }
+  .learning-card img,
+  .learning-card .cover-placeholder {
+    width: 100%;
+  }
+}
+
+.done-mark {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.quiz-question {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.quiz-question legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.quiz-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

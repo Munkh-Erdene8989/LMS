@@ -9,7 +9,7 @@ export type LessonType = 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'ASSIGNMENT' | 'LIV
 export type LessonReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
 /** Одоогоор үүсгэж болох төрлүүд (бусад нь дараагийн ticket-үүдэд). */
-export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF'];
+export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF', 'QUIZ'];
 
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
@@ -23,11 +23,52 @@ export interface CategoryNode {
   children: CategoryNode[];
 }
 
-/** Lesson-ы контент (төрлөөр). Teacher/admin-д бүтнээр; learner-т зөвхөн эрхтэй үед (дараагийн ticket). */
+export interface QuizOption {
+  id: string;
+  text: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  /** true = олон сонголттой (бүх зөв сонголтыг яг таг сонгосон үед л зөв), false = нэг сонголттой */
+  multiple: boolean;
+  options: QuizOption[];
+}
+
+/**
+ * Quiz-ийн контент. `answerKey` (асуултын id → зөв сонголтын id-ууд) ЗӨВХӨН багш/админы засварлах,
+ * шалгах view-д; learner-т (`GET /catalog/lessons/:id`) хэзээ ч илгээгдэхгүй.
+ */
+export interface QuizContent {
+  type: 'QUIZ';
+  /** Тэнцэх оноо, 0–100 % */
+  passPercent: number;
+  questions: QuizQuestion[];
+  answerKey?: Record<string, string[]>;
+}
+
+/** Багшийн quiz засварлах оролт (`PATCH /teacher/lessons/:id { content }`). id-гүй бол API шинээр үүсгэнэ. */
+export interface QuizContentInput {
+  passPercent: number;
+  questions: {
+    id?: string;
+    text: string;
+    multiple: boolean;
+    options: { id?: string; text: string; correct: boolean }[];
+  }[];
+}
+
+export const QUIZ_MAX_QUESTIONS = 100;
+export const QUIZ_MAX_OPTIONS = 10;
+export const QUIZ_DEFAULT_PASS_PERCENT = 70;
+
+/** Lesson-ы контент (төрлөөр). Teacher/admin-д бүтнээр; learner-т зөвхөн эрхтэй үед, quiz-ийн хариугүй. */
 export type LessonContent =
   | { type: 'TEXT'; markdown: string }
   | { type: 'PDF'; fileName: string | null; size: number | null; url: string | null }
-  | { type: Exclude<LessonType, 'TEXT' | 'PDF'> };
+  | QuizContent
+  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'QUIZ'> };
 
 export interface LessonView {
   id: string;

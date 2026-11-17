@@ -9,3 +9,4 @@ export * from './notifications';
 export * from './teacher';
 export * from './purchases';
 export * from './subscriptions';
+export * from './learning';

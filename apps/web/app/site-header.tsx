@@ -64,6 +64,7 @@ export function SiteHeader() {
               </svg>
               {!!unread && <span className="badge">{unread > 99 ? '99+' : unread}</span>}
             </Link>
+            <Link href="/learning">{t('learning.nav')}</Link>
             <Link href="/credits">{t('credits.nav')}</Link>
             <Link href="/subscription">{t('subscription.nav')}</Link>
             <Link href="/me">{t('home.profile')}</Link>
