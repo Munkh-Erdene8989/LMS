@@ -330,7 +330,9 @@ export class CourseAuthoringService {
     if (!def) throw E.lessonTypeUnavailable();
     const parsed = def.input.safeParse(raw);
     if (!parsed.success) {
-      if (lesson.type === 'LIVE') throw E.invalidLive(parsed.error.issues.map((i) => i.message).join('; '));
+      const reason = parsed.error.issues.map((i) => i.message).join('; ');
+      if (lesson.type === 'LIVE') throw E.invalidLive(reason);
+      if (lesson.type === 'ASSIGNMENT') throw E.invalidAssignment(reason);
       throw E.typeChangeForbidden();
     }
     if (lesson.type === 'LIVE') {

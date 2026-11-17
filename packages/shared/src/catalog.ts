@@ -9,7 +9,7 @@ export type LessonType = 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'ASSIGNMENT' | 'LIV
 export type LessonReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
 /** Одоогоор үүсгэж болох төрлүүд (бусад нь дараагийн ticket-үүдэд). */
-export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF', 'QUIZ', 'LIVE'];
+export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF', 'QUIZ', 'ASSIGNMENT', 'LIVE'];
 
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
@@ -69,7 +69,27 @@ export type LessonContent =
   | { type: 'PDF'; fileName: string | null; size: number | null; url: string | null }
   | QuizContent
   | LiveLessonContent
-  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'QUIZ' | 'LIVE'> };
+  | AssignmentLessonContent
+  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'QUIZ' | 'LIVE' | 'ASSIGNMENT'> };
+
+/**
+ * Даалгавар (ticket 13): тайлбар (Markdown) + хамгийн их оноо. Эрхтэй (preview ч) бүх хүнд харагдана;
+ * илгээлт, үнэлгээ `learning.ts`-ийн `AssignmentState`-д.
+ */
+export interface AssignmentLessonContent {
+  type: 'ASSIGNMENT';
+  instructions: string;
+  maxScore: number | null;
+}
+
+/** Багшийн оролт (`PATCH /teacher/lessons/:id { content }`). */
+export interface AssignmentContentInput {
+  instructions: string;
+  maxScore: number;
+}
+
+export const ASSIGNMENT_MAX_SCORE_LIMIT = 1000;
+export const ASSIGNMENT_INSTRUCTIONS_MAX = 20_000;
 
 /**
  * Live хичээл (ticket 14). Цаг ISO (UTC); UI Улаанбаатарын цагаар харуулна (`formatUbDateTime`).

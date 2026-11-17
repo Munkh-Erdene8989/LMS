@@ -2,7 +2,7 @@ import type { Prisma } from '@lms/db';
 import type { CourseDetail, CourseSummary, LessonContent, LessonView, QuizContent } from '@lms/shared';
 import { liveEndsAt } from '@lms/shared';
 import type { StorageAdapter } from '../adapters/storage';
-import { LESSON_TYPES, type LiveContent, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
+import { LESSON_TYPES, type AssignmentContent, type LiveContent, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
 
 export const courseDetailInclude = {
   teacher: { select: { id: true, name: true } },
@@ -147,6 +147,10 @@ export async function toContent(
     };
   }
   if (l.type === 'QUIZ') return quizContent(l.content as unknown as StoredQuiz, revealAnswers);
+  if (l.type === 'ASSIGNMENT') {
+    const c = l.content as unknown as AssignmentContent;
+    return { type: 'ASSIGNMENT', instructions: c.instructions ?? '', maxScore: c.maxScore ?? null };
+  }
   return { type: l.type };
 }
 

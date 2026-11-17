@@ -6,9 +6,10 @@ import type { LessonLearningState, LessonProgressView, LessonType, QuizAttemptRe
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { AssignmentPanel } from './assignment-ui';
 
 /**
- * Хичээлийн явц: нээхэд "сүүлд үзсэн" бүртгэнэ, текст/PDF-д "Дууслаа" товч, quiz бөглөх.
+ * Хичээлийн явц: нээхэд "сүүлд үзсэн" бүртгэнэ, текст/PDF-д "Дууслаа" товч, quiz бөглөх, даалгавар илгээх.
  * Нэвтрээгүй (зөвхөн preview) үед явц бичигдэхгүй — нэвтрэх линк.
  */
 export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: string; type: LessonType; quiz: QuizContent | null; loginHref: string }) {
@@ -49,6 +50,10 @@ export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: 
 
   if (type === 'QUIZ' && quiz) {
     return <QuizPlayer lessonId={lessonId} quiz={quiz} initial={state} />;
+  }
+  if (type === 'ASSIGNMENT' && state.assignment) {
+    // Анхны илгээлтээр lesson дуусна — төлөвийг панель өөрөө харуулна
+    return <AssignmentPanel lessonId={lessonId} initial={state.assignment} />;
   }
   if (type === 'TEXT' || type === 'PDF') {
     return <CompleteButton lessonId={lessonId} progress={state.progress} />;

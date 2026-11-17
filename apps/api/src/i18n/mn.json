@@ -114,6 +114,11 @@
       "title": "\"{title}\" шууд хичээлийн цаг өөрчлөгдлөө",
       "body": "\"{course}\" курсийн \"{title}\" шууд хичээл {startsAt}-д (Улаанбаатарын цагаар) эхэлж, {duration} минут үргэлжилнэ. Сануулга шинэ цагаар очно.",
       "emailSubject": "{brand}: \"{title}\" шууд хичээлийн шинэ цаг — {startsAt}"
+    },
+    "ASSIGNMENT_REVIEWED": {
+      "title": "\"{title}\" даалгавар шалгагдлаа: {score}/{maxScore}",
+      "body": "\"{course}\" курсийн \"{title}\" даалгаврыг багш шалгаж, {score}/{maxScore} оноо өглөө. Сэтгэгдлийг хичээлийн хуудаснаас харна уу.",
+      "emailSubject": "{brand}: \"{title}\" даалгавар шалгагдлаа — {score}/{maxScore}"
     }
   },
   "payments": {

@@ -88,5 +88,13 @@ export function LessonContentPreview({ lesson }: { lesson: LessonView }) {
     );
   }
   if (c.type === 'VIDEO') return <span className="muted">{t('live.recordingPending')}</span>;
+  if (c.type === 'ASSIGNMENT') {
+    return (
+      <div style={{ display: 'grid', gap: 4 }}>
+        <small className="muted">{c.maxScore ? t('assignment.maxScoreLabel', { max: c.maxScore }) : '—'}</small>
+        {c.instructions ? <Markdown source={c.instructions} /> : <span style={{ color: 'var(--muted)' }}>—</span>}
+      </div>
+    );
+  }
   return null;
 }

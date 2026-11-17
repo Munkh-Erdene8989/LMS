@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ASSIGNMENT_MAX_SCORE_LIMIT,
   AVAILABLE_LESSON_TYPES,
   COURSE_LEVELS,
   COVER_TYPES,
@@ -444,6 +445,9 @@ function LessonEditor({
   const [markdown, setMarkdown] = useState(lesson.content.type === 'TEXT' ? lesson.content.markdown : '');
   const [uploading, setUploading] = useState(false);
   const [quiz, setQuiz] = useState(() => quizInputFrom(lesson.content));
+  const assignment = lesson.content.type === 'ASSIGNMENT' ? lesson.content : null;
+  const [instructions, setInstructions] = useState(assignment?.instructions ?? '');
+  const [maxScore, setMaxScore] = useState(assignment?.maxScore ? String(assignment.maxScore) : '');
   // Хадгалсны дараа API-ийн өгсөн id-уудтай болгож синк хийнэ
   useEffect(() => setQuiz(quizInputFrom(lesson.content)), [lesson.content]);
 
@@ -458,6 +462,7 @@ function LessonEditor({
           isFreePreview: preview,
           ...(lesson.type === 'TEXT' && !contentLocked ? { content: { markdown } } : {}),
           ...(lesson.type === 'QUIZ' && !contentLocked ? { content: quiz } : {}),
+          ...(lesson.type === 'ASSIGNMENT' && !contentLocked ? { content: { instructions, maxScore: Number(maxScore) } } : {}),
           // Офсетгүй цаг = Улаанбаатар (API хөрвүүлнэ). Өөрчлөгдсөн үед л — сануулга дахин товлогдоно.
           ...(lesson.type === 'LIVE' && !contentLocked && liveChanged
             ? { content: { startsAt: liveForm.startsAt, durationMinutes: Number(liveForm.duration), meetingUrl: liveForm.meetingUrl } }
@@ -597,6 +602,37 @@ function LessonEditor({
 
         {lesson.type === 'QUIZ' &&
           (contentLocked ? <LessonContentPreview lesson={lesson} /> : <QuizEditor value={quiz} onChange={setQuiz} />)}
+
+        {lesson.type === 'ASSIGNMENT' &&
+          (contentLocked ? (
+            <LessonContentPreview lesson={lesson} />
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <label style={{ display: 'grid', gap: 4 }}>
+                {t('assignment.maxScore')}
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={ASSIGNMENT_MAX_SCORE_LIMIT}
+                  step={1}
+                  style={{ maxWidth: 140 }}
+                  value={maxScore}
+                  onChange={(e) => setMaxScore(e.target.value)}
+                />
+              </label>
+              <div className="grid-2">
+                <label style={{ display: 'grid', gap: 4 }}>
+                  {t('assignment.instructions')}
+                  <textarea className="input" rows={10} value={instructions} onChange={(e) => setInstructions(e.target.value)} style={{ fontFamily: 'ui-monospace, monospace' }} />
+                </label>
+                <div className="card" style={{ overflow: 'auto', maxHeight: 320 }}>
+                  <Markdown source={instructions} />
+                </div>
+              </div>
+              <small className="muted">{t('assignment.editorHint')}</small>
+            </div>
+          ))}
 
         {lesson.problems.length > 0 && !contentLocked && (
           <p style={{ margin: 0, color: 'var(--err)' }}>

@@ -20,9 +20,14 @@ import { teacherRef, teacherSelect } from '../catalog/public-catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ownedCourses, ownsFrom, type Db, type OwnedCourse } from '../purchases/entitlements';
 import { LearningErrors as E } from './errors';
+import { AssignmentsService } from './assignments.service';
+import { bumpProgress, progressView, type ProgressPatch } from './progress';
 import { scoreQuiz } from './quiz';
 
-/** "Дууслаа" товчоор дуусгах төрлүүд. VIDEO — үзсэн хувиар, QUIZ — тэнцэхэд автоматаар. */
+/**
+ * "Дууслаа" товчоор дуусгах төрлүүд. VIDEO — үзсэн хувиар, QUIZ — тэнцэхэд, ASSIGNMENT — анх илгээхэд
+ * автоматаар (`AssignmentsService.submit`).
+ */
 const MANUAL_COMPLETION = new Set(['TEXT', 'PDF']);
 const ATTEMPTS_SHOWN = 20;
 
@@ -37,12 +42,6 @@ const courseInclude = {
 type CourseRow = Prisma.CourseGetPayload<{ include: typeof courseInclude }>;
 type LessonRow = CourseRow['sections'][number]['lessons'][number];
 
-interface ProgressPatch {
-  watchedPercent?: number;
-  bestScorePercent?: number;
-  complete?: boolean;
-}
-
 /**
  * Суралцах үйл явц: "Миний сургалт", lesson-ы явц, quiz.
  * - Эзэмшил — зөвхөн `purchases/entitlements.ts`; lesson-д хандах эрх — зөвхөн `LessonAccessPolicy.open`
@@ -56,6 +55,7 @@ export class LearningService {
     private readonly prisma: PrismaService,
     private readonly access: LessonAccessPolicy,
     @Inject(STORAGE) private readonly storage: StorageAdapter,
+    private readonly assignments: AssignmentsService,
   ) {}
 
   // ---- "Миний сургалт" -------------------------------------------------------
@@ -121,13 +121,14 @@ export class LearningService {
   // ---- lesson-ы явц ----------------------------------------------------------
 
   async lessonState(viewer: LessonViewer, lessonId: string): Promise<LessonLearningState> {
-    const { lesson } = await this.access.open(lessonId, viewer);
+    const { lesson, access } = await this.access.open(lessonId, viewer);
     const row = await this.prisma.lessonProgress.findUnique({
       where: { userId_lessonId: { userId: viewer.id, lessonId } },
     });
     return {
       progress: row ? progressView(row) : emptyProgress(lessonId),
       quiz: lesson.type === 'QUIZ' ? await this.quizState(this.prisma, viewer.id, lesson, row) : null,
+      assignment: lesson.type === 'ASSIGNMENT' ? await this.assignments.state(viewer.id, lesson, access) : null,
     };
   }
 
@@ -142,14 +143,14 @@ export class LearningService {
       patch.watchedPercent = Math.floor(watchedPercent);
       if (patch.watchedPercent >= VIDEO_COMPLETE_PERCENT) patch.complete = true;
     }
-    return progressView(await this.bump(this.prisma, viewer.id, lesson, patch));
+    return progressView(await bumpProgress(this.prisma, viewer.id, lesson, patch));
   }
 
   /** Текст / PDF: "Дууслаа" товч. */
   async complete(viewer: LessonViewer, lessonId: string): Promise<LessonProgressView> {
     const { lesson } = await this.access.open(lessonId, viewer);
     if (!MANUAL_COMPLETION.has(lesson.type)) throw E.completionNotManual();
-    return progressView(await this.bump(this.prisma, viewer.id, lesson, { complete: true }));
+    return progressView(await bumpProgress(this.prisma, viewer.id, lesson, { complete: true }));
   }
 
   // ---- quiz -------------------------------------------------------------------
@@ -175,7 +176,7 @@ export class LearningService {
           passed: score.passed,
         },
       });
-      const progress = await this.bump(tx, viewer.id, lesson, {
+      const progress = await bumpProgress(tx, viewer.id, lesson, {
         bestScorePercent: score.scorePercent,
         complete: score.passed,
       });
@@ -215,51 +216,6 @@ export class LearningService {
       attempts: attempts.map(attemptView),
     };
   }
-
-  /**
-   * Явцын мөрийг үүсгэх/шинэчлэх. Утгууд зөвхөн өсөх тул нөхцөлтэй `updateMany` (атомар) — зэрэг ирсэн
-   * хүсэлтүүд бие биенийхээ үр дүнг бууруулахгүй.
-   */
-  private async bump(db: Db, userId: string, lesson: { id: string; courseId: string }, patch: ProgressPatch): Promise<LessonProgress> {
-    const now = new Date();
-    const where = { userId_lessonId: { userId, lessonId: lesson.id } };
-    let row = await db.lessonProgress.upsert({
-      where,
-      create: {
-        userId,
-        lessonId: lesson.id,
-        courseId: lesson.courseId,
-        watchedPercent: patch.watchedPercent ?? 0,
-        bestScorePercent: patch.bestScorePercent ?? null,
-        completedAt: patch.complete ? now : null,
-        lastViewedAt: now,
-      },
-      update: { lastViewedAt: now },
-    });
-
-    const updates: Promise<unknown>[] = [];
-    const w = patch.watchedPercent;
-    if (w !== undefined && row.watchedPercent < w) {
-      updates.push(db.lessonProgress.updateMany({ where: { id: row.id, watchedPercent: { lt: w } }, data: { watchedPercent: w } }));
-    }
-    const s = patch.bestScorePercent;
-    if (s !== undefined && (row.bestScorePercent === null || row.bestScorePercent < s)) {
-      updates.push(
-        db.lessonProgress.updateMany({
-          where: { id: row.id, OR: [{ bestScorePercent: null }, { bestScorePercent: { lt: s } }] },
-          data: { bestScorePercent: s },
-        }),
-      );
-    }
-    if (patch.complete && !row.completedAt) {
-      updates.push(db.lessonProgress.updateMany({ where: { id: row.id, completedAt: null }, data: { completedAt: now } }));
-    }
-    if (updates.length) {
-      await Promise.all(updates);
-      row = await db.lessonProgress.findUniqueOrThrow({ where });
-    }
-    return row;
-  }
 }
 
 function allLessons(c: CourseRow): LessonRow[] {
@@ -290,17 +246,6 @@ function summarize(c: CourseRow, o: OwnedCourse, progress: Map<string, LessonPro
     progressPercent: owned.length === 0 ? 0 : Math.floor((completed * 100) / owned.length),
     continueLessonId,
     lastViewedAt: last?.lastViewedAt.toISOString() ?? null,
-  };
-}
-
-function progressView(r: LessonProgress): LessonProgressView {
-  return {
-    lessonId: r.lessonId,
-    completed: !!r.completedAt,
-    completedAt: r.completedAt?.toISOString() ?? null,
-    watchedPercent: r.watchedPercent,
-    bestScorePercent: r.bestScorePercent,
-    lastViewedAt: r.lastViewedAt.toISOString(),
   };
 }
 

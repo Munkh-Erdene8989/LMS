@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { LessonType } from '@lms/db';
 import {
+  ASSIGNMENT_INSTRUCTIONS_MAX,
+  ASSIGNMENT_MAX_SCORE_LIMIT,
   AVAILABLE_LESSON_TYPES,
   LIVE_DURATION_MAX,
   LIVE_DURATION_MIN,
@@ -180,10 +182,40 @@ const LIVE: LessonTypeDefinition<LiveContent, Required<{ [K in keyof LiveContent
   },
 };
 
+/**
+ * Даалгавар (ticket 13): тайлбар (Markdown) + хамгийн их оноо. Илгээлт, үнэлгээ — `assignment_submissions`
+ * (`apps/api/src/learning/assignments.service.ts`).
+ */
+export interface AssignmentContent {
+  instructions: string;
+  maxScore: number | null;
+}
+
+const ASSIGNMENT: LessonTypeDefinition<AssignmentContent, { instructions: string; maxScore: number }> = {
+  input: z
+    .object({
+      instructions: z.string().max(ASSIGNMENT_INSTRUCTIONS_MAX, 'Даалгаврын тайлбар хэт урт байна'),
+      maxScore: z
+        .number({ message: 'Хамгийн их оноо оруулна уу' })
+        .int('Хамгийн их оноо бүхэл тоо байна')
+        .min(1, `Хамгийн их оноо 1–${ASSIGNMENT_MAX_SCORE_LIMIT} байна`)
+        .max(ASSIGNMENT_MAX_SCORE_LIMIT, `Хамгийн их оноо 1–${ASSIGNMENT_MAX_SCORE_LIMIT} байна`),
+    })
+    .strict(),
+  empty: { instructions: '', maxScore: null },
+  problems: (c) => {
+    const problems: string[] = [];
+    if (!c.instructions?.trim()) problems.push('Даалгаврын тайлбар хоосон');
+    if (!c.maxScore) problems.push('Хамгийн их оноо тогтоогоогүй');
+    return problems;
+  },
+};
+
 export const LESSON_TYPES: Partial<Record<LessonType, LessonTypeDefinition<unknown, unknown>>> = {
   TEXT: TEXT as LessonTypeDefinition<unknown, unknown>,
   PDF: PDF as LessonTypeDefinition<unknown, unknown>,
   QUIZ: QUIZ as LessonTypeDefinition<unknown, unknown>,
+  ASSIGNMENT: ASSIGNMENT as LessonTypeDefinition<unknown, unknown>,
   LIVE: LIVE as LessonTypeDefinition<unknown, unknown>,
 };
 

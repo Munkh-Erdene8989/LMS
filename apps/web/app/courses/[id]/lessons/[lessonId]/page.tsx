@@ -60,6 +60,7 @@ export default async function LessonPage({ params }: { params: Params }) {
         </p>
       </div>
       {data.content.type === 'TEXT' && <Markdown source={data.content.markdown} />}
+      {data.content.type === 'ASSIGNMENT' && <Markdown source={data.content.instructions} />}
       {data.content.type === 'LIVE' && (
         <section className="card">
           <LiveInfo content={data.content} linkHidden={data.access === 'PREVIEW' ? 'owners-only' : undefined} />
