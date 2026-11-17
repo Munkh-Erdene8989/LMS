@@ -173,7 +173,7 @@ export interface CreditTotals {
   adminRemoved: number;
 }
 
-export interface SalesTotals {
+export interface AdminSalesTotals {
   purchases: number;
   credits: number;
   /** credits × худалдах үеийн кредитийн ₮ үнэ */
@@ -202,7 +202,7 @@ export interface ReportTopTeacher {
 export interface ReportSection {
   revenue: RevenueTotals;
   credits: CreditTotals;
-  sales: SalesTotals;
+  sales: AdminSalesTotals;
 }
 
 /** `GET /admin/reports/summary?from&to` — `is_test` гүйлгээ `test` хэсэгт тусдаа, үндсэн тоонд орохгүй. */

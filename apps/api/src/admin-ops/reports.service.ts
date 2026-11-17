@@ -9,7 +9,7 @@ import type {
   ReportTopCourse,
   ReportTopTeacher,
   RevenueTotals,
-  SalesTotals,
+  AdminSalesTotals,
 } from '@lms/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { contactSelect, toContact } from './contact';
@@ -163,7 +163,7 @@ export class AdminReportsService {
     };
   }
 
-  private async sales(b: Bounds, isTest: boolean): Promise<SalesTotals> {
+  private async sales(b: Bounds, isTest: boolean): Promise<AdminSalesTotals> {
     const [rows, earned] = await Promise.all([
       this.prisma.$queryRaw<{ purchases: bigint; credits: bigint | null; gross: bigint | null }[]>`
         SELECT count(*) AS purchases, sum(credits) AS credits, sum(credits::bigint * credit_price_mnt) AS gross
