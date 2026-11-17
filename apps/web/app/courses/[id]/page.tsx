@@ -3,10 +3,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BRAND, formatUbDateTime } from '@lms/shared';
 import { t } from '@/lib/i18n';
-import { fetchCourse } from '@/lib/catalog';
+import { fetchCourse, fetchCourseReviews } from '@/lib/catalog';
 import { Markdown } from '../../markdown';
 import { Credits, levelLabel, Rating } from '../catalog-ui';
 import { CoursePriceBox, LessonAction, PurchaseProvider } from '../purchase-ui';
+import { CourseReviews } from './reviews-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +35,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 /**
  * Курсийн нийтийн хуудас: агуулга (зөвхөн нийтлэгдсэн хичээлүүд), үнэ, багш. Нэвтрэлт заавал биш;
- * нэвтэрсэн бол хувийн үнэ (өмнө төлсөн хасагдсан), эзэмшсэн хичээл нээлттэй, худалдан авах товч.
+ * нэвтэрсэн бол хувийн үнэ (өмнө төлсөн хасагдсан), эзэмшсэн хичээл нээлттэй, худалдан авах товч; үнэлгээ (ticket 18).
  */
 export default async function CoursePage({ params }: { params: Params }) {
-  const course = await fetchCourse((await params).id);
+  const id = (await params).id;
+  const [course, reviews] = await Promise.all([fetchCourse(id), fetchCourseReviews(id)]);
   if (!course) notFound();
 
   return (
@@ -62,7 +64,7 @@ export default async function CoursePage({ params }: { params: Params }) {
         <div style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
           <h1 style={{ margin: 0 }}>{course.title}</h1>
           <p className="muted" style={{ margin: 0 }}>
-            {levelLabel(course.level)} · {t('catalog.lessons', { count: course.lessonCount })} · <Rating rating={course.rating} />
+            {levelLabel(course.level)} · {t('catalog.lessons', { count: course.lessonCount })} · <a href="#reviews"><Rating rating={course.rating} /></a>
           </p>
           <p style={{ margin: 0 }}>
             {t('catalog.teacher')}: <Link href={`/teachers/${course.teacher.id}`}>{course.teacher.name}</Link>
@@ -120,6 +122,8 @@ export default async function CoursePage({ params }: { params: Params }) {
                 </div>
               </div>
             </section>
+
+            <CourseReviews courseId={course.id} initial={reviews} />
           </div>
 
           <CoursePriceBox />

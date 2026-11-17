@@ -120,6 +120,11 @@ model User {
   payoutHold         PayoutHold?  @relation("PayoutHoldTeacher")
   payoutHoldsCreated PayoutHold[] @relation("PayoutHoldActor")
 
+  reviews             Review[]      @relation("ReviewAuthor")
+  hiddenReviews       Review[]      @relation("ReviewHider")
+  reviewReplies       ReviewReply[] @relation("ReviewReplyAuthor")
+  hiddenReviewReplies ReviewReply[] @relation("ReviewReplyHider")
+
   @@map("users")
 }
 
@@ -409,6 +414,7 @@ model Course {
   lessonProgress     LessonProgress[]
   quizAttempts       QuizAttempt[]
   certificates       Certificate[]
+  reviews            Review[]
 
   submissions AssignmentSubmission[]
 
@@ -1187,4 +1193,53 @@ model PayoutHold {
   createdBy User? @relation("PayoutHoldActor", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@map("payout_holds")
+}
+
+/// Курсийн үнэлгээ (ticket 18): курсийн нийтлэгдсэн lesson-уудын ≥ `reviewMinOwnedPercent`%-ийг эзэмшсэн
+/// хэрэглэгч курс бүрт НЭГ үнэлгээ (засаж болно). Нуусан (`hidden_at`) үнэлгээ нийтэд болон дундажид орохгүй.
+model Review {
+  id           String    @id @default(uuid()) @db.Uuid
+  courseId     String    @map("course_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// 1–5 (DB CHECK)
+  rating       Int
+  /// Сэтгэгдэл (хоосон байж болно — зөвхөн од)
+  body         String    @default("")
+  /// Зохиогч сүүлд зассан үе (засаагүй бол null)
+  editedAt     DateTime? @map("edited_at")
+  /// Админ нуусан үе, админ, шалтгаан
+  hiddenAt     DateTime? @map("hidden_at")
+  hiddenById   String?   @map("hidden_by_id") @db.Uuid
+  hiddenReason String?   @map("hidden_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  course   Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user     User          @relation("ReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  hiddenBy User?         @relation("ReviewHider", fields: [hiddenById], references: [id], onDelete: SetNull)
+  replies  ReviewReply[]
+
+  @@unique([userId, courseId])
+  @@index([courseId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("reviews")
+}
+
+/// Үнэлгээний thread хариулт — курсийн багш болон үнэлгээний зохиогч (хязгааргүй).
+model ReviewReply {
+  id           String    @id @default(uuid()) @db.Uuid
+  reviewId     String    @map("review_id") @db.Uuid
+  authorId     String    @map("author_id") @db.Uuid
+  body         String
+  hiddenAt     DateTime? @map("hidden_at")
+  hiddenById   String?   @map("hidden_by_id") @db.Uuid
+  hiddenReason String?   @map("hidden_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  author   User   @relation("ReviewReplyAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  hiddenBy User?  @relation("ReviewReplyHider", fields: [hiddenById], references: [id], onDelete: SetNull)
+
+  @@index([reviewId, createdAt, id])
+  @@map("review_replies")
 }

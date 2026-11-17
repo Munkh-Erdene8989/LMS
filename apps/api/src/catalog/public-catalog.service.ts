@@ -30,7 +30,7 @@ const TEACHER_PROFILE_COURSES = 100;
 const FALLBACK_TEACHER_NAME = 'Багш';
 
 /** Нийтэд харагдах lesson — шалгагдсан, архивлаагүй. */
-const publicLessonWhere = { reviewStatus: 'APPROVED', archivedAt: null } as const satisfies Prisma.LessonWhereInput;
+export const publicLessonWhere = { reviewStatus: 'APPROVED', archivedAt: null } as const satisfies Prisma.LessonWhereInput;
 
 export const teacherSelect = {
   id: true,
@@ -97,7 +97,7 @@ export class PublicCatalogService {
     });
     if (!course) throw E.courseNotFound();
     const [ratings, ownership] = await Promise.all([
-      loadRatings([course.id]),
+      loadRatings(this.prisma, [course.id]),
       viewer ? courseOwnership(this.prisma, viewer.id, course.id) : Promise.resolve(null),
     ]);
     const { excerpt: _excerpt, teacher, ...card } = this.card(course, ratings.get(course.id));
@@ -176,7 +176,7 @@ export class PublicCatalogService {
     if (ids.length === 0) return [];
     const [rows, ratings] = await Promise.all([
       this.prisma.course.findMany({ where: { id: { in: ids }, status: 'PUBLISHED' }, include: cardInclude }),
-      loadRatings(ids),
+      loadRatings(this.prisma, ids),
     ]);
     const byId = new Map(rows.map((r) => [r.id, r]));
     return ids.flatMap((id) => {

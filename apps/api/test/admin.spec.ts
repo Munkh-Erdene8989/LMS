@@ -84,6 +84,7 @@ describe('Тохиргоо', () => {
       referralWindowDays: 30,
       payoutMinimumMnt: 50_000,
       creditValidityMonths: 12,
+      reviewMinOwnedPercent: 30,
     });
     expect(res.body.every((s: { updatedAt: unknown }) => s.updatedAt === null)).toBe(true);
     expect(await t.app.get(SettingsService).get('payoutMinimumMnt')).toBe(50_000);

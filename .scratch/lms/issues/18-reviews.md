@@ -4,11 +4,18 @@
 
 **Blocked by:** 09
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 30%-ийн нөхцөл шалгалт
-- [ ] Курс бүрт нэг үнэлгээ, засах боломжтой
-- [ ] Thread хариулт (багш, тухайн хэрэглэгч)
-- [ ] Админ нуух + audit
-- [ ] Дундаж үнэлгээ, тоо каталог/шүүлтүүрт
-- [ ] Integration тест: нөхцөл, давхар үнэлгээ
+- [x] 30%-ийн нөхцөл шалгалт
+- [x] Курс бүрт нэг үнэлгээ, засах боломжтой
+- [x] Thread хариулт (багш, тухайн хэрэглэгч)
+- [x] Админ нуух + audit
+- [x] Дундаж үнэлгээ, тоо каталог/шүүлтүүрт
+- [x] Integration тест: нөхцөл, давхар үнэлгээ
+
+Хэрэгжилт: `apps/api/src/reviews/`, migration `20261117870000_reviews`, `packages/shared/src/reviews.ts`, тохиргоо `reviewMinOwnedPercent` (default 30), `catalog/ratings.ts` нь жинхэнэ aggregate (нуугдаагүй review, 1 оронтой). Web: курсийн хуудасны `reviews-ui.tsx`, `/admin/reviews`. Тест: `apps/api/test/reviews.spec.ts`.
+
+## Үлдсэн
+
+- [x] Ticket 07-ийн "ratings.ts-ийг review aggregate-аар солих; курсийн хуудсанд review жагсаалт" биелсэн.
+- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх (merge-ийн дараа).

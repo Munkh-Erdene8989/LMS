@@ -184,7 +184,7 @@ export const CATALOG_SORTS: readonly CatalogSort[] = ['relevance', 'newest', 'pr
 export const CATALOG_PAGE_SIZE = 12;
 
 /**
- * Үнэлгээ (ticket 18-д review нэмэгдэнэ). Одоогоор бүх курст `{ average: null, count: 0 }`.
+ * Үнэлгээ (ticket 18): нуугдаагүй review-уудын дундаж. Review-гүй курст `{ average: null, count: 0 }`.
  * `minRating` шүүлтүүр average-ээр, `rating` эрэмбэ average (null сүүлд)-аар ажилладаг.
  */
 export interface CourseRating {

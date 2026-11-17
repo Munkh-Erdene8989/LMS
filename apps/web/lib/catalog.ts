@@ -5,6 +5,7 @@ import {
   type CatalogSort,
   type CategoryNode,
   type CourseLevel,
+  type CourseReviewPage,
   type PublicCourseDetail,
   type PublicLessonContent,
   type PublicTeacherProfile,
@@ -105,4 +106,9 @@ export async function fetchCatalog(params: CatalogParams): Promise<CatalogPage> 
   const res = await fetch(`${API_URL}/catalog/courses?${qs}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`API ${res.status}: catalog`);
   return (await res.json()) as CatalogPage;
+}
+
+/** Курсийн үнэлгээний эхний хуудас (нэвтэрсэн бол өөрийн төлөвтэй). Алдаа гарвал null — хуудас үнэлгээгүйгээр ч ажиллана. */
+export async function fetchCourseReviews(id: string): Promise<CourseReviewPage | null> {
+  return getPublic<CourseReviewPage>(`/catalog/courses/${encodeURIComponent(id)}/reviews`, true).catch(() => null);
 }

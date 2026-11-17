@@ -8,7 +8,8 @@ export type SettingKey =
   | 'commissionReferralPercent'
   | 'referralWindowDays'
   | 'payoutMinimumMnt'
-  | 'creditValidityMonths';
+  | 'creditValidityMonths'
+  | 'reviewMinOwnedPercent';
 
 /** `GET /admin/settings` */
 export interface SettingView {
