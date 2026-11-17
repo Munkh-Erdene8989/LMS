@@ -374,3 +374,41 @@ describe('Дууссан live → бичлэг', () => {
     await tch.agent.post(`/teacher/lessons/${c.liveId}/convert-to-video`).expect(409);
   });
 });
+
+describe('Багшийн live хуанли (story 63)', () => {
+  it('зөвхөн өөрийн удахгүй/явагдаж буй live-ууд, цагаар эрэмбэлэгдэнэ; дууссан, архивласан, цаггүй, бусдынх үгүй', async () => {
+    const tch = await teacher();
+    const other = await teacher('other-teacher@example.mn');
+    const later = new Date(Date.now() + 5 * 24 * HOUR);
+    const soon = new Date(Date.now() + 2 * HOUR);
+    const running = new Date(Date.now() - 30 * 60_000);
+    const ended = new Date(Date.now() - 5 * HOUR);
+
+    const a = await liveCourse(tch.user.id, { startsAt: later });
+    const b = await liveCourse(tch.user.id, { startsAt: soon, status: 'DRAFT', meetingUrl: MEET });
+    const c = await liveCourse(tch.user.id, { startsAt: running });
+    await liveCourse(tch.user.id, { startsAt: ended }); // дууссан
+    await liveCourse(tch.user.id, { startsAt: null }); // цаг товлоогүй
+    const archived = await liveCourse(tch.user.id, { startsAt: later });
+    await t.prisma.lesson.update({ where: { id: archived.liveId }, data: { archivedAt: new Date() } });
+    await liveCourse(other.user.id, { startsAt: soon }); // бусдын
+
+    const res = await tch.agent.get('/teacher/live-lessons').expect(200);
+    const items = res.body as { lessonId: string; state: string; published: boolean; startsAt: string; endsAt: string; meetingUrl: string | null; courseTitle: string }[];
+    expect(items.map((i) => i.lessonId)).toEqual([c.liveId, b.liveId, a.liveId]);
+    expect(items.map((i) => i.state)).toEqual(['LIVE', 'SCHEDULED', 'SCHEDULED']);
+    expect(items.map((i) => i.published)).toEqual([true, false, true]);
+    expect(items[1]).toMatchObject({ meetingUrl: MEET, courseTitle: 'Англи хэл', startsAt: soon.toISOString(), durationMinutes: 60 });
+    expect(new Date(items[1]!.endsAt).getTime()).toBe(soon.getTime() + HOUR);
+
+    // Бусдын хуанли тусдаа
+    const mine = (await other.agent.get('/teacher/live-lessons').expect(200)).body as unknown[];
+    expect(mine).toHaveLength(1);
+  });
+
+  it('багш биш хэрэглэгч, зочинд хаалттай', async () => {
+    await t.http().get('/teacher/live-lessons').expect(401);
+    const u = await learner('plain@example.mn');
+    await u.agent.get('/teacher/live-lessons').expect(403);
+  });
+});

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { Lesson } from '@lms/db';
-import { formatUbDateTime, liveEndsAt, LIVE_REMINDERS, type LiveReminderKind } from '@lms/shared';
+import { formatUbDateTime, liveEndsAt, liveState, LIVE_REMINDERS, type LiveReminderKind, type TeacherLiveItem } from '@lms/shared';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { lessonOwnerIds } from '../purchases/entitlements';
@@ -70,6 +70,37 @@ export class LiveLessonsService implements OnModuleInit {
         { jobId: `live-reminder-${lessonId}-${r.kind}-${start}`, delayMs },
       );
     }
+  }
+
+  /**
+   * Story 63: багшийн өөрийн удахгүй болох + явагдаж буй live хичээлүүд, эхлэх цагаар өсөхөөр.
+   * Архивласан, цаг тогтоогоогүй, дууссан нь орохгүй. Шалгагдаагүй (DRAFT/PENDING) хичээл ч орно (`published: false`).
+   */
+  async upcomingForTeacher(teacherId: string, now = new Date()): Promise<TeacherLiveItem[]> {
+    const lessons = await this.prisma.lesson.findMany({
+      where: { type: 'LIVE', archivedAt: null, course: { teacherId } },
+      include: { course: { select: { id: true, title: true } } },
+    });
+    const items: TeacherLiveItem[] = [];
+    for (const l of lessons) {
+      const c = l.content as unknown as LiveContent;
+      if (!c.startsAt || !c.durationMinutes) continue;
+      const state = liveState(c.startsAt, c.durationMinutes, now);
+      if (state === 'ENDED') continue;
+      items.push({
+        lessonId: l.id,
+        lessonTitle: l.title,
+        courseId: l.course.id,
+        courseTitle: l.course.title,
+        startsAt: c.startsAt,
+        durationMinutes: c.durationMinutes,
+        endsAt: liveEndsAt(c.startsAt, c.durationMinutes),
+        state,
+        published: l.reviewStatus === 'APPROVED',
+        meetingUrl: c.meetingUrl ?? null,
+      });
+    }
+    return items.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.lessonId.localeCompare(b.lessonId));
   }
 
   /** Дарааллын ажил. */

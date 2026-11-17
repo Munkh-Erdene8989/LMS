@@ -49,3 +49,20 @@ export function liveState(startsAt: string, durationMinutes: number, now: Date =
   if (now.getTime() < new Date(startsAt).getTime()) return 'SCHEDULED';
   return now.getTime() < new Date(liveEndsAt(startsAt, durationMinutes)).getTime() ? 'LIVE' : 'ENDED';
 }
+
+/** `GET /teacher/live-lessons` — багшийн удахгүй болох / явагдаж буй live хичээл (story 63) */
+export interface TeacherLiveItem {
+  lessonId: string;
+  lessonTitle: string;
+  courseId: string;
+  courseTitle: string;
+  /** ISO (UTC); UI `formatUbDateTime`-ээр Улаанбаатарын цагаар харуулна */
+  startsAt: string;
+  durationMinutes: number;
+  endsAt: string;
+  state: Exclude<LiveState, 'ENDED'>;
+  /** Шалгагдаагүй (DRAFT/PENDING) бол суралцагчид хараахан харахгүй */
+  published: boolean;
+  /** Багшид линк харагдана (өөрийн хичээл) */
+  meetingUrl: string | null;
+}
