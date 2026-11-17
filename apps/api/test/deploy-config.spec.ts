@@ -37,7 +37,7 @@ describe('Deploy config', () => {
   });
 
   it('.dockerignore нууц .env-г хасдаг', () => {
-    const lines = read('.dockerignore').split('\n');
+    const lines = read('.dockerignore').split(/\r?\n/).map((l) => l.trim());
     expect(lines).toContain('.env');
     expect(lines).toContain('.env.*');
   });
