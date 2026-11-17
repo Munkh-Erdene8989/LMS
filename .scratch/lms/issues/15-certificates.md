@@ -4,7 +4,7 @@
 
 **Blocked by:** 12
 
-**Status:** done — assignment (ticket 13)-ийг нөхцөлд оруулах эсэх үлдсэн (доорх "Үлдсэн")
+**Status:** done
 
 > Шийдвэр: Нөхцөл (`CertificatesService`, `apps/api/src/learning/certificates.service.ts`): (1) курсийг БҮТНЭЭР авсан (`CourseEntitlement`, `ownsFullCourse()`; lesson-уудыг ширхэгээр бүгдийг авсан ч тооцохгүй — SPEC story 55 "own the full course"); (2) курсийн архивлаагүй, APPROVED бүх VIDEO/TEXT/PDF/QUIZ lesson дууссан, ≥ 1 ийм lesson; (3) эдгээр quiz-уудын хамгийн өндөр онооны дундаж `floor` ≥ 70% (`CERTIFICATE_MIN_QUIZ_AVERAGE`), quiz-гүй бол шаардахгүй; (4) profile-д нэртэй (сертификат дээр нэр заавал; үгүй бол 409 `NAME_REQUIRED`). ASSIGNMENT (13), LIVE (дуусгах механизмгүй; бичлэг болгосны дараа VIDEO-оор тооцогдоно) тооцохгүй.
 >
@@ -31,6 +31,6 @@ Web: `/learning/[courseId]` — сертификатын карт (нөхцөл�
 
 ## Үлдсэн
 
-- [ ] Ticket 13: ASSIGNMENT lesson-ыг (дүгнэгдсэн) нөхцөлд оруулах эсэх — `CERTIFICATE_LESSON_TYPES`.
+- [x] Ticket 13: ASSIGNMENT нөхцөлд орохгүй (ticket 13-ын шаардлага) — allowlist VIDEO/TEXT/PDF/QUIZ хэвээр.
 - [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
 - [ ] Production build-д `apps/api/assets/` (фонт) хамт deploy хийгдэж буйг шалгах (`dist/../assets`-аас уншина).

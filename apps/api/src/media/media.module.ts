@@ -3,6 +3,7 @@ import { CatalogModule } from '../catalog/catalog.module';
 import { ENV, type Env } from '../env';
 import { MuxWebhookController, PlaybackController, TeacherVideoController } from './media.controller';
 import { InMemoryPlaybackSessionStore, PLAYBACK_SESSIONS, RedisPlaybackSessionStore, type PlaybackSessionStore } from './playback-sessions';
+import { MuxOrphanCleanupService } from './mux-orphans.service';
 import { PlaybackService } from './playback.service';
 import { VideoService } from './video.service';
 
@@ -13,6 +14,7 @@ import { VideoService } from './video.service';
   providers: [
     VideoService,
     PlaybackService,
+    MuxOrphanCleanupService,
     {
       provide: PLAYBACK_SESSIONS,
       inject: [ENV],

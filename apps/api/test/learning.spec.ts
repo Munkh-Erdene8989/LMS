@@ -103,8 +103,16 @@ const buyLesson = (a: Agent, lessonId: string) =>
   a.post(`/purchases/lessons/${lessonId}`).send({ confirmNoRefund: true, expectedCredits: 5 }).expect(201);
 const buyCourse = (a: Agent, courseId: string, expected: number) =>
   a.post(`/purchases/courses/${courseId}`).send({ confirmNoRefund: true, expectedCredits: expected }).expect(201);
-const attempt = (a: Agent, lessonId: string, answers: { questionId: string; optionIds: string[] }[]) =>
-  a.post(`/learning/lessons/${lessonId}/quiz-attempts`).send({ answers });
+/**
+ * Оролдлого. Хурдны хязгаар (30 сек / 24 цагт 10) энэ файлын оноо, эрхийн тестэд саад болохгүйн тулд өмнөх
+ * оролдлогуудыг 25 цагаар хуучруулна (дараалал хэвээр). Хязгаарыг `quiz-rate-limit.spec.ts` шалгана.
+ */
+const attempt = (a: Agent, lessonId: string, answers: { questionId: string; optionIds: string[] }[]) => ({
+  expect: async (status: number) => {
+    await t.prisma.$executeRaw`UPDATE quiz_attempts SET created_at = created_at - interval '25 hours'`;
+    return a.post(`/learning/lessons/${lessonId}/quiz-attempts`).send({ answers }).expect(status);
+  },
+});
 
 /** Зөв хариулт (эсвэл түүнийг агуулсан талбар) хариунд байхгүй эсэх. */
 function expectNoAnswers(body: unknown) {

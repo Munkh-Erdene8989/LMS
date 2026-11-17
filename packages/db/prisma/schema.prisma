@@ -71,6 +71,9 @@ model User {
   roles        Role[]   @default([LEARNER])
   /// "Бүх төхөөрөмжөөс гарах" үед нэмэгдэж, хуучин access token-уудыг хүчингүй болгоно.
   tokenVersion Int      @default(0) @map("token_version")
+  /// Админ хаасан огноо (ticket 22): нэвтрэх, API ашиглах боломжгүй. null = идэвхтэй.
+  blockedAt     DateTime? @map("blocked_at")
+  blockedReason String?   @map("blocked_reason")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -124,6 +127,13 @@ model User {
   hiddenReviews       Review[]      @relation("ReviewHider")
   reviewReplies       ReviewReply[] @relation("ReviewReplyAuthor")
   hiddenReviewReplies ReviewReply[] @relation("ReviewReplyHider")
+  communityPosts     CommunityPost[]    @relation("CommunityPostTeacher")
+  communityAuthored  CommunityPost[]    @relation("CommunityPostAuthor")
+  communityComments  CommunityComment[] @relation("CommunityCommentAuthor")
+  communityLikes     CommunityLike[]    @relation("CommunityLikeUser")
+  communityRemovals  CommunityRemoval[] @relation("CommunityRemovalTeacher")
+  communityRemovedIn CommunityRemoval[] @relation("CommunityRemovalUser")
+  communityRemovedBy CommunityRemoval[] @relation("CommunityRemovalActor")
 
   @@map("users")
 }
@@ -566,6 +576,22 @@ model MuxWebhookEvent {
   @@map("mux_webhook_events")
 }
 
+/// Устгагдсан `lesson_videos` мөрийн Mux asset/upload (ticket 10 үлдэгдэл). Мөрийг DB trigger
+/// (`lesson_videos` AFTER DELETE — lesson/курс устгахад cascade-аар ч) бичнэ, тиймээс catalog нь media-г
+/// мэдэхгүй. `mux.orphan-cleanup` cron Mux-аас устгаад мөрийг арилгана; амжилтгүй бол дараагийн ажиллагаанд.
+model MuxOrphan {
+  /// Устгагдсан `lesson_videos.id`
+  videoId     String   @id @map("video_id") @db.Uuid
+  muxUploadId String   @map("mux_upload_id")
+  muxAssetId  String?  @map("mux_asset_id")
+  attempts    Int      @default(0)
+  lastError   String?  @map("last_error")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("mux_orphans")
+}
+
 // ---------------------------------------------------------------------------
 // Кредит ба төлбөр (ticket 08)
 // Балансыг зөвхөн apps/api/src/credits/credits.service.ts өөрчилнө.
@@ -600,6 +626,14 @@ enum PaymentStatus {
   FAILED
   /// Цуцалсан нэхэмжлэх — төлөх шаардлагагүй болсон (subscription цуцлах/зогсоох, ticket 17)
   CANCELED
+}
+
+/// Асуудалтай төлбөрийн админы шийдвэр (ticket 22)
+enum PaymentResolution {
+  /// Кредит (subscription бол үе) олгосон — төлбөр PAID болно
+  GRANTED
+  /// Олгохгүйгээр хаасан (төлөгдөөгүй, эсвэл мөнгийг гадуур буцаасан)
+  CLOSED
 }
 
 enum PaymentPurpose {
@@ -643,6 +677,13 @@ model Payment {
   renewalFor     DateTime?     @map("renewal_for")
   method         PaymentMethod @default(INVOICE)
   failureReason  String?       @map("failure_reason")
+
+  // --- Админы тохирлын шийдвэр (ticket 22) ---
+  /// Асуудалтай төлбөрийг админ шийдсэн огноо, хэн, юу гэж
+  resolvedAt     DateTime?          @map("resolved_at")
+  resolvedById   String?            @map("resolved_by_id") @db.Uuid
+  resolution     PaymentResolution?
+  resolutionNote String?            @map("resolution_note")
 
   user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   package CreditPackage? @relation(fields: [packageId], references: [id], onDelete: Restrict)
@@ -1242,4 +1283,76 @@ model ReviewReply {
 
   @@index([reviewId, createdAt, id])
   @@map("review_replies")
+}
+
+// ---------------------------------------------------------------------------
+// Community (ticket 19)
+// ---------------------------------------------------------------------------
+
+/// Багшийн community-ийн нийтлэл. Community = багш (`teacher_id`); тусдаа хүснэгтгүй.
+/// Гишүүнчлэл хадгалагдахгүй — тухайн багшийн ямар нэг lesson эзэмшсэн эсэхээр (apps/api/src/purchases/entitlements.ts)
+/// тухай бүр шалгана, `community_removals`-д байвал хасагдсан.
+model CommunityPost {
+  id        String    @id @default(uuid()) @db.Uuid
+  teacherId String    @map("teacher_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  /// Markdown текст (хоосон байж болно — зөвхөн зурагтай нийтлэл)
+  body      String    @default("")
+  /// Storage `private` bucket дахь зураг (`community/<teacherId>/<authorId>/…`), signed URL-аар харуулна
+  imageKey  String?   @map("image_key")
+  /// Багш pin хийсэн үе (null = pin-гүй). Pin-тэй нь жагсаалтын эхэнд.
+  pinnedAt  DateTime? @map("pinned_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  teacher  User               @relation("CommunityPostTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  author   User               @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  comments CommunityComment[]
+  likes    CommunityLike[]
+
+  @@index([teacherId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([teacherId, pinnedAt])
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User          @relation("CommunityCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt, id])
+  @@map("community_comments")
+}
+
+model CommunityLike {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("community_likes")
+}
+
+/// Багшийн community-гоос хасагдсан хэрэглэгч — lesson эзэмшсэн ч хандахгүй. Мөрийг устгавал сэргэнэ.
+model CommunityRemoval {
+  teacherId   String   @map("teacher_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  reason      String?
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teacher   User  @relation("CommunityRemovalTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  user      User  @relation("CommunityRemovalUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("CommunityRemovalActor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@id([teacherId, userId])
+  @@map("community_removals")
 }

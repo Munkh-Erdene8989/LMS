@@ -92,6 +92,30 @@ export interface QuizState {
   passed: boolean;
   /** Шинэ нь эхэндээ */
   attempts: QuizAttemptView[];
+  /** Хурдны хязгаарт хүрсэн бол дараагийн оролдлого хийж болох цаг (ISO), үгүй бол null */
+  nextAttemptAt: string | null;
+}
+
+/**
+ * Quiz оролдлогын хурдны хязгаар (хэрэглэгч × lesson): зөвхөн нийт оноо буцаадаг ч олон оролдлогоор
+ * нэг сонголттой асуултын хариуг тааж болохоос сэргийлнэ. Багш, админд хамаарахгүй.
+ */
+export const QUIZ_ATTEMPT_COOLDOWN_SECONDS = 30;
+/** Гулсах 24 цагийн цонхонд хийх дээд оролдлого */
+export const QUIZ_ATTEMPTS_PER_DAY = 10;
+const QUIZ_WINDOW_MS = 24 * 60 * 60_000;
+
+/**
+ * Дараагийн оролдлого хийж болох цаг; одоо болох бол null.
+ * `recent` — тухайн хэрэглэгч × lesson-ы оролдлогын цагууд, шинэ нь эхэндээ (дор хаяж `QUIZ_ATTEMPTS_PER_DAY` ширхэг).
+ */
+export function quizNextAttemptAt(recent: Date[], now: Date = new Date()): Date | null {
+  let next = 0;
+  const last = recent[0];
+  if (last) next = last.getTime() + QUIZ_ATTEMPT_COOLDOWN_SECONDS * 1000;
+  const oldestInLimit = recent[QUIZ_ATTEMPTS_PER_DAY - 1];
+  if (oldestInLimit) next = Math.max(next, oldestInLimit.getTime() + QUIZ_WINDOW_MS);
+  return next > now.getTime() ? new Date(next) : null;
 }
 
 /** `GET /learning/lessons/:id` */

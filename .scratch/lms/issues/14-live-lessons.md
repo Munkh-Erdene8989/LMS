@@ -33,6 +33,6 @@ Web: багшийн курс засварлагчид live талбарууд + 
 ## Үлдсэн
 
 - [x] Ticket 10: `VIDEO` төрөл нэмэхэд бичлэг болгосон APPROVED lesson-д бичлэг оруулахыг зөвшөөрөх (одоо APPROVED агуулга түгжигддэг; `content.fromLive`-аар ялгана).
-- [ ] Story 63: багшийн удахгүй болох live-уудын хуанли (`lessons.content->>'startsAt'`-аар эсвэл тусдаа багана).
+- [x] Story 63: багшийн удахгүй болох live-уудын хуанли — `GET /teacher/live-lessons` (өөрийн курсийн архивлаагүй, цаг тогтоосон, дуусаагүй LIVE хичээлүүд, эхлэх цагаар; DRAFT ч `published: false`-ээр), web `/teacher/live` (Улаанбаатарын өдрөөр бүлэглэсэн; "Миний курсууд"-аас холбоотой). Тест `live.spec.ts` (+2).
 - [ ] Production (Railway, `REDIS_URL`)-д `live.reminder` delayed ажил цагтаа ажилласныг log-оос шалгах.
 - [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.

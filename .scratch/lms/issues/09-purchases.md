@@ -48,6 +48,6 @@ Web: `/courses/[id]` (lesson бүрт "Авах"/"Үзэх", үнийн хайр
 - [x] Ticket 11 (done): `PurchasesService.attribution()`-д referral record/cookie шалгаж `{ source: 'REFERRAL', referrerId }` буцаах (өөр багшийн курс бол PLATFORM).
 - [ ] Ticket 20: payout хүсэлт/төлөлтөд `TeacherEarningsService.balance()` ба `append(tx, { type: 'PAYOUT', amountMnt: −дүн, refType: 'payout', refId })`; давхар payout-оос сэргийлж багшийн мөрийг түгжих.
 - [x] Ticket 12 ("Миний сургалт"): эзэмшсэн архивласан lesson-ыг курсийн curriculum-д харуулах — `GET /learning/courses/:id`, `/learning/[courseId]` (одоо `/catalog/courses/:id` зөвхөн идэвхтэй lesson; архивласан lesson-ы контент endpoint эзэмшигчид ажилладаг).
-- [ ] Ticket 21/22: тайланд `purchases` (`teacher_id`, `attribution`, `is_test`) ба `teacher_earning_entries`-ийг ашиглах; админы орлогын гар засвар (`append` `ADMIN_ADJUST` + audit) UI.
+- [x] Ticket 22 (API): тайланд `purchases` (`teacher_id`, `attribution`, `is_test`) ба `teacher_earning_entries`-ийг ашиглах; админы орлогын гар засвар (`append` `ADMIN_ADJUST` + audit) UI.
 - [ ] Багшид "хичээл зарагдлаа" мэдэгдэл — шаардлагатай эсэхийг шийдэх (одоогоор зөвхөн худалдан авагчид баримт).
 - [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.

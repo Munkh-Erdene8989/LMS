@@ -18,6 +18,9 @@ import { LearningModule } from './learning/learning.module';
 import { MediaModule } from './media/media.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { CommunityModule } from './community/community.module';
+import { AdminOpsModule } from './admin-ops/admin-ops.module';
 
 @Module({
   imports: [
@@ -39,6 +42,9 @@ import { ReviewsModule } from './reviews/reviews.module';
     MediaModule,
     PayoutsModule,
     ReviewsModule,
+    AnalyticsModule,
+    CommunityModule,
+    AdminOpsModule,
     MaintenanceModule,
   ],
 })

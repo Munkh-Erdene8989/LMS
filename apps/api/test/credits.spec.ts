@@ -338,7 +338,7 @@ describe('Ledger: FIFO, хүрэлцэхгүй, зэрэг зарцуулалт,
     const u = await loginByEmail(t, 'learner@example.mn');
 
     const plus = (await a.agent.post('/admin/credits/adjust').send({ user: 'learner@example.mn', delta: 5, reason: 'Дэмжлэг #12' }).expect(200)).body;
-    expect(plus).toEqual({ userId: u.user.id, balance: 5 });
+    expect(plus).toEqual({ userId: u.user.id, balance: 5, entryId: expect.any(String), replayed: false });
     const minus = (await a.agent.post('/admin/credits/adjust').send({ user: u.user.id, delta: -2, reason: 'Алдаатай нэмэлт' }).expect(200)).body;
     expect(minus.balance).toBe(3);
     const tooMuch = await a.agent.post('/admin/credits/adjust').send({ user: u.user.id, delta: -10, reason: 'Хэт их' }).expect(409);

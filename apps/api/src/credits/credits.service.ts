@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, type CreditEntryType } from '@lms/db';
 import type { CreditBalanceView, CreditHistoryPage } from '@lms/shared';
@@ -56,6 +57,16 @@ export interface SpendResult {
   /** Аль нэг lot нь тест төлбөрөөс бол true — тайланд тусад нь */
   isTest: boolean;
   allocations: { lotId: string; credits: number; isTest: boolean }[];
+}
+
+/** Админы гар засварын ledger `ref_type` (idempotency түлхүүр нь `ref_id`) */
+export const ADMIN_ADJUST_REF = 'admin_adjust';
+
+export interface AdjustResult {
+  balance: number;
+  entryId: string;
+  /** Ижил idempotency түлхүүрээр өмнө хийгдсэн — шинэ бичилт үүсээгүй */
+  replayed: boolean;
 }
 
 export interface ExpiredLot {
@@ -245,45 +256,65 @@ export class CreditsService {
   }
 
   /**
-   * Админы гар засвар: `delta` > 0 бол шинэ lot, < 0 бол FIFO хасалт. Шалтгаан, audit заавал.
+   * Админы гар засвар: `delta` > 0 бол шинэ lot, < 0 бол FIFO хасалт (үлдэгдлээс хэтэрвэл 409,
+   * сөрөг баланс үүсэхгүй). Шалтгаан, audit заавал.
+   *
+   * Idempotent (ticket 22): бичилт `ref_type = 'admin_adjust'`, `ref_id = idempotencyKey` (DB-д partial
+   * unique). Ижил түлхүүрээр дахин ирвэл (давхар товшилт, дахин илгээлт) шинэ бичилтгүй — өмнөхийг
+   * буцаана; өөр хэрэглэгч/дүнтэй бол 409.
    */
-  async adjust(input: { userId: string; delta: number; reason: string; actorId: string; ip?: string }): Promise<number> {
+  async adjust(input: {
+    userId: string;
+    delta: number;
+    reason: string;
+    actorId: string;
+    idempotencyKey?: string;
+    ip?: string;
+  }): Promise<AdjustResult> {
     if (!Number.isInteger(input.delta) || input.delta === 0) throw E.invalidAmount();
-    return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true } });
-      if (!user) throw E.userNotFound();
-      await this.lockUser(tx, input.userId);
-      const before = await this.balance(input.userId, tx);
-      let entryId: string;
-      if (input.delta > 0) {
-        ({ entryId } = await this.grant(tx, {
-          userId: input.userId,
-          credits: input.delta,
-          source: 'ADMIN_ADJUST',
-          reason: input.reason,
+    const key = input.idempotencyKey ?? randomUUID();
+    try {
+      return await this.prisma.$transaction(async (tx): Promise<AdjustResult> => {
+        const user = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true } });
+        if (!user) throw E.userNotFound();
+        await this.lockUser(tx, input.userId);
+        const replay = await this.findAdjustment(tx, key, input);
+        if (replay) return replay;
+
+        const before = await this.balance(input.userId, tx);
+        const common = { reason: input.reason, actorId: input.actorId, refType: ADMIN_ADJUST_REF, refId: key };
+        const { entryId } =
+          input.delta > 0
+            ? await this.grant(tx, { userId: input.userId, credits: input.delta, source: 'ADMIN_ADJUST', ...common })
+            : await this.spend(tx, { userId: input.userId, credits: -input.delta, type: 'ADMIN_ADJUST', ...common });
+        const after = await this.balance(input.userId, tx);
+        await this.audit.record(tx, {
           actorId: input.actorId,
-        }));
-      } else {
-        ({ entryId } = await this.spend(tx, {
-          userId: input.userId,
-          credits: -input.delta,
-          type: 'ADMIN_ADJUST',
-          reason: input.reason,
-          actorId: input.actorId,
-        }));
-      }
-      const after = await this.balance(input.userId, tx);
-      await this.audit.record(tx, {
-        actorId: input.actorId,
-        action: 'credit.adjust',
-        targetType: 'user',
-        targetId: input.userId,
-        before: { balance: before },
-        after: { balance: after, delta: input.delta, reason: input.reason, entryId },
-        ip: input.ip,
-      });
-      return after;
-    }, CREDIT_TX_OPTIONS);
+          action: 'credit.adjust',
+          targetType: 'user',
+          targetId: input.userId,
+          before: { balance: before },
+          after: { balance: after, delta: input.delta, reason: input.reason, entryId, idempotencyKey: key },
+          ip: input.ip,
+        });
+        return { balance: after, entryId, replayed: false };
+      }, CREDIT_TX_OPTIONS);
+    } catch (err) {
+      // Өөр хэрэглэгчийн түгжээ дор ижил түлхүүр зэрэг орсон — unique index-ээр баригдсан.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw E.idempotencyConflict();
+      throw err;
+    }
+  }
+
+  private async findAdjustment(
+    tx: Tx,
+    key: string,
+    input: { userId: string; delta: number },
+  ): Promise<AdjustResult | null> {
+    const prev = await tx.creditLedgerEntry.findFirst({ where: { refType: ADMIN_ADJUST_REF, refId: key } });
+    if (!prev) return null;
+    if (prev.userId !== input.userId || prev.amount !== input.delta) throw E.idempotencyConflict();
+    return { balance: await this.balance(input.userId, tx), entryId: prev.id, replayed: true };
   }
 
   async view(userId: string): Promise<CreditBalanceView> {

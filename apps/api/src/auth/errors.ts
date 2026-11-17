@@ -29,5 +29,7 @@ export const AuthErrors = {
     new ApiError(HttpStatus.BAD_GATEWAY, 'PROVIDER_UNAVAILABLE', 'Баталгаажуулах үйлчилгээ түр ажиллахгүй байна.'),
   unauthenticated: () => new ApiError(HttpStatus.UNAUTHORIZED, 'UNAUTHENTICATED', 'Нэвтэрнэ үү.'),
   forbidden: () => new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN', 'Танд энэ үйлдлийг хийх эрх алга.'),
+  blocked: () =>
+    new ApiError(HttpStatus.FORBIDDEN, 'ACCOUNT_BLOCKED', 'Таны бүртгэл хаагдсан байна. Дэлгэрэнгүйг дэмжлэгийн багаас лавлана уу.'),
   refreshInvalid: () => new ApiError(HttpStatus.UNAUTHORIZED, 'REFRESH_INVALID', 'Дахин нэвтэрнэ үү.'),
 };

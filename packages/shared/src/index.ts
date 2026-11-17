@@ -16,3 +16,6 @@ export * from './media';
 export * from './certificates';
 export * from './payouts';
 export * from './reviews';
+export * from './analytics';
+export * from './community';
+export * from './admin-ops';

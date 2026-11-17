@@ -154,6 +154,16 @@
       "title": "\"{course}\" курсийн таны үнэлгээ нуугдлаа",
       "body": "Таны \"{course}\" курсийн үнэлгээг админ платформын дүрэм зөрчсөн гэж үзэн нуулаа. Шалтгаан: {reason}. Та үнэлгээгээ засаж болно; нуугдсан хэвээр байх бөгөөд дахин шалгуулахыг хүсвэл админд хандана уу.",
       "emailSubject": "{brand}: таны үнэлгээ нуугдлаа"
+    },
+    "COMMUNITY_POST_COMMENT": {
+      "title": "{name} таны нийтлэлд сэтгэгдэл бичлээ",
+      "body": "{teacher} багшийн community-д таны \"{post}\" нийтлэлд {name}: \"{comment}\"",
+      "emailSubject": "{brand}: {name} таны нийтлэлд сэтгэгдэл бичлээ"
+    },
+    "COMMUNITY_THREAD_COMMENT": {
+      "title": "{name} таны оролцсон нийтлэлд сэтгэгдэл бичлээ",
+      "body": "{teacher} багшийн community-д \"{post}\" нийтлэлд {name}: \"{comment}\"",
+      "emailSubject": "{brand}: \"{post}\" нийтлэлд шинэ сэтгэгдэл"
     }
   },
   "payments": {

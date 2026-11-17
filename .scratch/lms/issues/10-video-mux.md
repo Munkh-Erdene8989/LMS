@@ -24,6 +24,6 @@
 
 ## Үлдсэн
 
-- [ ] DRAFT хичээлийг бүрмөсөн устгахад `lesson_videos` cascade-аар устдаг ч Mux дээрх asset үлдэнэ — catalog → media хамаарал үүсгэхгүйгээр (event / cron) цэвэрлэх.
+- [x] DRAFT хичээлийг бүрмөсөн устгахад `lesson_videos` cascade-аар устдаг ч Mux дээрх asset үлдэнэ — catalog → media хамаарал үүсгэхгүйгээр (event / cron) цэвэрлэх. → `lesson_videos` AFTER DELETE trigger `mux_orphans`-д (video id, upload id, asset id) бичнэ (lesson/курс устгах cascade-д ч); `mux.orphan-cleanup` cron (цаг бүр, `MuxOrphanCleanupService`) asset-ийг устгана, asset id алга бол upload-оос олно / хүлээгдэж буй upload-ыг цуцална (`MuxAdapter.cancelUpload`), амжилттай бол мөрийг арилгана, алдаанд `attempts` өсгөж дараа дахин (24 удаа бүтэлгүйтвэл log-д үлдээж орхино). Mux-ийн устгалт 404-т амжилт тул давтахад аюулгүй. Тест `mux-orphans.spec.ts` (4). Migration `20261117910000_polish`.
 - [ ] Production Mux тохиргоо: Signing key, webhook URL (`<API>/webhooks/mux`), `MUX_*` env; бодит upload → webhook → тоглуулалтыг гараар шалгах.
-- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
+- [ ] `public` (dev) schema-д migration-ийг (`20261117830000_video`, `20261117910000_polish`) `pnpm db:deploy`-оор хэрэгжүүлэх.

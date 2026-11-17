@@ -5,6 +5,7 @@ import {
   type CourseDetail,
   type CourseSummary,
   type ReviewQueueItem,
+  type TeacherLiveItem,
   type UploadTicket,
 } from '@lms/shared';
 import type { Request } from 'express';
@@ -14,6 +15,7 @@ import { ZodPipe } from '../zod-pipe';
 import { CategoryService } from './category.service';
 import { CourseAuthoringService } from './course-authoring.service';
 import { CourseReviewService } from './course-review.service';
+import { LiveLessonsService } from './live-lessons.service';
 
 const Uuid = new ParseUUIDPipe();
 const title = z.string().trim().min(1).max(200);
@@ -52,7 +54,16 @@ const CategoryUpdate = z
 @Controller('teacher')
 @Auth('TEACHER')
 export class TeacherCourseController {
-  constructor(private readonly courses: CourseAuthoringService) {}
+  constructor(
+    private readonly courses: CourseAuthoringService,
+    private readonly live: LiveLessonsService,
+  ) {}
+
+  /** Story 63: өөрийн удахгүй болох live хичээлүүдийн хуанли */
+  @Get('live-lessons')
+  liveLessons(@CurrentUser() u: CurrentUserInfo): Promise<TeacherLiveItem[]> {
+    return this.live.upcomingForTeacher(u.id);
+  }
 
   @Get('courses')
   list(@CurrentUser() u: CurrentUserInfo): Promise<CourseSummary[]> {

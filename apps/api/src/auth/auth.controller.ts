@@ -9,6 +9,7 @@ import { ReferralsService } from '../referrals/referrals.service';
 import { UsersService, toAuthUser } from '../users/users.service';
 import { ZodPipe } from '../zod-pipe';
 import { Auth, CurrentUser, type CurrentUserInfo } from './auth.guard';
+import { AuthErrors } from './errors';
 import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from './cookies';
 import { OtpService } from './otp.service';
 import { SessionService } from './session.service';
@@ -55,6 +56,8 @@ export class AuthController {
       return result;
     }
     const { user, isNew } = await this.users.findOrCreateByIdentifier(result.type, result.value);
+    // Хаагдсан хэрэглэгч OTP зөв оруулсан ч нэвтрэхгүй (ticket 22).
+    if (user.blockedAt) throw AuthErrors.blocked();
     if (isNew) await this.notifications.notify({ userId: user.id, type: 'WELCOME', link: '/me' });
     const tokens = await this.sessions.issue(user, { userAgent: req.headers['user-agent'] });
     setAuthCookies(res, this.env, tokens.access, tokens.refresh);
