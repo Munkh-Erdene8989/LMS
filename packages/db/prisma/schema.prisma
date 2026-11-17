@@ -120,6 +120,14 @@ model User {
   payoutHold         PayoutHold?  @relation("PayoutHoldTeacher")
   payoutHoldsCreated PayoutHold[] @relation("PayoutHoldActor")
 
+  communityPosts     CommunityPost[]    @relation("CommunityPostTeacher")
+  communityAuthored  CommunityPost[]    @relation("CommunityPostAuthor")
+  communityComments  CommunityComment[] @relation("CommunityCommentAuthor")
+  communityLikes     CommunityLike[]    @relation("CommunityLikeUser")
+  communityRemovals  CommunityRemoval[] @relation("CommunityRemovalTeacher")
+  communityRemovedIn CommunityRemoval[] @relation("CommunityRemovalUser")
+  communityRemovedBy CommunityRemoval[] @relation("CommunityRemovalActor")
+
   @@map("users")
 }
 
@@ -1187,4 +1195,76 @@ model PayoutHold {
   createdBy User? @relation("PayoutHoldActor", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@map("payout_holds")
+}
+
+// ---------------------------------------------------------------------------
+// Community (ticket 19)
+// ---------------------------------------------------------------------------
+
+/// Багшийн community-ийн нийтлэл. Community = багш (`teacher_id`); тусдаа хүснэгтгүй.
+/// Гишүүнчлэл хадгалагдахгүй — тухайн багшийн ямар нэг lesson эзэмшсэн эсэхээр (apps/api/src/purchases/entitlements.ts)
+/// тухай бүр шалгана, `community_removals`-д байвал хасагдсан.
+model CommunityPost {
+  id        String    @id @default(uuid()) @db.Uuid
+  teacherId String    @map("teacher_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  /// Markdown текст (хоосон байж болно — зөвхөн зурагтай нийтлэл)
+  body      String    @default("")
+  /// Storage `private` bucket дахь зураг (`community/<teacherId>/<authorId>/…`), signed URL-аар харуулна
+  imageKey  String?   @map("image_key")
+  /// Багш pin хийсэн үе (null = pin-гүй). Pin-тэй нь жагсаалтын эхэнд.
+  pinnedAt  DateTime? @map("pinned_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  teacher  User               @relation("CommunityPostTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  author   User               @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  comments CommunityComment[]
+  likes    CommunityLike[]
+
+  @@index([teacherId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([teacherId, pinnedAt])
+  @@map("community_posts")
+}
+
+model CommunityComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User          @relation("CommunityCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt, id])
+  @@map("community_comments")
+}
+
+model CommunityLike {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation("CommunityLikeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("community_likes")
+}
+
+/// Багшийн community-гоос хасагдсан хэрэглэгч — lesson эзэмшсэн ч хандахгүй. Мөрийг устгавал сэргэнэ.
+model CommunityRemoval {
+  teacherId   String   @map("teacher_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  reason      String?
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teacher   User  @relation("CommunityRemovalTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  user      User  @relation("CommunityRemovalUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("CommunityRemovalActor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@id([teacherId, userId])
+  @@map("community_removals")
 }

@@ -18,6 +18,7 @@ import { LearningModule } from './learning/learning.module';
 import { MediaModule } from './media/media.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { CommunityModule } from './community/community.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     MediaModule,
     PayoutsModule,
     AnalyticsModule,
+    CommunityModule,
     MaintenanceModule,
   ],
 })
