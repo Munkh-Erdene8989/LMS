@@ -433,3 +433,103 @@ describe('Төлөвийн машин', () => {
     await v.agent.delete('/subscription/card').expect(404);
   });
 });
+
+describe('Сунгалтын өмнөх сануулга (ticket 25)', () => {
+  const TYPES = ['SUBSCRIPTION_RENEWAL_REMINDER_CARD', 'SUBSCRIPTION_RENEWAL_REMINDER_INVOICE'];
+  const reminders = (userId: string) => t.prisma.notification.findMany({ where: { userId, type: { in: TYPES } } });
+  const setEnd = (userId: string, end: Date) =>
+    t.prisma.subscription.update({ where: { userId }, data: { currentPeriodEnd: end } });
+
+  it('N хоногийн дотор: нэг л удаа (давхар/зэрэг cron), нэхэмжлэхийн текст, имэйл; хол үед илгээхгүй', async () => {
+    const { plan, u } = await setup();
+    await subscribeByInvoice(u.agent, plan.id);
+
+    // Анхдагч 3 хоног: 10 хоног үлдсэн → алга
+    await setEnd(u.user.id, new Date(Date.now() + 10 * DAY));
+    await runCron();
+    expect(await reminders(u.user.id)).toHaveLength(0);
+
+    // 2 хоног үлдсэн → нэг сануулга, давхар/зэрэг ажилд ч нэг л
+    await setEnd(u.user.id, new Date(Date.now() + 2 * DAY));
+    const counts = await Promise.all([service.runRenewalReminders(), service.runRenewalReminders(), service.runRenewalReminders()]);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(1);
+    await runCron();
+    const rows = await reminders(u.user.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: 'SUBSCRIPTION_RENEWAL_REMINDER_INVOICE', link: '/subscription' });
+    expect(rows[0]!.params).toMatchObject({ plan: 'Сарын 20' });
+
+    await t.queue.drain();
+    const mail = t.email.last('learner@example.mn');
+    expect(mail?.subject).toContain('сарын багцын сунгалт');
+    expect(mail?.text).toContain('QPay нэхэмжлэх');
+    expect(mail?.text).not.toContain('автоматаар татагдана');
+    // Төлбөрийн төлөвт нөлөөлөхгүй
+    expect((await subRow(u.user.id)).status).toBe('ACTIVE');
+  });
+
+  it('карт холбосон бол автомат татах текст; үе сунгагдсаны дараа дараагийн үед дахин нэг сануулга', async () => {
+    const { plan, u } = await setup();
+    await linkCard(u.agent);
+    await u.agent.post('/subscription').send({ planId: plan.id }).expect(201);
+
+    await setEnd(u.user.id, new Date(Date.now() + DAY));
+    await runCron();
+    const first = await reminders(u.user.id);
+    expect(first).toHaveLength(1);
+    expect(first[0]!.type).toBe('SUBSCRIPTION_RENEWAL_REMINDER_CARD');
+    expect(first[0]!.params).toMatchObject({ amount: expect.stringMatching(/15/) });
+    await t.queue.drain();
+    expect(t.email.last('learner@example.mn')?.text).toContain('автоматаар татагдана');
+
+    // Үе дуусч карт автоматаар сунгагдана → шинэ үе; дахин сануулга хараахан эрт
+    await endCurrentPeriod(u.user.id);
+    await runCron();
+    expect((await subRow(u.user.id)).status).toBe('ACTIVE');
+    expect(await reminders(u.user.id)).toHaveLength(1);
+
+    // Дараагийн үе дуусахад ойртвол дахин (нэг) сануулга
+    await setEnd(u.user.id, new Date(Date.now() + 2 * DAY));
+    await runCron();
+    await runCron();
+    expect(await reminders(u.user.id)).toHaveLength(2);
+  });
+
+  it('цуцалсан/зогссон/хоцорсон/INCOMPLETE багцад илгээхгүй', async () => {
+    const { plan, u } = await setup();
+    await subscribeByInvoice(u.agent, plan.id);
+    await u.agent.post('/subscription/cancel').expect(200);
+    await setEnd(u.user.id, new Date(Date.now() + DAY));
+    await runCron();
+    expect((await subRow(u.user.id)).status).toBe('CANCELED');
+    for (const status of ['PAUSED', 'PAST_DUE', 'INCOMPLETE'] as const) {
+      await t.prisma.subscription.update({ where: { userId: u.user.id }, data: { status } });
+      expect(await service.runRenewalReminders()).toBe(0);
+    }
+    expect(await reminders(u.user.id)).toHaveLength(0);
+  });
+
+  it('босго админ тохиргооноос (subscriptionReminderDays) уншигдана; Улаанбаатарын өдрөөр', async () => {
+    const { a, plan, u } = await setup();
+    await subscribeByInvoice(u.agent, plan.id);
+    await setEnd(u.user.id, new Date(Date.now() + 5 * DAY));
+    expect(await service.runRenewalReminders()).toBe(0);
+
+    await a.agent.put('/admin/settings/subscriptionReminderDays').send({ value: 7 }).expect(200);
+    expect(await service.runRenewalReminders()).toBe(1);
+    expect((await reminders(u.user.id))[0]!.params).toMatchObject({ days: expect.any(Number) });
+    const days = (await reminders(u.user.id))[0]!.params as { days: number };
+    expect([4, 5]).toContain(days.days); // UB өдрийн хил дээр 1 өдрөөр зөрж болно
+
+    // Тогтмол цаг: 2026-03-10 20:00 UTC = UB 03-11 04:00. Үе 03-14 02:00 UTC (UB 03-14 10:00) → 3 өдөр → N=3 дотор
+    const fixedNow = new Date('2026-03-10T20:00:00Z');
+    await t.prisma.subscription.update({
+      where: { userId: u.user.id },
+      data: { currentPeriodEnd: new Date('2026-03-14T02:00:00Z'), renewalRemindedFor: null },
+    });
+    await a.agent.put('/admin/settings/subscriptionReminderDays').send({ value: 2 }).expect(200);
+    expect(await service.runRenewalReminders(fixedNow)).toBe(0);
+    await a.agent.put('/admin/settings/subscriptionReminderDays').send({ value: 3 }).expect(200);
+    expect(await service.runRenewalReminders(fixedNow)).toBe(1);
+  });
+});
