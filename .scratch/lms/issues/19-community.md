@@ -31,7 +31,7 @@ API: `GET /communities`, `GET /communities/:teacherId`, `GET|POST /communities/:
 
 ## Ticket 26 (community extras) — хийгдсэн
 
-Migration `20261117930000_community_extras`.
+Migration `20261117930000_community_extras` (dev-д deploy: 2026-11-18).
 
 - **Засах:** `PATCH /community/posts/:id` (текст), `PATCH /community/comments/:id`. Зөвхөн зохиогч (багш/админ ч бусдынхыг засахгүй, 403), хасагдсан/гишүүн биш бол `role()`-ийн ердийн 403. Текст өөрчлөгдсөн үед `editedAt` тавигдаж UI "засварласан <огноо>" гэж харуулна; өөрчлөлтгүй бол тэмдэглэхгүй. Засвар мэдэгдэл үүсгэхгүй. Нуугдсан нийтлэл/сэтгэгдлийг засахгүй. Багш/админы устгах модерац хэвээр.
 - **Гишүүд SQL-ээр:** `memberCount` нь `customers` CTE (lesson + course entitlement, `teacher_id`-аар) + `community_removals`-ийн `NOT EXISTS`-ээр SQL-д тоологдоно. `GET /teacher/community/members?page=&limit=` → `{ items, total, page, pageSize }` (SQL `ORDER BY since DESC, user_id DESC LIMIT/OFFSET`, `total` хасагдсаныг оруулна). Гишүүнчлэл entitlement-ээс гарах загвар өөрчлөгдөөгүй; `teacherCustomers` (JS) community-д ашиглагдахаа больсон.
