@@ -357,7 +357,13 @@ describe('Дууссан live → бичлэг', () => {
     const lesson = d.sections[0].lessons.find((l: { id: string }) => l.id === c.liveId);
     expect(lesson).toMatchObject({ type: 'VIDEO', reviewStatus: 'APPROVED', content: { type: 'VIDEO' } });
     const row = await t.prisma.lesson.findUniqueOrThrow({ where: { id: c.liveId } });
-    expect(row.content).toEqual({ fromLive: { startsAt: ended, durationMinutes: 60 } });
+    expect(row.content).toEqual({
+      videoId: null,
+      status: null,
+      durationSeconds: null,
+      error: null,
+      fromLive: { startsAt: ended, durationMinutes: 60 },
+    });
 
     const owned = (await buyer.agent.get(`/catalog/lessons/${c.liveId}`).expect(200)).body;
     expect(owned).toMatchObject({ access: 'OWNED', lesson: { type: 'VIDEO', live: null }, content: { type: 'VIDEO' } });

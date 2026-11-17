@@ -9,6 +9,7 @@ import { t } from '@/lib/i18n';
 
 /**
  * Хичээлийн явц: нээхэд "сүүлд үзсэн" бүртгэнэ, текст/PDF-д "Дууслаа" товч, quiz бөглөх.
+ * Видеоны үзсэн хувийг тоглуулагч (`VideoPlayer`) өөрөө илгээнэ — энд зөвхөн дууссан эсэх.
  * Нэвтрээгүй (зөвхөн preview) үед явц бичигдэхгүй — нэвтрэх линк.
  */
 export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: string; type: LessonType; quiz: QuizContent | null; loginHref: string }) {
@@ -52,6 +53,9 @@ export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: 
   }
   if (type === 'TEXT' || type === 'PDF') {
     return <CompleteButton lessonId={lessonId} progress={state.progress} />;
+  }
+  if (type === 'VIDEO' && state.progress.completed) {
+    return <p className="done-mark" style={{ margin: 0 }}>✓ {t('learning.completed')}</p>;
   }
   return null;
 }

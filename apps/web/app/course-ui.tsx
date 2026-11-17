@@ -1,8 +1,9 @@
 'use client';
 
-import { formatUbDateTime, liveState, type LessonView, type LiveLessonContent } from '@lms/shared';
+import { formatUbDateTime, liveState, type LessonView, type LiveLessonContent, type VideoLessonContent } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Markdown } from './markdown';
+import { VideoPlayer } from './video-player';
 
 export function StatusBadge({ status }: { status: string }) {
   return <span className={`badge-status s-${status}`}>{t(`course.status${status}` as MessageKey)}</span>;
@@ -87,6 +88,36 @@ export function LessonContentPreview({ lesson }: { lesson: LessonView }) {
       </div>
     );
   }
-  if (c.type === 'VIDEO') return <span className="muted">{t('live.recordingPending')}</span>;
+  if (c.type === 'VIDEO') {
+    return (
+      <div style={{ display: 'grid', gap: 8 }}>
+        <VideoStatus content={c} />
+        {c.status === 'READY' && <VideoPlayer lessonId={lesson.id} />}
+      </div>
+    );
+  }
   return null;
+}
+
+/** 125.4 → "2:05", 3725 → "1:02:05" */
+export function formatDuration(seconds: number): string {
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+/** Видеоны боловсруулалтын төлөв (багш, админ). */
+export function VideoStatus({ content }: { content: VideoLessonContent }) {
+  if (!content.status) return <span className="muted">{content.fromLive ? t('live.recordingPending') : t('video.notUploaded')}</span>;
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span className={`badge-status${content.status === 'READY' ? ' s-APPROVED' : content.status === 'ERRORED' ? ' s-REJECTED' : ''}`}>
+        {t(`video.status${content.status}` as MessageKey)}
+      </span>
+      {content.durationSeconds !== null && <small className="muted">{t('video.duration', { duration: formatDuration(content.durationSeconds) })}</small>}
+      {content.status === 'ERRORED' && content.error && <small style={{ color: 'var(--err)' }}>{content.error}</small>}
+    </div>
+  );
 }

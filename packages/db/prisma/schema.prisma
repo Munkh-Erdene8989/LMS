@@ -471,6 +471,7 @@ model Lesson {
   progress      LessonProgress[]
   quizAttempts  QuizAttempt[]
   liveReminders LiveReminder[]
+  videos        LessonVideo[]
 
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
@@ -496,6 +497,53 @@ model LiveReminder {
 
   @@id([lessonId, kind, startsAt])
   @@map("live_reminders")
+}
+
+// ---------------------------------------------------------------------------
+// Видео (ticket 10, Mux)
+// ---------------------------------------------------------------------------
+
+enum VideoStatus {
+  /// Direct upload URL үүсгэсэн, файл ирээгүй
+  UPLOADING
+  /// Файл ирж asset үүссэн, Mux боловсруулж байна
+  PROCESSING
+  READY
+  ERRORED
+}
+
+/// Mux-д оруулсан видео. Багш файлаа солих бүрт шинэ мөр; lesson-ы идэвхтэй видео нь
+/// `lessons.content.videoId` (төлөв, үргэлжлэх хугацааг content-д давхар хадгална — apps/api/src/media).
+/// `id` = Mux-ийн `passthrough` — webhook-ийн дараалал холилдсон ч мөрөө олно.
+model LessonVideo {
+  id              String      @id @default(uuid()) @db.Uuid
+  lessonId        String      @map("lesson_id") @db.Uuid
+  muxUploadId     String      @unique @map("mux_upload_id")
+  muxAssetId      String?     @unique @map("mux_asset_id")
+  /// Signed playback policy-той playback id
+  playbackId      String?     @map("playback_id")
+  status          VideoStatus @default(UPLOADING)
+  durationSeconds Float?      @map("duration_seconds")
+  error           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@map("lesson_videos")
+}
+
+/// Хүлээн авсан Mux webhook (гарын үсэг шалгасны дараа). Mux-ийн event id-аар давхардалгүй;
+/// BullMQ-ийн `mux.webhook` ажил боловсруулаад `processed_at` тавина.
+model MuxWebhookEvent {
+  id          String    @id
+  type        String
+  payload     Json
+  receivedAt  DateTime  @default(now()) @map("received_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@map("mux_webhook_events")
 }
 
 // ---------------------------------------------------------------------------

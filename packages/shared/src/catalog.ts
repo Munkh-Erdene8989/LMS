@@ -1,5 +1,6 @@
 /** Каталог: ангилал, курс, section, lesson. */
 
+import type { VideoLessonContent } from './media';
 import type { CourseViewerState, LessonAccessReason } from './purchases';
 
 export type CourseLevel = 'ALL' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
@@ -9,7 +10,7 @@ export type LessonType = 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'ASSIGNMENT' | 'LIV
 export type LessonReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
 /** Одоогоор үүсгэж болох төрлүүд (бусад нь дараагийн ticket-үүдэд). */
-export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF', 'QUIZ', 'LIVE'];
+export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['VIDEO', 'TEXT', 'PDF', 'QUIZ', 'LIVE'];
 
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
@@ -69,7 +70,8 @@ export type LessonContent =
   | { type: 'PDF'; fileName: string | null; size: number | null; url: string | null }
   | QuizContent
   | LiveLessonContent
-  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'QUIZ' | 'LIVE'> };
+  | VideoLessonContent
+  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'QUIZ' | 'LIVE' | 'VIDEO'> };
 
 /**
  * Live хичээл (ticket 14). Цаг ISO (UTC); UI Улаанбаатарын цагаар харуулна (`formatUbDateTime`).

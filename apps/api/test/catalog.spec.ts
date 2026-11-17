@@ -170,11 +170,11 @@ describe('Курс засварлах', () => {
     expect(res.body.code).toBe('CONTENT_TYPE_MISMATCH');
   });
 
-  it('дэмжигдээгүй төрлийн хичээл үүсгэх боломжгүй (видео дараагийн ticket-д)', async () => {
+  it('дэмжигдээгүй төрлийн хичээл үүсгэх боломжгүй (assignment дараагийн ticket-д)', async () => {
     const tch = await teacher();
     const course = (await tch.agent.post('/teacher/courses').send({ title: 'x' })).body;
     const d = (await tch.agent.post(`/teacher/courses/${course.id}/sections`).send({ title: 's' })).body;
-    const res = await tch.agent.post(`/teacher/sections/${d.sections[0].id}/lessons`).send({ title: 'v', type: 'VIDEO' }).expect(400);
+    const res = await tch.agent.post(`/teacher/sections/${d.sections[0].id}/lessons`).send({ title: 'v', type: 'ASSIGNMENT' }).expect(400);
     expect(res.body.code).toBe('LESSON_TYPE_UNAVAILABLE');
   });
 

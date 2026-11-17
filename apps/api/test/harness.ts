@@ -9,6 +9,8 @@ import { EMAIL_SENDER, FakeEmailSender } from '../src/adapters/email';
 import { FakePhoneVerifier, PHONE_VERIFIER } from '../src/adapters/phone-verifier';
 import { FakeStorage, STORAGE } from '../src/adapters/storage';
 import { FakeQPay, QPAY } from '../src/adapters/qpay';
+import { FakeMux, MUX } from '../src/adapters/mux';
+import { InMemoryPlaybackSessionStore, PLAYBACK_SESSIONS } from '../src/media/playback-sessions';
 import { InMemoryJobQueue } from '../src/queue/in-memory-queue';
 import { JOB_QUEUE } from '../src/queue/job-queue';
 
@@ -26,6 +28,10 @@ export interface TestApp {
   storage: FakeStorage;
   /** `t.qpay.markPaid(invoiceId)` — хэрэглэгч банкны апп-аар төлсөн мэт */
   qpay: FakeQPay;
+  /** `t.mux.signedWebhook(event)` — Mux webhook; `t.mux.setAsset(...)` — Mux API-ийн төлөв */
+  mux: FakeMux;
+  /** Тоглуулалтын heartbeat slot-ууд; `t.playback.advance(ms)` — цаг урагшлуулна */
+  playback: InMemoryPlaybackSessionStore;
   /** Тестийн schema-ийн бүх хүснэгтийг цэвэрлэж, fake-уудыг хоосолно. */
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -49,6 +55,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const queue = new InMemoryJobQueue('manual');
   const storage = new FakeStorage();
   const qpay = new FakeQPay();
+  const mux = new FakeMux();
+  const playback = new InMemoryPlaybackSessionStore();
 
   let builder = Test.createTestingModule({ imports: [AppModule, ...(options.imports ?? [])] })
     .overrideProvider(PHONE_VERIFIER)
@@ -60,11 +68,15 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(STORAGE)
     .useValue(storage)
     .overrideProvider(QPAY)
-    .useValue(qpay);
+    .useValue(qpay)
+    .overrideProvider(MUX)
+    .useValue(mux)
+    .overrideProvider(PLAYBACK_SESSIONS)
+    .useValue(playback);
   if (options.override) builder = options.override(builder);
 
   const moduleRef = await builder.compile();
-  const app = moduleRef.createNestApplication({ logger: false });
+  const app = moduleRef.createNestApplication({ logger: false, rawBody: true });
   configureApp(app, { WEB_ORIGIN: 'http://localhost:3000', TRUST_PROXY: 1 });
   await app.init();
 
@@ -81,6 +93,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     queue,
     storage,
     qpay,
+    mux,
+    playback,
     reset: async () => {
       await truncateAll(prisma);
       phone.clear();
@@ -88,6 +102,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       queue.clear();
       storage.clear();
       qpay.clear();
+      mux.clear();
+      playback.clear();
     },
     close: () => app.close(),
   };

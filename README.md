@@ -104,6 +104,12 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Attribution: `PurchasesService.attribution()` одоогоор үргэлж `PLATFORM` (`commissionPlatformPercent`); ticket 11 `REFERRAL` + `referrerId` буцааж `commissionReferralPercent` хэрэглэнэ.
 - Тест lot-оос зарцуулсан худалдан авалт, орлого `isTest` — payout үлдэгдэлд орохгүй.
 
+## Видео (Mux)
+
+- `apps/api/src/media/`; Mux-ийг `MUX` adapter-аар (`apps/api/src/adapters/mux.ts`), тестэд `FakeMux` (`t.mux.signedWebhook(event)`, `t.mux.setUpload/setAsset`). `MUX_*` хоосон бол dev-д видео 503 `VIDEO_UNAVAILABLE`.
+- Upload: `POST /teacher/lessons/:id/video-upload` → Mux direct upload URL (browser шууд `PUT`); мөр `lesson_videos` (id = Mux `passthrough`). Төлөв: `POST /webhooks/mux` (гарын үсэг, event id-аар давхардалгүй `mux_webhook_events`) → `mux.webhook` ажил; эсвэл `POST /teacher/lessons/:id/video-sync` (Mux API). `lessons.content` дахь төлөв/хугацааг зөвхөн `VideoService` бичнэ.
+- Тоглуулах: `POST /media/lessons/:id/playback { deviceId }` — `LessonAccessPolicy` + зэрэг ≤ 2 төхөөрөмж (Redis sorted set, heartbeat `POST /media/playback/heartbeat`, `/stop`) → 15 минутын signed JWT, watermark (`9911****`), Mux Data metadata. Тестэд `t.playback.advance(ms)`.
+
 ## Сарын багц (subscription)
 
 - Модуль: `apps/api/src/subscriptions/`. Төлөвийн машин нэг газар — `state.ts` (`TRANSITIONS`, `USER_ACTIONS`): `INCOMPLETE → ACTIVE → PAST_DUE (3 хоног) → PAUSED`, `CANCELED`; буруу шилжилт `409 INVALID_SUBSCRIPTION_TRANSITION`.

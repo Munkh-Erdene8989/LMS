@@ -9,6 +9,7 @@ import {
   QUIZ_MAX_OPTIONS,
   QUIZ_MAX_QUESTIONS,
   ubLocalToIso,
+  type VideoStatus,
 } from '@lms/shared';
 import { z } from 'zod';
 
@@ -44,8 +45,17 @@ export interface LiveContent {
   meetingUrl: string | null;
 }
 
-/** Бичлэг болгон хөрвүүлсэн live (ticket 10 Mux бичлэг нэмнэ). */
+/**
+ * Видео (ticket 10, Mux). Mux-ийн төлөвийн эх сурвалж `lesson_videos`; энд идэвхтэй видеоны id ба
+ * төлөв, хугацааг давхар хадгална (`problems`, view-д DB асуулгагүй) — `media/video.service.ts` л бичнэ.
+ * `fromLive` — дууссан live-ийг бичлэг болгосон (ticket 14): нийтлэгдсэн ч бичлэг оруулж болно (`videoUploadAllowed`).
+ * Багш `PATCH content`-оор засахгүй — зөвхөн `POST /teacher/lessons/:id/video-upload`.
+ */
 export interface VideoContent {
+  videoId?: string | null;
+  status?: VideoStatus | null;
+  durationSeconds?: number | null;
+  error?: string | null;
   fromLive?: { startsAt: string; durationMinutes: number };
 }
 
@@ -180,11 +190,23 @@ const LIVE: LessonTypeDefinition<LiveContent, Required<{ [K in keyof LiveContent
   },
 };
 
+const VIDEO: LessonTypeDefinition<VideoContent, never> = {
+  input: z.never(),
+  empty: { videoId: null, status: null, durationSeconds: null, error: null },
+  problems: (c) => {
+    if (c.status === 'READY') return [];
+    if (c.status === 'ERRORED') return ['Видео боловсруулалт амжилтгүй — дахин оруулна уу'];
+    if (c.status === 'UPLOADING' || c.status === 'PROCESSING') return ['Видео боловсруулагдаж байна'];
+    return ['Видео оруулаагүй'];
+  },
+};
+
 export const LESSON_TYPES: Partial<Record<LessonType, LessonTypeDefinition<unknown, unknown>>> = {
   TEXT: TEXT as LessonTypeDefinition<unknown, unknown>,
   PDF: PDF as LessonTypeDefinition<unknown, unknown>,
   QUIZ: QUIZ as LessonTypeDefinition<unknown, unknown>,
   LIVE: LIVE as LessonTypeDefinition<unknown, unknown>,
+  VIDEO: VIDEO as LessonTypeDefinition<unknown, unknown>,
 };
 
 export function isAvailableType(type: LessonType): boolean {

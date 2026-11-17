@@ -804,3 +804,34 @@ body {
   gap: 8px;
   align-items: center;
 }
+
+/* Видео (ticket 10): 16:9 тоглуулагч + хөдөлгөөнт watermark */
+.video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.video-frame:fullscreen {
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+.video-loading {
+  display: grid;
+  place-items: center;
+  color: #cbd5e1;
+}
+.video-watermark {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+  color: rgba(255, 255, 255, 0.45);
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  font-size: clamp(12px, 2.2vw, 18px);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: top 1.5s ease-in-out, left 1.5s ease-in-out;
+}
