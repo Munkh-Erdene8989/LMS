@@ -114,6 +114,21 @@
       "title": "\"{title}\" шууд хичээлийн цаг өөрчлөгдлөө",
       "body": "\"{course}\" курсийн \"{title}\" шууд хичээл {startsAt}-д (Улаанбаатарын цагаар) эхэлж, {duration} минут үргэлжилнэ. Сануулга шинэ цагаар очно.",
       "emailSubject": "{brand}: \"{title}\" шууд хичээлийн шинэ цаг — {startsAt}"
+    },
+    "PAYOUT_REQUESTED": {
+      "title": "Payout хүсэлт хүлээн авлаа",
+      "body": "Таны {amount}₮-ийн payout хүсэлтийг хүлээн авлаа. Админ шилжүүлсний дараа танд мэдэгдэнэ. Энэ хугацаанд уг дүн түгжигдэнэ.",
+      "emailSubject": "{brand}: payout хүсэлт — {amount}₮"
+    },
+    "PAYOUT_PAID": {
+      "title": "Payout шилжүүлэгдлээ",
+      "body": "{amount}₮-ийг таны {account} данс руу шилжүүллээ. Банкны хуулгаа шалгана уу.",
+      "emailSubject": "{brand}: payout шилжүүлэгдлээ — {amount}₮"
+    },
+    "PAYOUT_REJECTED": {
+      "title": "Payout хүсэлт татгалзагдлаа",
+      "body": "Таны {amount}₮-ийн payout хүсэлт татгалзагдлаа. Шалтгаан: {reason}. Дүн таны үлдэгдэлд хэвээр байна.",
+      "emailSubject": "{brand}: payout хүсэлт татгалзагдлаа"
     }
   },
   "payments": {

@@ -52,3 +52,25 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   if (!res.ok) throw new ApiRequestError(res.status, json as ApiErrorBody | null);
   return { status: res.status, data: json as T };
 }
+
+/** Файл татах (CSV г.м). `api`-тай адил 401 бол refresh хийгээд нэг удаа давтана. */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const send = () => fetch(`/api${path}`, { credentials: 'same-origin' });
+  let res = await send();
+  if (res.status === 401 && (await refreshOnce())) res = await send();
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ApiRequestError(res.status, text ? (JSON.parse(text) as ApiErrorBody) : null);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  }
+}

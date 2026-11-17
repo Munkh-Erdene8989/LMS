@@ -107,7 +107,43 @@ function ApplicationCard({ app, onDone }: { app: AdminTeacherApplicationView; on
           </div>
         </div>
       )}
+      {app.status === 'APPROVED' && <PayoutHoldForm teacherId={app.user.id} />}
       {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
     </section>
+  );
+}
+
+/** Нээлттэй payout хүсэлтгүй багшийг ч hold хийх боломж (ticket 20). Цуцлах — `/admin/payouts`. */
+function PayoutHoldForm({ teacherId }: { teacherId: string }) {
+  const [reason, setReason] = useState('');
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function hold() {
+    setError(null);
+    try {
+      await api(`/admin/payouts/holds/${teacherId}`, { method: 'PUT', body: { reason: reason.trim() } });
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+    }
+  }
+
+  if (done) return <p style={{ margin: 0 }}>{t('payout.held')}</p>;
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <input
+        className="input"
+        style={{ flex: '1 1 200px' }}
+        placeholder={t('payout.holdReason')}
+        aria-label={t('payout.holdReason')}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+      />
+      <button type="button" className="btn btn-ghost" disabled={!reason.trim()} onClick={() => void hold()}>
+        {t('payout.hold')}
+      </button>
+      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
+    </div>
   );
 }
