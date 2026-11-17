@@ -4,6 +4,8 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ENV, type Env } from '../env';
 import { NotificationsService } from '../notifications/notifications.service';
+import { REFERRAL_COOKIE } from '../referrals/cookie';
+import { ReferralsService } from '../referrals/referrals.service';
 import { UsersService, toAuthUser } from '../users/users.service';
 import { ZodPipe } from '../zod-pipe';
 import { Auth, CurrentUser, type CurrentUserInfo } from './auth.guard';
@@ -28,6 +30,7 @@ export class AuthController {
     private readonly sessions: SessionService,
     private readonly users: UsersService,
     private readonly notifications: NotificationsService,
+    private readonly referrals: ReferralsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -55,6 +58,8 @@ export class AuthController {
     if (isNew) await this.notifications.notify({ userId: user.id, type: 'WELCOME', link: '/me' });
     const tokens = await this.sessions.issue(user, { userAgent: req.headers['user-agent'] });
     setAuthCookies(res, this.env, tokens.access, tokens.refresh);
+    // Зочин байхдаа referral линкээр орсон бол (cookie) хэрэглэгчид бүртгэнэ — өөр төхөөрөмжөөс авсан ч хүчинтэй.
+    await this.referrals.claimCookieSafe(user.id, readCookie(req, REFERRAL_COOKIE));
     return { status: 'verified', user: toAuthUser(user), isNew };
   }
 

@@ -13,6 +13,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CreditsModule } from './credits/credits.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     TeacherModule,
     CatalogModule,
     CreditsModule,
+    ReferralsModule,
     PurchasesModule,
     SubscriptionsModule,
     MaintenanceModule,
