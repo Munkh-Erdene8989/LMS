@@ -26,6 +26,7 @@ import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { normalizeEmail, normalizePhone } from '../auth/identifier';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZodPipe } from '../zod-pipe';
+import { LIMITS, RateLimit, SkipRateLimit } from '../rate-limit/rate-limit';
 import { CreditsService } from './credits.service';
 import { CreditErrors as E } from './errors';
 import { CreditPackagesService } from './packages.service';
@@ -104,6 +105,7 @@ export class CreditsController {
   }
 
   @Post('topups')
+  @RateLimit(LIMITS.topup)
   topup(@CurrentUser() u: CurrentUserInfo, @Body(new ZodPipe(TopupBody)) b: z.infer<typeof TopupBody>): Promise<TopupView> {
     return this.payments.createTopup(u, b.packageId);
   }
@@ -114,6 +116,7 @@ export class CreditsController {
   }
 
   @Post('topups/:id/check')
+  @RateLimit(LIMITS.topupCheck)
   @HttpCode(200)
   check(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string): Promise<TopupView> {
     return this.payments.checkOwn(u.id, id);
@@ -129,6 +132,8 @@ export class QPayCallbackController {
   constructor(private readonly payments: PaymentsService) {}
 
   @All('callback/:token')
+  @SkipRateLimit()
+  @RateLimit(LIMITS.qpayCallback)
   @HttpCode(200)
   async callback(@Param('token') token: string): Promise<{ status: PaymentStatus }> {
     const payment = /^[\w-]{20,100}$/.test(token) ? await this.payments.handleCallback(token) : null;

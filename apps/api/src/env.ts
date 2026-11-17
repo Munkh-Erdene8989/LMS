@@ -14,6 +14,25 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL шаардлагатай'),
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+  /**
+   * CORS-д WEB_ORIGIN-оос гадна зөвшөөрөх origin-ууд (таслалаар). Жишээ нь staging preview:
+   * `https://lms-git-*-team.vercel.app`. `*` нь зөвхөн hostname-ийн нэг хэсэгт (`.`-гүй) таарна. Browser ихэвчлэн `/api` proxy-оор дууддаг тул заавал биш.
+   */
+  CORS_ORIGINS: z
+    .string()
+    .default('')
+    .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean))
+    .refine((list) => list.every((o) => /^https?:\/\/[\w.*-]+(:\d+)?$/.test(o)), 'CORS_ORIGINS: `https://host` хэлбэртэй (замгүй, "/"-гүй) origin-ууд'),
+  /** Rate limit асаах/унтраах. Зөвхөн тест/debug-д `false`; production-д үргэлж асаалттай. */
+  RATE_LIMIT_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  /** Sentry (ticket 23). `SENTRY_DSN` хоосон бол бүрэн унтраастай. instrument.ts process.env-ээс шууд уншина. */
+  SENTRY_DSN: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET дор хаяж 32 тэмдэгт байх ёстой'),
   /** Байхгүй бол (dev) fake adapter ашиглаж, кодыг консолд хэвлэнэ. Production-д заавал. */
   VERIFY_MN_API_KEY: z.string().optional(),
@@ -58,6 +77,24 @@ const EnvSchema = z.object({
   MUX_DATA_ENV_KEY: z.string().optional(),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
+  for (const key of ['WEB_ORIGIN', 'PUBLIC_WEB_URL'] as const) {
+    const url = new URL(env[key]);
+    if (url.protocol !== 'https:' || url.hostname === 'localhost') {
+      ctx.addIssue({ code: 'custom', path: [key], message: 'production-д localhost биш https хаяг байх ёстой' });
+    }
+  }
+  if (env.TRUST_PROXY < 1) {
+    ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'production-д ≥ 1 (proxy-ийн ард бүх хэрэглэгч нэг IP болно)' });
+  }
+  if (!env.RATE_LIMIT_ENABLED) {
+    ctx.addIssue({ code: 'custom', path: ['RATE_LIMIT_ENABLED'], message: 'production-д унтраах боломжгүй' });
+  }
+  if (/onboarding@resend\.dev/i.test(env.EMAIL_FROM)) {
+    ctx.addIssue({ code: 'custom', path: ['EMAIL_FROM'], message: 'production-д Resend-ээр баталгаажсан domain-ий хаяг (sandbox биш)' });
+  }
+  if (/sandbox/i.test(env.QPAY_BASE_URL)) {
+    ctx.addIssue({ code: 'custom', path: ['QPAY_BASE_URL'], message: 'production-д QPay sandbox хаяг ашиглахгүй' });
+  }
   for (const key of [
     'VERIFY_MN_API_KEY',
     'RESEND_API_KEY',

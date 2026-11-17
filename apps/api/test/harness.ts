@@ -43,6 +43,8 @@ export interface TestAppOptions {
   override?: (builder: Builder) => Builder;
   /** Зөвхөн тестэд хэрэгтэй нэмэлт модуль (жишээ нь role шалгах туршилтын controller). */
   imports?: Type<unknown>[];
+  /** CORS allowlist-ийн нэмэлт origin-ууд (WEB_ORIGIN-оос гадна). */
+  corsOrigins?: string[];
 }
 
 /**
@@ -77,7 +79,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication({ logger: false, rawBody: true });
-  configureApp(app, { WEB_ORIGIN: 'http://localhost:3000', TRUST_PROXY: 1 });
+  configureApp(app, { WEB_ORIGIN: 'http://localhost:3000', TRUST_PROXY: 1, CORS_ORIGINS: options.corsOrigins ?? [] });
   await app.init();
 
   const prisma = app.get(PrismaService);

@@ -11,6 +11,7 @@
     "lint": "dotenv -v DATABASE_URL=postgresql://lint/x -v DIRECT_URL=postgresql://lint/x -- prisma validate && tsc -p tsconfig.json --noEmit",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "migrate:deploy:prod": "prisma migrate deploy",
     "studio": "dotenv -e ../../.env -- prisma studio"
   },
   "prisma": {

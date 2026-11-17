@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { Auth, CurrentUser, OptionalAuth, Viewer, type CurrentUserInfo } from '../auth/auth.guard';
 import { ZodPipe } from '../zod-pipe';
+import { SkipRateLimit } from '../rate-limit/rate-limit';
 import { PlaybackService } from './playback.service';
 import { VideoService } from './video.service';
 
@@ -70,6 +71,7 @@ export class MuxWebhookController {
   constructor(private readonly videos: VideoService) {}
 
   @Post('mux')
+  @SkipRateLimit()
   @HttpCode(200)
   async mux(@Req() req: RawBodyRequest<Request>, @Headers('mux-signature') signature?: string): Promise<{ ok: true }> {
     await this.videos.receiveWebhook(req.rawBody, signature);

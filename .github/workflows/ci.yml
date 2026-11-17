@@ -5,9 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+# Нэг PR/branch-д шинэ push ирвэл өмнөх ажиллагаа цуцлагдана
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17
@@ -35,6 +44,9 @@ jobs:
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/postgres?schema=lms_test
       # BullMQ adapter-ийн тест (apps/api/test/queue.bullmq.spec.ts)
       REDIS_URL_TEST: redis://localhost:6379
+      # Telemetry унтраах
+      TURBO_TELEMETRY_DISABLED: 1
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -45,4 +57,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      # API (tsc), web (next build — CSP/Sentry config-ийг ачаалдаг)
+      - run: pnpm build
+      # apps/api/assets (сертификатын фонт) API build-д хамт орж буйг шалгана
+      - run: test -f apps/api/assets/fonts/OFL.txt && test -f apps/api/dist/main.js
+      # jest --runInBand (apps/api), Postgres + Redis service-тэй
       - run: pnpm test

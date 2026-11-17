@@ -126,4 +126,13 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 
 ## Нууц түлхүүр
 
-`.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс харна уу.
+`.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс, production-ийн бүрэн жагсаалтыг [docs/DEPLOY.md](docs/DEPLOY.md)-ээс харна уу.
+
+## Deploy ба production
+
+Орчин (local/staging/prod), бүх env хувьсагч, Railway/Vercel/Supabase тохиргоо, migration урсгал, backup, эхний админ, Sentry, гараар шалгах checklist (QPay 100₮, Mux, verify.mn, Resend, cron): **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+- API: `Dockerfile` + `railway.json` (pre-deploy `prisma migrate deploy`, health check `/health`). Web: `apps/web/vercel.json`.
+- Production-д түлхүүр дутвал API асахаас өмнө унана (`apps/api/src/env.ts`).
+- Sentry (`SENTRY_DSN`), rate limit, CORS allowlist (`CORS_ORIGINS`), security header — `SENTRY_DSN` хоосон бол Sentry бүрэн унтраастай.
+- CI (`.github/workflows/ci.yml`): lint, typecheck, build, test (Postgres + Redis service).
