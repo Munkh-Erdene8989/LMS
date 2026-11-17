@@ -89,7 +89,7 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
   ```
   Хүрэлцэхгүй бол `INSUFFICIENT_CREDITS` (409) шидэж, transaction бүхэлдээ буцна. FIFO: хамгийн эрт дуусах lot-оос.
 - Олгох (ticket 17): `credits.grant(tx, { userId, credits, source: 'SUBSCRIPTION_GRANT', paymentId })` — lot нь `creditValidityMonths` тохиргоогоор дуусна; нэг `paymentId` нэг л lot (unique).
-- Дуусгавар (ticket 16): `credits.expireDue(now)` — idempotent, cron-оос дуудна. Админ засвар: `credits.adjust({ userId, delta, reason, actorId })` (audit + `ADMIN_ADJUST`).
+- Дуусгавар (ticket 16): өдөр бүр 00:10 cron `credits.expiry` (`CreditExpiryService`) → `credits.expireDueLots(now)` (idempotent, `EXPIRE` бичилт) + 30/7 хоногийн сануулга (`credit_lots.remind_{30,7}_sent_at`, хэрэглэгч бүрт нэгтгэсэн `CREDITS_EXPIRING` / `CREDITS_EXPIRED` мэдэгдэл). Админ засвар: `credits.adjust({ userId, delta, reason, actorId })` (audit + `ADMIN_ADJUST`).
 - Бүх өөрчлөлт хэрэглэгчийн мөрийг (`users … FOR NO KEY UPDATE`) түгжинэ → зэрэг зарцуулалт сөрөг баланс үүсгэхгүй. Transaction-д `CREDIT_TX_OPTIONS` (урт timeout) өгнө.
 - QPay: `QPAY_*` хоосон бол dev-д fake (нэхэмжлэх шууд төлөгдсөнд тооцогдоно → `/credits` дээр "Төлбөр шалгах"). Callback-д итгэхгүй — үргэлж `POST /v2/payment/check`-ээр дахин шалгана. Тестэд `t.qpay.markPaid(invoiceId)`.
 - Тест багц (`isTest`) зөвхөн админд; түүний төлбөр, lot, ledger `isTest = true` — тайланд тусад нь.

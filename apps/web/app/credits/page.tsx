@@ -16,6 +16,13 @@ import { t, type MessageKey } from '@/lib/i18n';
 const POLL_MS = 4_000;
 /** Хуудас нээлттэй үед төлбөрийн төлөвийг хэр удаан автоматаар шалгах */
 const POLL_LIMIT_MS = 15 * 60_000;
+/** Үүнээс цөөн хоног үлдсэн lot-ыг тодруулна (сануулгын эхний босготой ижил). */
+const EXPIRY_WARN_DAYS = 30;
+const DAY_MS = 24 * 60 * 60_000;
+
+function daysLeft(expiresAt: string): number {
+  return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / DAY_MS));
+}
 
 export default function CreditsPage() {
   const router = useRouter();
@@ -177,16 +184,34 @@ export default function CreditsPage() {
       <section style={{ display: 'grid', gap: 8 }}>
         <h2 style={{ margin: 0 }}>{t('credits.lots')}</h2>
         {balance.lots.length === 0 && <p style={{ margin: 0 }}>{t('credits.noLots')}</p>}
+        {balance.lots.some((l) => daysLeft(l.expiresAt) <= EXPIRY_WARN_DAYS) && (
+          <p style={{ margin: 0, color: 'var(--err)' }}>{t('credits.expiresSoonNote')}</p>
+        )}
         <ul className="lesson-list">
-          {balance.lots.map((l) => (
-            <li key={l.id} className="lesson-row card" style={{ padding: '8px 12px' }}>
-              <span>
-                {t('credits.lotLine', { remaining: l.remaining, initial: l.initial })}{' '}
-                <small>{t(`credits.type${l.source}` as MessageKey)}</small>
-              </span>
-              <small>{t('credits.expires', { date: formatDate(l.expiresAt) })}</small>
-            </li>
-          ))}
+          {balance.lots.map((l) => {
+            const days = daysLeft(l.expiresAt);
+            const soon = days <= EXPIRY_WARN_DAYS;
+            return (
+              <li
+                key={l.id}
+                className="lesson-row card"
+                style={{ padding: '8px 12px', ...(soon ? { borderColor: 'var(--err)' } : {}) }}
+              >
+                <span>
+                  {t('credits.lotLine', { remaining: l.remaining, initial: l.initial })}{' '}
+                  <small>{t(`credits.type${l.source}` as MessageKey)}</small>
+                </span>
+                <span style={{ display: 'grid', justifyItems: 'end' }}>
+                  {soon && (
+                    <strong style={{ color: 'var(--err)', fontSize: 14 }}>
+                      {t('credits.expiresInDays', { days })}
+                    </strong>
+                  )}
+                  <small>{t('credits.expires', { date: formatDate(l.expiresAt) })}</small>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
