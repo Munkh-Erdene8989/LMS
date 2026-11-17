@@ -205,10 +205,10 @@ describe('Курсийн хуудас ба free preview', () => {
       pricing: { listCredits: 12, lessonsTotalCredits: 15, payableCredits: 12 },
     });
     expect(detail.sections[0].lessons).toEqual([
-      { id: c.lessonIds[0], title: 'Танилцуулга', type: 'TEXT', priceCredits: 0, isFreePreview: true },
-      { id: c.lessonIds[1], title: 'Гарын авлага', type: 'PDF', priceCredits: 4, isFreePreview: true },
-      { id: c.lessonIds[2], title: 'Төлбөртэй текст', type: 'TEXT', priceCredits: 6, isFreePreview: false },
-      { id: c.lessonIds[3], title: 'Төлбөртэй PDF', type: 'PDF', priceCredits: 5, isFreePreview: false },
+      { id: c.lessonIds[0], title: 'Танилцуулга', type: 'TEXT', priceCredits: 0, isFreePreview: true, live: null },
+      { id: c.lessonIds[1], title: 'Гарын авлага', type: 'PDF', priceCredits: 4, isFreePreview: true, live: null },
+      { id: c.lessonIds[2], title: 'Төлбөртэй текст', type: 'TEXT', priceCredits: 6, isFreePreview: false, live: null },
+      { id: c.lessonIds[3], title: 'Төлбөртэй PDF', type: 'PDF', priceCredits: 5, isFreePreview: false, live: null },
     ]);
     // Дэлгэрэнгүйд ямар ч lesson-ы контент (markdown, файлын түлхүүр) байхгүй
     const raw = JSON.stringify(detail);

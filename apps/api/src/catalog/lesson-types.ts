@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import type { LessonType } from '@lms/db';
 import {
   AVAILABLE_LESSON_TYPES,
+  LIVE_DURATION_MAX,
+  LIVE_DURATION_MIN,
   PDF_MAX_BYTES,
   QUIZ_DEFAULT_PASS_PERCENT,
   QUIZ_MAX_OPTIONS,
   QUIZ_MAX_QUESTIONS,
+  ubLocalToIso,
 } from '@lms/shared';
 import { z } from 'zod';
 
@@ -29,6 +32,21 @@ export interface PdfContent {
   fileKey: string | null;
   fileName: string | null;
   size: number | null;
+}
+
+/**
+ * Live хичээл (ticket 14). `startsAt` ISO (UTC). Нийтлэгдсэн (APPROVED) ч засагдана — хуваарь, линк
+ * ажиллагааны мэдээлэл тул (`CourseAuthoringService.updateLesson`). Линкийг хэн харах: `toContent`.
+ */
+export interface LiveContent {
+  startsAt: string | null;
+  durationMinutes: number | null;
+  meetingUrl: string | null;
+}
+
+/** Бичлэг болгон хөрвүүлсэн live (ticket 10 Mux бичлэг нэмнэ). */
+export interface VideoContent {
+  fromLive?: { startsAt: string; durationMinutes: number };
 }
 
 const TEXT: LessonTypeDefinition<TextContent, TextContent> = {
@@ -119,10 +137,54 @@ const QUIZ: LessonTypeDefinition<StoredQuiz, StoredQuiz> = {
   },
 };
 
+/**
+ * `startsAt`: офсеттэй ISO (`2026-12-01T19:00:00+08:00`, `…Z`) эсвэл офсетгүй `YYYY-MM-DDTHH:mm` —
+ * сүүлийнх нь Улаанбаатарын цаг гэж тооцогдоно.
+ */
+const liveStartsAt = z
+  .string()
+  .trim()
+  .transform((v, ctx) => {
+    const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)
+      ? ubLocalToIso(v)
+      : z.string().datetime({ offset: true }).safeParse(v).success
+        ? new Date(v).toISOString()
+        : null;
+    if (!iso) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Эхлэх цаг буруу байна' });
+    return iso ?? '';
+  });
+
+const LIVE: LessonTypeDefinition<LiveContent, Required<{ [K in keyof LiveContent]: NonNullable<LiveContent[K]> }>> = {
+  input: z.object({
+    startsAt: liveStartsAt,
+    durationMinutes: z
+      .number({ message: 'Үргэлжлэх хугацаа (минут) оруулна уу' })
+      .int()
+      .min(LIVE_DURATION_MIN, `Үргэлжлэх хугацаа ${LIVE_DURATION_MIN}–${LIVE_DURATION_MAX} минут байна`)
+      .max(LIVE_DURATION_MAX, `Үргэлжлэх хугацаа ${LIVE_DURATION_MIN}–${LIVE_DURATION_MAX} минут байна`),
+    meetingUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .url('Линк буруу байна')
+      .refine((u) => u.startsWith('https://'), 'Линк https://-ээр эхлэх ёстой (Zoom, Google Meet)'),
+  }),
+  empty: { startsAt: null, durationMinutes: null, meetingUrl: null },
+  problems: (c) => {
+    const problems: string[] = [];
+    if (!c.startsAt) problems.push('Эхлэх цаг оруулаагүй');
+    if (!c.durationMinutes) problems.push('Үргэлжлэх хугацаа оруулаагүй');
+    if (!c.meetingUrl) problems.push('Zoom/Meet линк оруулаагүй');
+    if (c.startsAt && new Date(c.startsAt).getTime() <= Date.now()) problems.push('Эхлэх цаг өнгөрсөн байна');
+    return problems;
+  },
+};
+
 export const LESSON_TYPES: Partial<Record<LessonType, LessonTypeDefinition<unknown, unknown>>> = {
   TEXT: TEXT as LessonTypeDefinition<unknown, unknown>,
   PDF: PDF as LessonTypeDefinition<unknown, unknown>,
   QUIZ: QUIZ as LessonTypeDefinition<unknown, unknown>,
+  LIVE: LIVE as LessonTypeDefinition<unknown, unknown>,
 };
 
 export function isAvailableType(type: LessonType): boolean {

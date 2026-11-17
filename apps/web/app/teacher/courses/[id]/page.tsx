@@ -6,6 +6,10 @@ import {
   AVAILABLE_LESSON_TYPES,
   COURSE_LEVELS,
   COVER_TYPES,
+  isoToUbLocal,
+  LIVE_DURATION_MAX,
+  LIVE_DURATION_MIN,
+  liveState,
   type CategoryNode,
   type CourseDetail,
   type LessonType,
@@ -292,7 +296,7 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
                 )}
                 {open === l.id && (
                   <LessonEditor
-                    key={`${l.id}-${l.reviewStatus}`}
+                    key={`${l.id}-${l.reviewStatus}-${l.type}`}
                     lesson={l}
                     sections={course.sections}
                     locked={locked || l.archived || l.reviewStatus === 'IN_REVIEW'}
@@ -423,7 +427,17 @@ function LessonEditor({
   run: Run;
   onMove: (sectionId: string) => void;
 }) {
-  const contentLocked = locked || lesson.reviewStatus === 'APPROVED';
+  // Live-ийн хуваарь, линк нийтлэгдсэн ч засагдана (ticket 14).
+  const contentLocked = locked || (lesson.reviewStatus === 'APPROVED' && lesson.type !== 'LIVE');
+  const live = lesson.content.type === 'LIVE' ? lesson.content : null;
+  const liveInitial = {
+    startsAt: live?.startsAt ? isoToUbLocal(live.startsAt) : '',
+    duration: live?.durationMinutes ? String(live.durationMinutes) : '',
+    meetingUrl: live?.meetingUrl ?? '',
+  };
+  const [liveForm, setLiveForm] = useState(liveInitial);
+  const liveChanged = (Object.keys(liveInitial) as (keyof typeof liveInitial)[]).some((k) => liveForm[k] !== liveInitial[k]);
+  const liveEnded = !!live?.startsAt && !!live.durationMinutes && liveState(live.startsAt, live.durationMinutes) === 'ENDED';
   const [title, setTitle] = useState(lesson.title);
   const [price, setPrice] = useState(String(lesson.priceCredits));
   const [preview, setPreview] = useState(lesson.isFreePreview);
@@ -444,6 +458,10 @@ function LessonEditor({
           isFreePreview: preview,
           ...(lesson.type === 'TEXT' && !contentLocked ? { content: { markdown } } : {}),
           ...(lesson.type === 'QUIZ' && !contentLocked ? { content: quiz } : {}),
+          // Офсетгүй цаг = Улаанбаатар (API хөрвүүлнэ). Өөрчлөгдсөн үед л — сануулга дахин товлогдоно.
+          ...(lesson.type === 'LIVE' && !contentLocked && liveChanged
+            ? { content: { startsAt: liveForm.startsAt, durationMinutes: Number(liveForm.duration), meetingUrl: liveForm.meetingUrl } }
+            : {}),
         },
       }),
     );
@@ -502,6 +520,68 @@ function LessonEditor({
               </div>
             </div>
           ))}
+
+        {lesson.type === 'LIVE' && (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <LessonContentPreview lesson={lesson} />
+            {!contentLocked && (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+                <label style={{ display: 'grid', gap: 4 }}>
+                  {t('live.startsAt')}
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={liveForm.startsAt}
+                    onChange={(e) => setLiveForm((f) => ({ ...f, startsAt: e.target.value }))}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: 4 }}>
+                  {t('live.duration')}
+                  <input
+                    className="input"
+                    type="number"
+                    min={LIVE_DURATION_MIN}
+                    max={LIVE_DURATION_MAX}
+                    step={5}
+                    style={{ maxWidth: 140 }}
+                    value={liveForm.duration}
+                    onChange={(e) => setLiveForm((f) => ({ ...f, duration: e.target.value }))}
+                  />
+                </label>
+                <label style={{ display: 'grid', gap: 4, flex: '1 1 260px' }}>
+                  {t('live.meetingUrl')}
+                  <input
+                    className="input"
+                    type="url"
+                    maxLength={500}
+                    placeholder={t('live.meetingUrlPlaceholder')}
+                    value={liveForm.meetingUrl}
+                    onChange={(e) => setLiveForm((f) => ({ ...f, meetingUrl: e.target.value }))}
+                  />
+                </label>
+              </div>
+            )}
+            {lesson.reviewStatus === 'APPROVED' && !locked && <small className="muted">{t('live.editableHint')}</small>}
+            {liveEnded && !locked && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <small className="muted">{t('live.convertHint')}</small>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    if (window.confirm(t('live.convertConfirm'))) {
+                      void run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}/convert-to-video`, { method: 'POST' }));
+                    }
+                  }}
+                >
+                  {t('live.convert')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {lesson.type === 'VIDEO' && <LessonContentPreview lesson={lesson} />}
 
         {lesson.type === 'PDF' && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>

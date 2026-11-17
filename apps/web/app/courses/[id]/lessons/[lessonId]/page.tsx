@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { BRAND, type LessonAccessReason } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
 import { fetchCourse, fetchLesson } from '@/lib/catalog';
+import { LiveInfo } from '../../../../course-ui';
 import { Markdown } from '../../../../markdown';
 import { LockedLesson, PurchaseProvider } from '../../../purchase-ui';
 import { LessonLearning } from './lesson-learning';
@@ -59,6 +60,12 @@ export default async function LessonPage({ params }: { params: Params }) {
         </p>
       </div>
       {data.content.type === 'TEXT' && <Markdown source={data.content.markdown} />}
+      {data.content.type === 'LIVE' && (
+        <section className="card">
+          <LiveInfo content={data.content} linkHidden={data.access === 'PREVIEW' ? 'owners-only' : undefined} />
+        </section>
+      )}
+      {data.content.type === 'VIDEO' && <p className="muted">{t('live.recordingPending')}</p>}
       {data.content.type === 'PDF' && data.content.url && (
         <div style={{ display: 'grid', gap: 8 }}>
           <iframe className="pdf-frame" src={data.content.url} title={data.content.fileName ?? data.lesson.title} />

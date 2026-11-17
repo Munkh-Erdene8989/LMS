@@ -76,3 +76,15 @@ export async function ownedCourses(db: Db, userId: string, courseId?: string): P
   for (const c of courses) entry(c.courseId, c.createdAt).ownsCourse = true;
   return map;
 }
+
+/**
+ * Lesson-ыг эзэмшиж буй бүх хэрэглэгч (lesson-ы `Entitlement` ∪ курсийн `CourseEntitlement`) —
+ * live сануулга (ticket 14) г.м олон хүнд мэдэгдэл илгээхэд.
+ */
+export async function lessonOwnerIds(db: Db, lesson: { id: string; courseId: string }): Promise<string[]> {
+  const [lessonRows, courseRows] = await Promise.all([
+    db.entitlement.findMany({ where: { lessonId: lesson.id }, select: { userId: true } }),
+    db.courseEntitlement.findMany({ where: { courseId: lesson.courseId }, select: { userId: true } }),
+  ]);
+  return [...new Set([...lessonRows, ...courseRows].map((r) => r.userId))];
+}

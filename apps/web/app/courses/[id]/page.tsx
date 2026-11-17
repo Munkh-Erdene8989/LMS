@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BRAND } from '@lms/shared';
+import { BRAND, formatUbDateTime } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { fetchCourse } from '@/lib/catalog';
 import { Markdown } from '../../markdown';
@@ -90,6 +90,9 @@ export default async function CoursePage({ params }: { params: Params }) {
                         <li key={l.id} className="lesson-row">
                           <span>
                             {l.title} <small>· {t(`course.type${l.type}`)}</small>
+                            {l.live?.startsAt && (
+                              <small> · {formatUbDateTime(l.live.startsAt)}</small>
+                            )}
                           </span>
                           <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                             <small>

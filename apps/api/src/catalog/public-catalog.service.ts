@@ -21,6 +21,7 @@ import { searchCatalog } from './catalog-search';
 import { toContent } from './course.view';
 import { CatalogErrors as E } from './errors';
 import { LessonAccessPolicy, type LessonViewer } from './lesson-access';
+import type { LiveContent } from './lesson-types';
 import { loadRatings, NO_RATING } from './ratings';
 
 /** Free preview PDF-ийн signed URL хүчинтэй хугацаа */
@@ -121,7 +122,11 @@ export class PublicCatalogService {
       access,
       course: { id: lesson.course.id, title: lesson.course.title },
       // Learner-ийн view: quiz-ийн зөв хариулт хэзээ ч ордоггүй (багш, админ ч энд хариугүй).
-      content: await toContent(lesson, this.storage, PREVIEW_PDF_TTL, false),
+      // Live линк зөвхөн эзэмшигч, багш, админд — free preview-ээр үзэж буй хүнд биш (ticket 14).
+      content: await toContent(lesson, this.storage, PREVIEW_PDF_TTL, {
+        revealAnswers: false,
+        revealMeetingUrl: access !== 'PREVIEW',
+      }),
     };
   }
 
@@ -231,8 +236,28 @@ function categoryRef(c: CardRow['category']): PublicCategoryRef | null {
   };
 }
 
-function lessonItem(l: { id: string; title: string; type: PublicLessonItem['type']; priceCredits: number; isFreePreview: boolean }): PublicLessonItem {
-  return { id: l.id, title: l.title, type: l.type, priceCredits: l.priceCredits, isFreePreview: l.isFreePreview };
+function lessonItem(l: {
+  id: string;
+  title: string;
+  type: PublicLessonItem['type'];
+  priceCredits: number;
+  isFreePreview: boolean;
+  content: Prisma.JsonValue;
+}): PublicLessonItem {
+  return {
+    id: l.id,
+    title: l.title,
+    type: l.type,
+    priceCredits: l.priceCredits,
+    isFreePreview: l.isFreePreview,
+    live: l.type === 'LIVE' ? liveSchedule(l.content) : null,
+  };
+}
+
+/** Live-ийн хуваарь (нийтэд харагдана) — линк орохгүй. */
+function liveSchedule(content: Prisma.JsonValue): PublicLessonItem['live'] {
+  const c = content as unknown as Partial<LiveContent> | null;
+  return { startsAt: c?.startsAt ?? null, durationMinutes: c?.durationMinutes ?? null };
 }
 
 /** Markdown тэмдэгтгүй, ≤ 200 тэмдэгт */

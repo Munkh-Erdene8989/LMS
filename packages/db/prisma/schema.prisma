@@ -466,14 +466,36 @@ model Lesson {
   course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
 
-  purchases    Purchase[]
-  entitlements Entitlement[]
-  progress     LessonProgress[]
-  quizAttempts QuizAttempt[]
+  purchases     Purchase[]
+  entitlements  Entitlement[]
+  progress      LessonProgress[]
+  quizAttempts  QuizAttempt[]
+  liveReminders LiveReminder[]
 
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
   @@map("lessons")
+}
+
+/// Live хичээлийн сануулгын төрөл (ticket 14): эхлэхээс 24 цаг / 15 минутын өмнө.
+enum LiveReminderKind {
+  H24
+  M15
+}
+
+/// Илгээсэн live сануулга (ticket 14). (lesson, төрөл, эхлэх цаг) тус бүр нэг л удаа: дарааллын ажил
+/// энэ мөрийг "claim" хийж байж мэдэгдэл илгээнэ. Цаг өөрчлөгдвөл `starts_at` өөр тул шинэ сануулга очно.
+/// Live-ийн цаг, үргэлжлэх хугацаа, линк нь `lessons.content`-д (apps/api/src/catalog/lesson-types.ts).
+model LiveReminder {
+  lessonId String           @map("lesson_id") @db.Uuid
+  kind     LiveReminderKind
+  startsAt DateTime         @map("starts_at")
+  sentAt   DateTime         @default(now()) @map("sent_at")
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([lessonId, kind, startsAt])
+  @@map("live_reminders")
 }
 
 // ---------------------------------------------------------------------------

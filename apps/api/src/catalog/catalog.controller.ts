@@ -158,6 +158,13 @@ export class TeacherCourseController {
   pdfUpload(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string): Promise<UploadTicket> {
     return this.courses.pdfUpload(u.id, id);
   }
+
+  /** Дууссан live хичээлийг бичлэгийн (VIDEO) хичээл болгох (ticket 14). */
+  @Post('lessons/:id/convert-to-video')
+  @HttpCode(200)
+  convertToVideo(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string): Promise<CourseDetail> {
+    return this.courses.convertLiveToVideo(u.id, id);
+  }
 }
 
 /** Админ: курсийн шалгалт, ангилал. */

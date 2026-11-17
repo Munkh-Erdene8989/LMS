@@ -1,7 +1,8 @@
 import type { Prisma } from '@lms/db';
 import type { CourseDetail, CourseSummary, LessonContent, LessonView, QuizContent } from '@lms/shared';
+import { liveEndsAt } from '@lms/shared';
 import type { StorageAdapter } from '../adapters/storage';
-import { LESSON_TYPES, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
+import { LESSON_TYPES, type LiveContent, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
 
 export const courseDetailInclude = {
   teacher: { select: { id: true, name: true } },
@@ -110,20 +111,31 @@ async function toLessonView(l: LessonRow, storage: StorageAdapter): Promise<Less
     archived: !!l.archivedAt,
     problems: lessonProblems(l),
     // Багш/админы view — quiz-ийн зөв хариулттай.
-    content: await toContent(l, storage, PREVIEW_URL_TTL, true),
+    content: await toContent(l, storage, PREVIEW_URL_TTL, { revealAnswers: true }),
   };
 }
 
 /**
  * Lesson-ы агуулга (PDF бол `ttlSeconds` хугацаатай signed URL). Эрх шалгалтыг дуудагч хийнэ.
  * `revealAnswers` — quiz-ийн зөв хариулт; ЗӨВХӨН багш/админы засварлах, шалгах view-д `true`.
+ * Live линк зөвхөн `revealMeetingUrl` үед (эзэмшигч, багш, админ — free preview-д биш).
  */
 export async function toContent(
   l: Pick<LessonRow, 'type' | 'content'>,
   storage: StorageAdapter,
   ttlSeconds = PREVIEW_URL_TTL,
-  revealAnswers = false,
+  { revealAnswers = false, revealMeetingUrl = true }: { revealAnswers?: boolean; revealMeetingUrl?: boolean } = {},
 ): Promise<LessonContent> {
+  if (l.type === 'LIVE') {
+    const c = l.content as unknown as LiveContent;
+    return {
+      type: 'LIVE',
+      startsAt: c.startsAt ?? null,
+      durationMinutes: c.durationMinutes ?? null,
+      endsAt: c.startsAt && c.durationMinutes ? liveEndsAt(c.startsAt, c.durationMinutes) : null,
+      meetingUrl: revealMeetingUrl ? (c.meetingUrl ?? null) : null,
+    };
+  }
   if (l.type === 'TEXT') return { type: 'TEXT', markdown: (l.content as unknown as TextContent).markdown ?? '' };
   if (l.type === 'PDF') {
     const c = l.content as unknown as PdfContent;
