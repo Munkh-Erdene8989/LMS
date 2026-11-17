@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { Queue, Worker, type Job } from 'bullmq';
 import {
   QUEUE_TIMEZONE,
@@ -17,6 +18,7 @@ export class BullMqJobQueue implements JobQueue {
   private worker: Worker | null = null;
   private readonly handlers = new Map<string, { handler: JobHandler; definition?: JobDefinition }>();
   private readonly log = new Logger('BullMqJobQueue');
+  private readonly scheduled = new Set<string>();
 
   constructor(
     private readonly redisUrl: string,
@@ -43,6 +45,8 @@ export class BullMqJobQueue implements JobQueue {
 
   async schedule(name: string, cron: string): Promise<void> {
     await this.queue.upsertJobScheduler(name, { pattern: cron, tz: QUEUE_TIMEZONE }, { name, data: {} });
+    this.scheduled.add(name);
+    this.log.log(`Cron бүртгэв: ${name} "${cron}" (${QUEUE_TIMEZONE})`);
   }
 
   async start(): Promise<void> {
@@ -61,6 +65,14 @@ export class BullMqJobQueue implements JobQueue {
     );
     this.worker.on('failed', (job, err) => {
       this.log.warn(`Ажил "${job?.name}" (${job?.id}) амжилтгүй [${job?.attemptsMade}]: ${err.message}`);
+      // Сүүлчийн оролдлого унавал Sentry-д (идэвхгүй бол no-op).
+      if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+        Sentry.captureException(err, { tags: { job: job.name }, extra: { jobId: job.id } });
+      }
+    });
+    // Cron ажил цагтаа ажилласныг production log-оос шалгахад (docs/DEPLOY.md).
+    this.worker.on('completed', (job) => {
+      if (this.scheduled.has(job.name)) this.log.log(`Cron ажил "${job.name}" дууслаа`);
     });
     this.worker.on('error', (err) => this.log.error(`Worker алдаа: ${err.message}`));
   }

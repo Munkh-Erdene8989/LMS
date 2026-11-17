@@ -19,3 +19,4 @@ export * from './reviews';
 export * from './analytics';
 export * from './community';
 export * from './admin-ops';
+export * from './sentry-scrub';
