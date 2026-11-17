@@ -28,7 +28,7 @@ const ROLES_KEY = 'auth:roles';
 
 /**
  * Access cookie шалгаж `req.user`-ийг тохируулна. Role заасан бол тэдгээрийн аль нэг нь шаардлагатай.
- * tokenVersion-ийг DB-ээс шалгадаг тул "бүх төхөөрөмжөөс гарах" шууд хүчинтэй.
+ * tokenVersion-ийг DB-ээс шалгадаг тул "бүх төхөөрөмжөөс гарах" шууд хүчинтэй. Хаагдсан хэрэглэгч → 403 ACCOUNT_BLOCKED.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -46,9 +46,11 @@ export class AuthGuard implements CanActivate {
 
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
-      select: { id: true, roles: true, tokenVersion: true },
+      select: { id: true, roles: true, tokenVersion: true, blockedAt: true },
     });
     if (!user || user.tokenVersion !== claims.ver) throw AuthErrors.unauthenticated();
+    // Хаахад tokenVersion нэмэгддэг тул энд ихэвчлэн хүрэхгүй — давхар хамгаалалт (ticket 22).
+    if (user.blockedAt) throw AuthErrors.blocked();
 
     const required = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, [
       ctx.getHandler(),
@@ -86,9 +88,9 @@ export class OptionalAuthGuard implements CanActivate {
     if (!claims) return true;
     const user = await this.prisma.user.findUnique({
       where: { id: claims.sub },
-      select: { id: true, roles: true, tokenVersion: true },
+      select: { id: true, roles: true, tokenVersion: true, blockedAt: true },
     });
-    if (user && user.tokenVersion === claims.ver) req.user = { id: user.id, roles: user.roles };
+    if (user && user.tokenVersion === claims.ver && !user.blockedAt) req.user = { id: user.id, roles: user.roles };
     return true;
   }
 }

@@ -35,6 +35,13 @@ const REISSUE_AFTER_MS = 10 * 60_000;
 
 type SubWithPlan = Subscription & { plan: SubscriptionPlan };
 
+/** Админы гар олголт (ticket 22): шийдвэрийн тэмдэглэл + олголттой нэг transaction-д audit. */
+export interface AdminSettle {
+  actorId: string;
+  note: string;
+  audit: (tx: Tx) => Promise<void>;
+}
+
 export interface RenewalReport {
   renewed: number;
   pastDue: number;
@@ -167,6 +174,27 @@ export class SubscriptionsService implements OnModuleInit {
   async checkPayment(userId: string, id: string): Promise<SubscriptionPaymentView> {
     await this.ownPayment(userId, id);
     return toPaymentView(await this.verifyInvoice(id, true));
+  }
+
+  // ---- Админы тохирол (ticket 22) ----------------------------------------------------
+
+  /** Админ "дахин шалгах": PENDING нэхэмжлэхийг QPay-ээс шалгаж, төлөгдсөн бол ердийн урсгалаар олгоно. */
+  async recheckForAdmin(paymentId: string): Promise<Payment> {
+    return this.verifyInvoice(paymentId, true);
+  }
+
+  /**
+   * Админ "олгох": мөнгө орсон нь батлагдсан PENDING төлбөрийг (жишээ нь картаар татагдсан ч олголтын
+   * transaction унасан) ердийн `settle`-ээр — үе + кредит + ACTIVE — нэг transaction-д, audit-тай.
+   * Төлбөр PENDING биш болсон бол false (дуудагч шийднэ).
+   */
+  async settleByAdmin(payment: Payment, admin: AdminSettle): Promise<boolean> {
+    if (payment.purpose !== 'SUBSCRIPTION') throw new Error(`Payment ${payment.id}: subscription биш`);
+    return this.settle(
+      payment.id,
+      { providerPaymentId: payment.providerPaymentId, paidAmountMnt: payment.paidAmountMnt ?? payment.amountMnt },
+      admin,
+    );
   }
 
   /** QPay callback: URL-ийн токеноор төлбөрийг олж, QPay-ээс дахин шалгана. Body-д итгэхгүй. */
@@ -547,7 +575,8 @@ export class SubscriptionsService implements OnModuleInit {
   private async settle(
     paymentId: string,
     provider: { providerPaymentId: string | null; paidAmountMnt: number },
-  ): Promise<void> {
+    admin?: AdminSettle,
+  ): Promise<boolean> {
     const now = new Date();
     const done = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
@@ -562,9 +591,13 @@ export class SubscriptionsService implements OnModuleInit {
           paidAmountMnt: provider.paidAmountMnt,
           providerPaymentId: provider.providerPaymentId,
           lastCheckedAt: now,
+          ...(admin
+            ? { resolvedAt: now, resolvedById: admin.actorId, resolution: 'GRANTED' as const, resolutionNote: admin.note }
+            : {}),
         },
       });
       if (count === 0) return null; // өөр callback/шалгалт/cron түрүүлсэн
+      if (admin) await admin.audit(tx);
 
       const sub = await tx.subscription.findUniqueOrThrow({ where: { id: payment.subscriptionId } });
       const plan = await tx.subscriptionPlan.findUniqueOrThrow({ where: { id: payment.planId } });
@@ -610,6 +643,7 @@ export class SubscriptionsService implements OnModuleInit {
         expiresAt: formatDay(done.expiresAt),
       });
     }
+    return done !== null;
   }
 
   /**

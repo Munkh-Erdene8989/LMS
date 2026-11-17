@@ -70,6 +70,8 @@ const AdjustBody = z
       .max(1_000_000)
       .refine((v) => v !== 0, 'Тэг байж болохгүй'),
     reason: z.string().trim().min(3).max(500),
+    /** Давхар илгээлтээс хамгаална (ticket 22) — client маягт бүрт нэг UUID */
+    idempotencyKey: z.string().uuid().optional(),
   })
   .strict();
 
@@ -183,8 +185,15 @@ export class AdminCreditsController {
     @Req() req: Request,
   ): Promise<CreditAdjustResult> {
     const userId = await this.resolveUser(b.user);
-    const balance = await this.credits.adjust({ userId, delta: b.delta, reason: b.reason, actorId: u.id, ip: req.ip });
-    return { userId, balance };
+    const r = await this.credits.adjust({
+      userId,
+      delta: b.delta,
+      reason: b.reason,
+      actorId: u.id,
+      idempotencyKey: b.idempotencyKey,
+      ip: req.ip,
+    });
+    return { userId, balance: r.balance, entryId: r.entryId, replayed: r.replayed };
   }
 
   private async resolveUser(input: string): Promise<string> {

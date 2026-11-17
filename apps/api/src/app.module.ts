@@ -17,6 +17,7 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { LearningModule } from './learning/learning.module';
 import { MediaModule } from './media/media.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { AdminOpsModule } from './admin-ops/admin-ops.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PayoutsModule } from './payouts/payouts.module';
     LearningModule,
     MediaModule,
     PayoutsModule,
+    AdminOpsModule,
     MaintenanceModule,
   ],
 })

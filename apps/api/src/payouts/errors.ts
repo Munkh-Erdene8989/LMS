@@ -36,4 +36,21 @@ export const PayoutErrors = {
       'PAYOUT_EXCEEDS_BALANCE',
       `Багшийн одоогийн үлдэгдэл (${mnt(balanceMnt)}) хүсэлтийн дүнгээс бага байна. Хүсэлтийг татгалзана уу.`,
     ),
+  invalidAmount: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_AMOUNT', 'Дүн тэгээс ялгаатай бүхэл тоо (₮) байх ёстой.'),
+  /** Орлогын хасалт нээлттэй payout-ын түгжигдсэн дүнд (эсвэл 0-оос доош) хүрэх гэсэн (ticket 22) */
+  adjustBelowLocked: (balanceMnt: number, lockedMnt: number) =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'EARNINGS_BELOW_LOCKED',
+      lockedMnt > 0
+        ? `Үлдэгдэл ${mnt(balanceMnt)}-өөс ${mnt(lockedMnt)} нь нээлттэй payout хүсэлтэд түгжигдсэн. Ийм хэмжээгээр хасах бол эхлээд хүсэлтийг татгалзана уу.`
+        : `Үлдэгдэл ${mnt(balanceMnt)} — хасалтын дараа сөрөг болох тул боломжгүй.`,
+    ),
+  idempotencyConflict: () =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'IDEMPOTENCY_CONFLICT',
+      'Энэ хүсэлтийн түлхүүр өөр засварт ашиглагдсан байна. Хуудсыг шинэчилээд дахин оролдоно уу.',
+    ),
 };

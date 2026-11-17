@@ -31,4 +31,4 @@
 ## Үлдсэн
 
 - [ ] Production (Railway, `REDIS_URL`)-д BullMQ cron `credits.expiry` бүртгэгдэж, 00:10-д ажилласныг log-оос шалгах (dev-ийн in-memory дараалалд cron ажиллахгүй).
-- [ ] Дуусах lot-уудын тайлан/админ харагдац (хэдэн кредит дуусав, `isTest` тусад нь) — ticket 22.
+- [x] Дуусах lot-уудын тайлан (хэдэн кредит дуусав, `isTest` тусад нь) — ticket 22. (API: GET /admin/reports/expired-credits)

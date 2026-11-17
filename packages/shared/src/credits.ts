@@ -75,4 +75,8 @@ export interface TopupView {
 export interface CreditAdjustResult {
   userId: string;
   balance: number;
+  /** Ledger-ийн ADMIN_ADJUST бичилт */
+  entryId: string;
+  /** Ижил idempotencyKey-ээр өмнө хийгдсэн (шинэ бичилтгүй) */
+  replayed: boolean;
 }
