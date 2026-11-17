@@ -16,6 +16,7 @@ const NAV: [href: string, label: MessageKey][] = [
   ['/admin/subscription-plans', 'subscription.navAdmin'],
   ['/admin/payouts', 'payout.navAdmin'],
   ['/admin/reviews', 'review.navAdmin'],
+  ['/admin/community', 'communityAdmin.nav'],
   ['/admin/users', 'adminOps.navUsers'],
   ['/admin/payments', 'adminOps.navPayments'],
   ['/admin/reports', 'adminOps.navReports'],

@@ -21,6 +21,8 @@ export const CommunityErrors = {
   invalidImage: (reason: string) => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_IMAGE', reason),
   pinLimit: () =>
     new ApiError(HttpStatus.CONFLICT, 'PIN_LIMIT', `Зэрэг ${COMMUNITY_PIN_MAX}-аас олон нийтлэл pin хийхгүй. Эхлээд нэгийг нь болиулна уу.`),
+  alreadyHidden: () => new ApiError(HttpStatus.CONFLICT, 'ALREADY_HIDDEN', 'Аль хэдийн нуусан байна.'),
+  notHidden: () => new ApiError(HttpStatus.CONFLICT, 'NOT_HIDDEN', 'Нуугдаагүй байна.'),
   forbidden: () => new ApiError(HttpStatus.FORBIDDEN, 'FORBIDDEN', 'Танд энэ үйлдлийг хийх эрх алга.'),
   memberNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'MEMBER_NOT_FOUND', 'Энэ хэрэглэгч таны community-ийн гишүүн биш.'),
 };

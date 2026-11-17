@@ -65,17 +65,17 @@ enum OtpPurpose {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  name         String?
-  avatarUrl    String?  @map("avatar_url")
-  roles        Role[]   @default([LEARNER])
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String?
+  avatarUrl     String?   @map("avatar_url")
+  roles         Role[]    @default([LEARNER])
   /// "Бүх төхөөрөмжөөс гарах" үед нэмэгдэж, хуучин access token-уудыг хүчингүй болгоно.
-  tokenVersion Int      @default(0) @map("token_version")
+  tokenVersion  Int       @default(0) @map("token_version")
   /// Админ хаасан огноо (ticket 22): нэвтрэх, API ашиглах боломжгүй. null = идэвхтэй.
   blockedAt     DateTime? @map("blocked_at")
   blockedReason String?   @map("blocked_reason")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   identifiers   Identifier[]
   sessions      Session[]
@@ -123,17 +123,20 @@ model User {
   payoutHold         PayoutHold?  @relation("PayoutHoldTeacher")
   payoutHoldsCreated PayoutHold[] @relation("PayoutHoldActor")
 
-  reviews             Review[]      @relation("ReviewAuthor")
-  hiddenReviews       Review[]      @relation("ReviewHider")
-  reviewReplies       ReviewReply[] @relation("ReviewReplyAuthor")
-  hiddenReviewReplies ReviewReply[] @relation("ReviewReplyHider")
-  communityPosts     CommunityPost[]    @relation("CommunityPostTeacher")
-  communityAuthored  CommunityPost[]    @relation("CommunityPostAuthor")
-  communityComments  CommunityComment[] @relation("CommunityCommentAuthor")
-  communityLikes     CommunityLike[]    @relation("CommunityLikeUser")
-  communityRemovals  CommunityRemoval[] @relation("CommunityRemovalTeacher")
-  communityRemovedIn CommunityRemoval[] @relation("CommunityRemovalUser")
-  communityRemovedBy CommunityRemoval[] @relation("CommunityRemovalActor")
+  reviews                 Review[]                 @relation("ReviewAuthor")
+  hiddenReviews           Review[]                 @relation("ReviewHider")
+  reviewReplies           ReviewReply[]            @relation("ReviewReplyAuthor")
+  hiddenReviewReplies     ReviewReply[]            @relation("ReviewReplyHider")
+  communityPosts          CommunityPost[]          @relation("CommunityPostTeacher")
+  communityAuthored       CommunityPost[]          @relation("CommunityPostAuthor")
+  communityComments       CommunityComment[]       @relation("CommunityCommentAuthor")
+  communityLikes          CommunityLike[]          @relation("CommunityLikeUser")
+  communityRemovals       CommunityRemoval[]       @relation("CommunityRemovalTeacher")
+  communityRemovedIn      CommunityRemoval[]       @relation("CommunityRemovalUser")
+  communityRemovedBy      CommunityRemoval[]       @relation("CommunityRemovalActor")
+  communityHiddenPosts    CommunityPost[]          @relation("CommunityPostHider")
+  communityHiddenComments CommunityComment[]       @relation("CommunityCommentHider")
+  notificationPreferences NotificationPreference[]
 
   @@map("users")
 }
@@ -230,6 +233,20 @@ model Notification {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+/// Мэдэгдлийн имэйл тохиргоо (ticket 26). Төрөл бүрээр биш, **ангилалаар** (`apps/api/src/notifications/categories.ts`).
+/// Мөр байхгүй = идэвхтэй (default). In-app мэдэгдэл үргэлж үүснэ — зөвхөн имэйл унтарна.
+model NotificationPreference {
+  userId       String   @map("user_id") @db.Uuid
+  category     String
+  emailEnabled Boolean  @default(true) @map("email_enabled")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, category])
+  @@map("notification_preferences")
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,38 +1310,52 @@ model ReviewReply {
 /// Гишүүнчлэл хадгалагдахгүй — тухайн багшийн ямар нэг lesson эзэмшсэн эсэхээр (apps/api/src/purchases/entitlements.ts)
 /// тухай бүр шалгана, `community_removals`-д байвал хасагдсан.
 model CommunityPost {
-  id        String    @id @default(uuid()) @db.Uuid
-  teacherId String    @map("teacher_id") @db.Uuid
-  authorId  String    @map("author_id") @db.Uuid
+  id           String    @id @default(uuid()) @db.Uuid
+  teacherId    String    @map("teacher_id") @db.Uuid
+  authorId     String    @map("author_id") @db.Uuid
   /// Markdown текст (хоосон байж болно — зөвхөн зурагтай нийтлэл)
-  body      String    @default("")
+  body         String    @default("")
   /// Storage `private` bucket дахь зураг (`community/<teacherId>/<authorId>/…`), signed URL-аар харуулна
-  imageKey  String?   @map("image_key")
+  imageKey     String?   @map("image_key")
   /// Багш pin хийсэн үе (null = pin-гүй). Pin-тэй нь жагсаалтын эхэнд.
-  pinnedAt  DateTime? @map("pinned_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  pinnedAt     DateTime? @map("pinned_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  /// Зохиогч засварласан үе (null = засаагүй)
+  editedAt     DateTime? @map("edited_at")
+  /// Админ нуусан (moderation): гишүүдэд агуулга харагдахгүй, багш/админд харагдана
+  hiddenAt     DateTime? @map("hidden_at")
+  hiddenById   String?   @map("hidden_by_id") @db.Uuid
+  hiddenReason String?   @map("hidden_reason")
 
   teacher  User               @relation("CommunityPostTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
   author   User               @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  hiddenBy User?              @relation("CommunityPostHider", fields: [hiddenById], references: [id], onDelete: SetNull)
   comments CommunityComment[]
   likes    CommunityLike[]
 
   @@index([teacherId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([teacherId, pinnedAt])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@map("community_posts")
 }
 
 model CommunityComment {
-  id        String   @id @default(uuid()) @db.Uuid
-  postId    String   @map("post_id") @db.Uuid
-  authorId  String   @map("author_id") @db.Uuid
-  body      String
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String    @id @default(uuid()) @db.Uuid
+  postId       String    @map("post_id") @db.Uuid
+  authorId     String    @map("author_id") @db.Uuid
+  body         String
+  createdAt    DateTime  @default(now()) @map("created_at")
+  editedAt     DateTime? @map("edited_at")
+  hiddenAt     DateTime? @map("hidden_at")
+  hiddenById   String?   @map("hidden_by_id") @db.Uuid
+  hiddenReason String?   @map("hidden_reason")
 
-  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author User          @relation("CommunityCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User          @relation("CommunityCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  hiddenBy User?         @relation("CommunityCommentHider", fields: [hiddenById], references: [id], onDelete: SetNull)
 
   @@index([postId, createdAt, id])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@map("community_comments")
 }
 

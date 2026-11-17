@@ -164,6 +164,26 @@
       "title": "{name} таны оролцсон нийтлэлд сэтгэгдэл бичлээ",
       "body": "{teacher} багшийн community-д \"{post}\" нийтлэлд {name}: \"{comment}\"",
       "emailSubject": "{brand}: \"{post}\" нийтлэлд шинэ сэтгэгдэл"
+    },
+    "COMMUNITY_MEMBER_REMOVED": {
+      "title": "Та {teacher} багшийн community-гоос хасагдлаа",
+      "body": "{teacher} багш таныг community-гоосоо хаслаа.{reasonText} Таны хичээлийн эрх хэвээр байна.",
+      "emailSubject": "{brand}: {teacher} багшийн community-гоос хасагдлаа"
+    },
+    "COMMUNITY_MEMBER_RESTORED": {
+      "title": "Та {teacher} багшийн community-д буцаж нэгдлээ",
+      "body": "{teacher} багш таныг community-доо буцаан сэргээлээ. Дахин нийтлэл, сэтгэгдэл бичиж болно.",
+      "emailSubject": "{brand}: {teacher} багшийн community-д сэргээгдлээ"
+    },
+    "COMMUNITY_MEMBER_REMOVED": {
+      "title": "Та {teacher} багшийн community-гоос хасагдлаа",
+      "body": "{teacher} багш таныг community-гоосоо хаслаа.{reasonText} Таны хичээлийн эрх хэвээр байна.",
+      "emailSubject": "{brand}: {teacher} багшийн community-гоос хасагдлаа"
+    },
+    "COMMUNITY_MEMBER_RESTORED": {
+      "title": "Та {teacher} багшийн community-д буцаж нэгдлээ",
+      "body": "{teacher} багш таныг community-доо буцаан сэргээлээ. Дахин нийтлэл, сэтгэгдэл бичиж болно.",
+      "emailSubject": "{brand}: {teacher} багшийн community-д сэргээгдлээ"
     }
   },
   "payments": {

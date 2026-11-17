@@ -1,5 +1,5 @@
-import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
-import type { NotificationPage, UnreadCount } from '@lms/shared';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { NOTIFICATION_CATEGORIES, type NotificationCategory, type NotificationPage, type NotificationPreferenceView, type UnreadCount } from '@lms/shared';
 import { z } from 'zod';
 import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { ZodPipe } from '../zod-pipe';
@@ -9,6 +9,9 @@ const ListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   before: z.string().uuid().optional(),
 });
+
+const PreferenceBody = z.object({ emailEnabled: z.boolean() }).strict();
+const CategoryParam = new ZodPipe(z.enum(NOTIFICATION_CATEGORIES));
 
 @Controller('notifications')
 @Auth()
@@ -21,6 +24,21 @@ export class NotificationsController {
     @Query(new ZodPipe(ListQuery)) query: z.infer<typeof ListQuery>,
   ): Promise<NotificationPage> {
     return this.notifications.list(user.id, query);
+  }
+
+  /** Имэйл мэдэгдлийн тохиргоо (ангилалаар). In-app мэдэгдэл үргэлж ирнэ. */
+  @Get('preferences')
+  preferences(@CurrentUser() user: CurrentUserInfo): Promise<NotificationPreferenceView[]> {
+    return this.notifications.preferences(user.id);
+  }
+
+  @Put('preferences/:category')
+  setPreference(
+    @CurrentUser() user: CurrentUserInfo,
+    @Param('category', CategoryParam) category: NotificationCategory,
+    @Body(new ZodPipe(PreferenceBody)) body: z.infer<typeof PreferenceBody>,
+  ): Promise<NotificationPreferenceView> {
+    return this.notifications.setPreference(user.id, category, body.emailEnabled);
   }
 
   @Get('unread-count')

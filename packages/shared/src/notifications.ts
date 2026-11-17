@@ -19,3 +19,17 @@ export interface NotificationPage {
 export interface UnreadCount {
   count: number;
 }
+
+/**
+ * Мэдэгдлийн ангилал (хэрэглэгч имэйлийг ангилалаар нь унтраана). Шинэ ангилал нэмэхдээ API талын
+ * `notifications/categories.ts`-д төрлүүдийг нь холбоно.
+ */
+export const NOTIFICATION_CATEGORIES = ['COMMUNITY_COMMENT'] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+/** `GET /notifications/preferences` */
+export interface NotificationPreferenceView {
+  category: NotificationCategory;
+  /** false бол имэйл илгээхгүй, in-app мэдэгдэл хэвээр */
+  emailEnabled: boolean;
+}
