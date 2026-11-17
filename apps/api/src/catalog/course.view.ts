@@ -113,7 +113,12 @@ async function toLessonView(l: LessonRow, storage: StorageAdapter): Promise<Less
   };
 }
 
-async function toContent(l: LessonRow, storage: StorageAdapter): Promise<LessonContent> {
+/** Lesson-ы агуулга (PDF бол `ttlSeconds` хугацаатай signed URL). Эрх шалгалтыг дуудагч хийнэ. */
+export async function toContent(
+  l: Pick<LessonRow, 'type' | 'content'>,
+  storage: StorageAdapter,
+  ttlSeconds = PREVIEW_URL_TTL,
+): Promise<LessonContent> {
   if (l.type === 'TEXT') return { type: 'TEXT', markdown: (l.content as unknown as TextContent).markdown ?? '' };
   if (l.type === 'PDF') {
     const c = l.content as unknown as PdfContent;
@@ -121,7 +126,7 @@ async function toContent(l: LessonRow, storage: StorageAdapter): Promise<LessonC
       type: 'PDF',
       fileName: c.fileName ?? null,
       size: c.size ?? null,
-      url: c.fileKey ? await storage.signedDownloadUrl('private', c.fileKey, PREVIEW_URL_TTL) : null,
+      url: c.fileKey ? await storage.signedDownloadUrl('private', c.fileKey, ttlSeconds) : null,
     };
   }
   return { type: l.type };

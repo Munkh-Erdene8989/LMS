@@ -43,6 +43,7 @@ export function SiteHeader() {
         {BRAND.name}
       </Link>
       <nav style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <Link href="/courses">{t('catalog.nav')}</Link>
         {authed === false && (
           <Link className="btn btn-ghost" href="/login">
             {t('home.login')}

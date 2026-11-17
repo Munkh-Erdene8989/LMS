@@ -61,6 +61,15 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Шинэ хичээлийн төрөл: `apps/api/src/catalog/lesson-types.ts`-д entry + `AVAILABLE_LESSON_TYPES`.
 - Файл: API `UploadTicket` (signed URL) өгнө → browser шууд PUT → API `info()`-оор шалгаж хүлээн авна. `SUPABASE_URL` хоосон бол local диск.
 
+## Каталог
+
+- Нийтэд (`/catalog/*`, нэвтрэлтгүй) зөвхөн `PUBLISHED` курс, `APPROVED` + архивлаагүй lesson. Бусад нь 404.
+- Lesson-ы контентыг суралцагчид өгөх цорын ганц шалгалт: `LessonAccessPolicy.canViewContent()` (`apps/api/src/catalog/lesson-access.ts`).
+- `pg_trgm` нь `extensions` schema-д — SQL-д үргэлж бүрэн нэрээр: `extensions.word_similarity(...)`, `OPERATOR(extensions.<%)`, `extensions.gin_trgm_ops`. Raw SQL зөвхөн `Prisma.sql` tagged template-ээр.
+- Үнэлгээ (шүүлтүүр, эрэмбэ, карт): `apps/api/src/catalog/ratings.ts`.
+- Migration SQL үүсгэх (`migrate diff`) үед `DIRECT_URL`-ийг ч тестийн schema руу заана — эс бөгөөс Prisma `directUrl` (dev `public`)-тэй харьцуулна:
+  `cd packages/db && npx dotenv -e ../../.env -- sh -c 'DATABASE_URL="$DATABASE_URL_TEST" DIRECT_URL="$DATABASE_URL_TEST" npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script'`
+
 ## Мэдэгдэл ба дараалал
 
 - Мэдэгдэл илгээх цорын ганц арга: `NotificationsService.notify({ userId, type, params, link })`. Имэйлтэй бол имэйл автоматаар дараалалд орно.

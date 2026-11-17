@@ -290,6 +290,8 @@ model TeacherApplication {
   agreementAcceptance LegalAcceptance @relation(fields: [agreementAcceptanceId], references: [id], onDelete: NoAction)
 
   @@index([status, submittedAt])
+  // Каталогийн хайлт: багшийн нийтийн нэр (ticket 07)
+  @@index([displayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "teacher_applications_display_name_trgm_idx")
   @@map("teacher_applications")
 }
 
@@ -373,6 +375,11 @@ model Course {
 
   @@index([teacherId])
   @@index([status, submittedAt])
+  // Каталог (ticket 07). Trigram index-ууд migration-д `extensions.gin_trgm_ops`-оор үүссэн; энд `raw("gin_trgm_ops")` нь
+  // introspection-тэй таарч, `migrate diff` тэднийг дахин үүсгэхгүй байхад л хэрэгтэй (20261117600000_catalog_search).
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_title_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_description_trgm_idx")
   @@map("courses")
 }
 

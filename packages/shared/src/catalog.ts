@@ -96,3 +96,128 @@ export interface UploadTicket {
   url: string;
   method: 'PUT';
 }
+
+// ---------------------------------------------------------------------------
+// Нийтийн каталог (ticket 07) — нэвтрэлтгүй. Зөвхөн PUBLISHED курс, APPROVED + архивлаагүй lesson.
+// ---------------------------------------------------------------------------
+
+export type CatalogSort = 'relevance' | 'newest' | 'price_asc' | 'price_desc' | 'rating';
+export const CATALOG_SORTS: readonly CatalogSort[] = ['relevance', 'newest', 'price_asc', 'price_desc', 'rating'];
+export const CATALOG_PAGE_SIZE = 12;
+
+/**
+ * Үнэлгээ (ticket 18-д review нэмэгдэнэ). Одоогоор бүх курст `{ average: null, count: 0 }`.
+ * `minRating` шүүлтүүр average-ээр, `rating` эрэмбэ average (null сүүлд)-аар ажилладаг.
+ */
+export interface CourseRating {
+  /** 1–5, нэг оронгийн нарийвчлалтай; review байхгүй бол null */
+  average: number | null;
+  count: number;
+}
+
+export interface PublicTeacherRef {
+  id: string;
+  /** Зөвшөөрөгдсөн багшийн өргөдлийн `displayName`, үгүй бол хэрэглэгчийн нэр */
+  name: string;
+  avatarUrl: string | null;
+}
+
+export interface PublicCategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+  /** Дэд ангилал бол эх ангилал */
+  parent: { id: string; name: string; slug: string } | null;
+}
+
+/** Каталогийн карт */
+export interface CatalogCourseCard {
+  id: string;
+  title: string;
+  /** Тайлбарын эхний хэсэг (≤ 200 тэмдэгт) */
+  excerpt: string;
+  coverUrl: string | null;
+  level: CourseLevel;
+  /** Курсийн бүтэн үнэ (кредит) */
+  priceCredits: number;
+  lessonCount: number;
+  hasFreePreview: boolean;
+  teacher: PublicTeacherRef;
+  category: PublicCategoryRef | null;
+  rating: CourseRating;
+  publishedAt: string;
+}
+
+/** `GET /catalog/courses` query. Бүгд заавал биш. */
+export interface CatalogQuery {
+  q?: string;
+  /** Ангиллын slug — үндсэн ангилал бол дэд ангиллуудын курсууд орно */
+  category?: string;
+  level?: CourseLevel;
+  minPrice?: number;
+  maxPrice?: number;
+  /** 1–5 */
+  minRating?: number;
+  /** true бол free preview lesson-тэй курс л */
+  freePreview?: boolean;
+  /** Анхдагч: `q` байвал `relevance`, үгүй бол `newest` */
+  sort?: CatalogSort;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CatalogPage {
+  items: CatalogCourseCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PublicLessonItem {
+  id: string;
+  title: string;
+  type: LessonType;
+  priceCredits: number;
+  isFreePreview: boolean;
+}
+
+export interface PublicSection {
+  id: string;
+  title: string;
+  lessons: PublicLessonItem[];
+}
+
+export interface CoursePricing {
+  /** Курсийн жагсаалтын бүтэн үнэ */
+  listCredits: number;
+  /** Хичээлүүдийг тус тусад нь авбал нийт үнэ */
+  lessonsTotalCredits: number;
+  /**
+   * Энэ хэрэглэгч курсийг бүтнээр авахад төлөх дүн = max(0, list − аль хэдийн зарцуулсан).
+   * Худалдан авалт ticket 09-д — одоогоор үргэлж `listCredits`.
+   */
+  payableCredits: number;
+}
+
+/** `GET /catalog/courses/:id` */
+export interface PublicCourseDetail extends Omit<CatalogCourseCard, 'excerpt' | 'teacher'> {
+  description: string;
+  teacher: PublicTeacherRef & { bio: string | null };
+  pricing: CoursePricing;
+  sections: PublicSection[];
+}
+
+/** `GET /catalog/lessons/:id` — зөвхөн контент үзэх эрхтэй үед (одоогоор free preview). */
+export interface PublicLessonContent {
+  lesson: PublicLessonItem;
+  course: { id: string; title: string };
+  /** PDF-ийн `url` богино хугацаатай signed URL */
+  content: LessonContent;
+}
+
+/** `GET /catalog/teachers/:id` */
+export interface PublicTeacherProfile extends PublicTeacherRef {
+  bio: string | null;
+  expertise: string | null;
+  courses: CatalogCourseCard[];
+}

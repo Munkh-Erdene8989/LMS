@@ -16,6 +16,7 @@ export default async function HomePage() {
       <h1 style={{ margin: 0 }}>{t('home.title', { brand: BRAND.name })}</h1>
       <p style={{ color: 'var(--muted)' }}>{t('home.subtitle')}</p>
       <p style={{ display: 'flex', gap: 8 }}>
+        <Link className="btn" href="/courses">{t('catalog.browseCta')}</Link>
         <Link className="btn" href="/login">{t('home.login')}</Link>
         <Link className="btn btn-ghost" href="/me">{t('home.profile')}</Link>
       </p>
