@@ -59,7 +59,10 @@ export interface MuxAdapter {
   createDirectUpload(input: { passthrough: string; corsOrigin: string }): Promise<MuxDirectUpload>;
   getUpload(uploadId: string): Promise<MuxUploadState>;
   getAsset(assetId: string): Promise<MuxAssetState>;
+  /** Байхгүй (аль хэдийн устсан) asset алдаа биш — давтан дуудахад аюулгүй. */
   deleteAsset(assetId: string): Promise<void>;
+  /** Хүлээгдэж буй (`waiting`) direct upload-ыг цуцална — дараа нь asset үүсэхгүй. */
+  cancelUpload(uploadId: string): Promise<void>;
   signPlaybackToken(playbackId: string, audience: MuxTokenAudience, ttlSeconds: number, now?: Date): string;
   /** Гарын үсэг + хугацааг шалгаад event буцаана; буруу бол `MuxSignatureError`. */
   parseWebhook(rawBody: Buffer | string, signatureHeader: string | undefined, now?: Date): MuxWebhookEvent;
@@ -232,6 +235,10 @@ export class HttpMuxAdapter implements MuxAdapter {
     await this.request('DELETE', `/video/v1/assets/${encodeURIComponent(assetId)}`, undefined, [404]);
   }
 
+  async cancelUpload(uploadId: string): Promise<void> {
+    await this.request('PUT', `/video/v1/uploads/${encodeURIComponent(uploadId)}/cancel`);
+  }
+
   signPlaybackToken(playbackId: string, audience: MuxTokenAudience, ttlSeconds: number, now = new Date()): string {
     return signMuxJwt(this.privateKeyPem, this.config.signingKeyId, playbackId, audience, ttlSeconds, now);
   }
@@ -300,6 +307,9 @@ export class DisabledMuxAdapter implements MuxAdapter {
   deleteAsset(): Promise<void> {
     return Promise.reject(new MuxNotConfiguredError());
   }
+  cancelUpload(): Promise<void> {
+    return Promise.reject(new MuxNotConfiguredError());
+  }
   signPlaybackToken(): string {
     throw new MuxNotConfiguredError();
   }
@@ -323,6 +333,9 @@ export class FakeMux implements MuxAdapter {
   enabled = true;
   readonly uploads: { uploadId: string; passthrough: string; corsOrigin: string }[] = [];
   readonly deletedAssets: string[] = [];
+  readonly cancelledUploads: string[] = [];
+  /** Дараагийн N `deleteAsset` дуудлага түр алдаа шиднэ (retry-г шалгах) */
+  failures = 0;
   private readonly uploadStates = new Map<string, MuxUploadState>();
   private readonly assetStates = new Map<string, MuxAssetState>();
   private readonly engagement = new Map<string, MuxVideoEngagement[]>();
@@ -356,7 +369,21 @@ export class FakeMux implements MuxAdapter {
 
   async deleteAsset(assetId: string): Promise<void> {
     this.assertEnabled();
+    if (this.failures > 0) {
+      this.failures -= 1;
+      throw new MuxError(`fake: asset ${assetId} устгах түр алдаа`);
+    }
     this.deletedAssets.push(assetId);
+    this.assetStates.delete(assetId);
+  }
+
+  async cancelUpload(uploadId: string): Promise<void> {
+    this.assertEnabled();
+    const s = this.uploadStates.get(uploadId);
+    if (!s) throw new MuxError(`fake: upload ${uploadId} алга`);
+    if (s.status !== 'waiting') throw new MuxError(`fake: upload ${uploadId} ${s.status} — цуцлах боломжгүй`);
+    this.cancelledUploads.push(uploadId);
+    this.uploadStates.set(uploadId, { status: 'cancelled', assetId: null, error: null });
   }
 
   signPlaybackToken(playbackId: string, audience: MuxTokenAudience, ttlSeconds: number, now = new Date()): string {
@@ -402,6 +429,8 @@ export class FakeMux implements MuxAdapter {
     this.seq = 0;
     this.uploads.length = 0;
     this.deletedAssets.length = 0;
+    this.cancelledUploads.length = 0;
+    this.failures = 0;
     this.uploadStates.clear();
     this.assetStates.clear();
     this.engagement.clear();

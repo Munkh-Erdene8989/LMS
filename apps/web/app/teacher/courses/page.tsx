@@ -41,6 +41,9 @@ export default function TeacherCoursesPage() {
           <Link className="btn btn-ghost" href="/teacher/assignments">
             {t('assignment.inboxTitle')}
           </Link>
+          <Link className="btn btn-ghost" href="/teacher/live">
+            {t('live.calendarLink')}
+          </Link>
         </div>
       </div>
       {error && <p style={{ color: 'var(--err)' }}>{error}</p>}

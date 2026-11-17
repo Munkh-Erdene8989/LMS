@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import type { LessonLearningState, LessonProgressView, LessonType, QuizAttemptResult, QuizAttemptView, QuizContent } from '@lms/shared';
+import { formatUbDateTime, QUIZ_ATTEMPTS_PER_DAY, type LessonLearningState, type LessonProgressView, type LessonType, type QuizAttemptResult, type QuizAttemptView, type QuizContent } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -109,6 +109,17 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
   const [attempts, setAttempts] = useState<QuizAttemptView[]>(initial.quiz?.attempts ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Хурдны хязгаар (API: 30 сек хүлээлт, 24 цагт 10 оролдлого) — дараагийн боломжит цаг хүртэл товч идэвхгүй.
+  const [nextAt, setNextAt] = useState<string | null>(initial.quiz?.nextAttemptAt ?? null);
+  const [now, setNow] = useState(() => Date.now());
+  const waitMs = nextAt ? new Date(nextAt).getTime() - now : 0;
+  const limited = waitMs > 0;
+
+  useEffect(() => {
+    if (!limited) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [limited]);
 
   function toggle(questionId: string, optionId: string, multiple: boolean) {
     setSelected((prev) => {
@@ -128,7 +139,17 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
       setResult(r.attempt);
       setBest(r.quiz.bestScorePercent);
       setAttempts(r.quiz.attempts);
+      setNextAt(r.quiz.nextAttemptAt);
+      setNow(Date.now());
     } catch (err) {
+      if (err instanceof ApiRequestError && err.code === 'QUIZ_RATE_LIMITED') {
+        // Хязгаарын цагийг серверээс шинэчилнэ — товч өөрөө идэвхгүй болж, хүлээх хугацаа харагдана.
+        const fresh = await api<LessonLearningState>(`/learning/lessons/${lessonId}`).catch(() => null);
+        if (fresh?.data.quiz) {
+          setNextAt(fresh.data.quiz.nextAttemptAt);
+          setNow(Date.now());
+        }
+      }
       setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
     } finally {
       setBusy(false);
@@ -184,7 +205,14 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
               {error}
             </p>
           )}
-          <button className="btn" disabled={busy} style={{ justifySelf: 'start' }}>
+          {limited && nextAt && (
+            <p className="muted" role="status" style={{ margin: 0 }}>
+              {waitMs <= 60_000
+                ? t('quiz.rateLimitedSeconds', { seconds: Math.ceil(waitMs / 1000) })
+                : t('quiz.rateLimitedUntil', { max: QUIZ_ATTEMPTS_PER_DAY, time: formatUbDateTime(nextAt) })}
+            </p>
+          )}
+          <button className="btn" disabled={busy || limited} style={{ justifySelf: 'start' }}>
             {busy ? t('quiz.submitting') : t('quiz.submit')}
           </button>
         </form>
