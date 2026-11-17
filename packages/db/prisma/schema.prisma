@@ -71,6 +71,9 @@ model User {
   roles        Role[]   @default([LEARNER])
   /// "Бүх төхөөрөмжөөс гарах" үед нэмэгдэж, хуучин access token-уудыг хүчингүй болгоно.
   tokenVersion Int      @default(0) @map("token_version")
+  /// Админ хаасан огноо (ticket 22): нэвтрэх, API ашиглах боломжгүй. null = идэвхтэй.
+  blockedAt     DateTime? @map("blocked_at")
+  blockedReason String?   @map("blocked_reason")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -604,6 +607,14 @@ enum PaymentStatus {
   CANCELED
 }
 
+/// Асуудалтай төлбөрийн админы шийдвэр (ticket 22)
+enum PaymentResolution {
+  /// Кредит (subscription бол үе) олгосон — төлбөр PAID болно
+  GRANTED
+  /// Олгохгүйгээр хаасан (төлөгдөөгүй, эсвэл мөнгийг гадуур буцаасан)
+  CLOSED
+}
+
 enum PaymentPurpose {
   CREDIT_TOPUP
   /// Сарын багцын төлбөр (ticket 17)
@@ -645,6 +656,13 @@ model Payment {
   renewalFor     DateTime?     @map("renewal_for")
   method         PaymentMethod @default(INVOICE)
   failureReason  String?       @map("failure_reason")
+
+  // --- Админы тохирлын шийдвэр (ticket 22) ---
+  /// Асуудалтай төлбөрийг админ шийдсэн огноо, хэн, юу гэж
+  resolvedAt     DateTime?          @map("resolved_at")
+  resolvedById   String?            @map("resolved_by_id") @db.Uuid
+  resolution     PaymentResolution?
+  resolutionNote String?            @map("resolution_note")
 
   user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   package CreditPackage? @relation(fields: [packageId], references: [id], onDelete: Restrict)

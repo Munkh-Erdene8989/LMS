@@ -41,7 +41,7 @@ QPay карт токен — эх сурвалж (2026-11-17): developer.qpay.mn
 ## Үлдсэн
 
 - [ ] QPay-ээс card-token (recurring/tokenization) API-ийн албан ёсны баримт, гэрээ авах → `HttpQPayAdapter`-ийн `registerCard/getCardRegistration/chargeCard/removeCard`-ийг хэрэгжүүлж, `cardTokensSupported = true`, local HTTP сервертэй тест. Түүнийг хүртэл бодит орчинд карт холбох боломжгүй.
-- [ ] Картаар татагдсан ч олголтын transaction унасан төлбөр `PENDING` + `provider_payment_id`-тай үлдэнэ — админд харуулж гараар шийдэх UI (ticket 22, хуучирсан PENDING / `AMOUNT_MISMATCH`-тэй хамт).
-- [ ] QPay дээр нэхэмжлэх цуцлах амжилтгүй болж, дараа нь хэрэглэгч төлвөл (`CANCELED` төлбөр) кредит олгогдохгүй — ticket 22-ийн тохирлын (reconciliation) тайланд.
+- [x] Картаар татагдсан ч олголтын transaction унасан төлбөр `PENDING` + `provider_payment_id`-тай үлдэнэ — админд харуулж гараар шийдэх UI (ticket 22, хуучирсан PENDING / `AMOUNT_MISMATCH`-тэй хамт).
+- [x] QPay дээр нэхэмжлэх цуцлах амжилтгүй болж, дараа нь хэрэглэгч төлвөл (`CANCELED` төлбөр) кредит олгогдохгүй — ticket 22-ийн тохирлын (reconciliation) тайланд.
 - [ ] Production-д бодит QPay-ээр сарын багцын нэхэмжлэх, callback, 3 хоногийн урсгалыг шалгах (тест багц одоогоор зөвхөн кредит цэнэглэлтэд).
 - [ ] Хүсвэл: сунгалтын өмнөх сануулга (жишээ нь 3 хоногийн өмнө) — ticket 16-ийн сануулгатай хамт.

@@ -62,9 +62,13 @@ export class SessionService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, tokenVersion: true },
+      select: { id: true, tokenVersion: true, blockedAt: true },
     });
     if (!user) throw AuthErrors.refreshInvalid();
+    if (user.blockedAt) {
+      await this.revokeFamily(session.familyId);
+      throw AuthErrors.blocked();
+    }
     return this.issue(user, { userAgent, familyId: session.familyId });
   }
 

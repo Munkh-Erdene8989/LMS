@@ -99,6 +99,11 @@ export class PaymentsService {
     return toView(await this.verify(id, true));
   }
 
+  /** Админы тохирол (ticket 22): PENDING цэнэглэлтийг QPay-ээс дахин шалгаж, төлөгдсөн бол ердийн урсгалаар олгоно. */
+  async recheckForAdmin(paymentId: string): Promise<Payment> {
+    return this.verify(paymentId, true);
+  }
+
   /**
    * QPay callback. URL дахь токен нь төлбөрийг заана; body-г огт уншихгүй.
    * Олдохгүй бол null (controller 404).

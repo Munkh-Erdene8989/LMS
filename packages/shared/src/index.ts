@@ -17,3 +17,4 @@ export * from './certificates';
 export * from './payouts';
 export * from './analytics';
 export * from './community';
+export * from './admin-ops';

@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, type Payout, type PayoutStatus } from '@lms/db';
 import type {
   AdminPayoutPage,
   AdminPayoutView,
   BankCode,
+  EarningsAdjustResult,
   PayoutBlockReason,
   PayoutHoldView,
   PayoutView,
@@ -11,7 +13,7 @@ import type {
 } from '@lms/shared';
 import { AuditService } from '../admin/audit.service';
 import { SettingsService } from '../admin/settings.service';
-import { CREDIT_TX_OPTIONS } from '../credits/credits.service';
+import { ADMIN_ADJUST_REF, CREDIT_TX_OPTIONS } from '../credits/credits.service';
 import { NotificationsService, type NotifyInput } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeacherEarningsService } from '../purchases/earnings.service';
@@ -335,6 +337,70 @@ export class PayoutsService {
         ip,
       });
     }, TX);
+  }
+
+  /**
+   * Админы орлогын гар засвар (ticket 09/22): ledger-т `ADMIN_ADJUST` (тэмдэгтэй ₮), шалтгаан, audit.
+   *
+   * Payout-той уралдахгүйн тулд хүсэлт/төлөлттэй **ижил** багшийн мөрийн түгжээ дор ажиллана.
+   * Хасалт нээлттэй хүсэлтийн түгжигдсэн дүнд хүрч болохгүй: `үлдэгдэл + дүн ≥ түгжигдсэн` (нээлттэй
+   * хүсэлтгүй бол ≥ 0) — эс бөгөөс "төлсөн" үед үлдэгдэл хүрэлцэхгүй болно. Тийм хасалт хийх бол эхлээд
+   * хүсэлтийг татгалзана. Idempotent: `ref_type = 'admin_adjust'`, `ref_id = idempotencyKey` (partial unique).
+   */
+  async adjustEarnings(input: {
+    teacherId: string;
+    amountMnt: number;
+    reason: string;
+    adminId: string;
+    idempotencyKey?: string;
+    ip?: string;
+  }): Promise<EarningsAdjustResult> {
+    if (!Number.isInteger(input.amountMnt) || input.amountMnt === 0) throw E.invalidAmount();
+    const key = input.idempotencyKey ?? randomUUID();
+    try {
+      return await this.prisma.$transaction(async (tx): Promise<EarningsAdjustResult> => {
+        await lockUser(tx, input.teacherId);
+        if (!(await tx.user.findUnique({ where: { id: input.teacherId }, select: { id: true } }))) {
+          throw E.teacherNotFound();
+        }
+        const open = await tx.payout.findFirst({ where: { teacherId: input.teacherId, status: 'REQUESTED' } });
+        const lockedMnt = open?.amountMnt ?? 0;
+
+        const prev = await tx.teacherEarningEntry.findFirst({ where: { refType: ADMIN_ADJUST_REF, refId: key } });
+        if (prev) {
+          if (prev.teacherId !== input.teacherId || prev.amountMnt !== input.amountMnt) throw E.idempotencyConflict();
+          const balanceMnt = await this.earnings.balance(input.teacherId, tx);
+          return { entryId: prev.id, balanceMnt, lockedMnt, replayed: true };
+        }
+
+        const before = await this.earnings.balance(input.teacherId, tx);
+        const after = before + input.amountMnt;
+        if (input.amountMnt < 0 && after < lockedMnt) throw E.adjustBelowLocked(before, lockedMnt);
+
+        const entryId = await this.earnings.append(tx, {
+          teacherId: input.teacherId,
+          type: 'ADMIN_ADJUST',
+          amountMnt: input.amountMnt,
+          reason: input.reason,
+          actorId: input.adminId,
+          refType: ADMIN_ADJUST_REF,
+          refId: key,
+        });
+        await this.audit.record(tx, {
+          actorId: input.adminId,
+          action: 'earnings.adjust',
+          targetType: 'user',
+          targetId: input.teacherId,
+          before: { balanceMnt: before, lockedMnt },
+          after: { balanceMnt: after, amountMnt: input.amountMnt, reason: input.reason, entryId, idempotencyKey: key },
+          ip: input.ip,
+        });
+        return { entryId, balanceMnt: after, lockedMnt, replayed: false };
+      }, TX);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw E.idempotencyConflict();
+      throw err;
+    }
   }
 
   // ---- дотоод ---------------------------------------------------------------

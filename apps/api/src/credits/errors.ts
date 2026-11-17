@@ -17,6 +17,12 @@ export const CreditErrors = {
       'PACKAGE_IN_USE',
       'Энэ багцаар төлбөр хийгдсэн тул устгах боломжгүй. Идэвхгүй болгоно уу.',
     ),
+  idempotencyConflict: () =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'IDEMPOTENCY_CONFLICT',
+      'Энэ хүсэлтийн түлхүүр өөр засварт ашиглагдсан байна. Хуудсыг шинэчилээд дахин оролдоно уу.',
+    ),
   paymentNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Төлбөр олдсонгүй.'),
   providerUnavailable: () =>
     new ApiError(
