@@ -8,6 +8,7 @@ import { REFERRAL_COOKIE } from '../referrals/cookie';
 import { ReferralsService } from '../referrals/referrals.service';
 import { UsersService, toAuthUser } from '../users/users.service';
 import { ZodPipe } from '../zod-pipe';
+import { LIMITS, RateLimit } from '../rate-limit/rate-limit';
 import { Auth, CurrentUser, type CurrentUserInfo } from './auth.guard';
 import { AuthErrors } from './errors';
 import { clearAuthCookies, readCookie, REFRESH_COOKIE, setAuthCookies } from './cookies';
@@ -37,6 +38,7 @@ export class AuthController {
 
   /** Утас эсвэл имэйлээр бүртгүүлэх / нэвтрэх кодыг эхлүүлнэ. */
   @Post('otp/start')
+  @RateLimit(LIMITS.otpStart)
   @HttpCode(200)
   start(@Body(new ZodPipe(StartSchema)) body: z.infer<typeof StartSchema>, @Req() req: Request): Promise<OtpStartResponse> {
     return this.otp.start({ ...body, purpose: 'LOGIN', ip: req.ip });
@@ -44,6 +46,7 @@ export class AuthController {
 
   /** Код зөв бол хэрэглэгчийг олно/үүсгэнэ, cookie-д token олгоно. Утсанд SMS ирээгүй бол 202 pending. */
   @Post('otp/verify')
+  @RateLimit(LIMITS.otpVerify)
   @HttpCode(200)
   async verify(
     @Body(new ZodPipe(VerifySchema)) body: z.infer<typeof VerifySchema>,
@@ -67,6 +70,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @RateLimit(LIMITS.refresh)
   @HttpCode(204)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     try {

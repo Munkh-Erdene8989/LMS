@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { CreditErrors } from '../credits/errors';
 import { ZodPipe } from '../zod-pipe';
+import { LIMITS, RateLimit, SkipRateLimit } from '../rate-limit/rate-limit';
 import { SubscriptionPlansService } from './plans.service';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -126,6 +127,8 @@ export class SubscriptionCallbackController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 
   @All('subscription-callback/:token')
+  @SkipRateLimit()
+  @RateLimit(LIMITS.qpayCallback)
   @HttpCode(200)
   async callback(@Param('token') token: string): Promise<{ status: SubscriptionPaymentStatus }> {
     const payment = /^[\w-]{20,100}$/.test(token) ? await this.subscriptions.handleCallback(token) : null;

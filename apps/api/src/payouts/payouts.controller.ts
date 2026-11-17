@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { ZodPipe } from '../zod-pipe';
+import { LIMITS, RateLimit } from '../rate-limit/rate-limit';
 import { PayoutsService } from './payouts.service';
 
 const Uuid = new ParseUUIDPipe();
@@ -31,6 +32,7 @@ export class TeacherPayoutsController {
   }
 
   @Post()
+  @RateLimit(LIMITS.payoutRequest)
   request(@CurrentUser() u: CurrentUserInfo, @Req() req: Request): Promise<PayoutView> {
     return this.payouts.request(u.id, req.ip);
   }

@@ -6,6 +6,7 @@ import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { readCookie } from '../auth/cookies';
 import { REFERRAL_COOKIE } from '../referrals/cookie';
 import { ZodPipe } from '../zod-pipe';
+import { LIMITS, RateLimit } from '../rate-limit/rate-limit';
 import { TeacherEarningsService } from './earnings.service';
 import { PurchaseErrors as E } from './errors';
 import { PurchasesService, type PurchaseConfirmation } from './purchases.service';
@@ -36,6 +37,7 @@ export class PurchasesController {
   constructor(private readonly purchases: PurchasesService) {}
 
   @Post('lessons/:id')
+  @RateLimit(LIMITS.purchase)
   buyLesson(
     @CurrentUser() u: CurrentUserInfo,
     @Param('id', Uuid) id: string,
@@ -46,6 +48,7 @@ export class PurchasesController {
   }
 
   @Post('courses/:id')
+  @RateLimit(LIMITS.purchase)
   buyCourse(
     @CurrentUser() u: CurrentUserInfo,
     @Param('id', Uuid) id: string,
