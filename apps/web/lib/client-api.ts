@@ -53,11 +53,8 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return { status: res.status, data: json as T };
 }
 
-/**
- * Файл татах (PDF г.м): `api()`-тай ижил refresh-тэй, хариуг browser-т файлаар хадгална.
- * Энгийн `<a href>` access token дууссан үед 401 авах тул ингэж татна.
- */
-export async function apiDownload(path: string, fileName: string): Promise<void> {
+/** Файл татах (PDF, CSV г.м). `api`-тай адил 401 бол refresh хийгээд нэг удаа давтана; энгийн `<a href>` token дууссан үед 401 авна. */
+export async function apiDownload(path: string, filename: string): Promise<void> {
   const send = () => fetch(`/api${path}`, { credentials: 'same-origin' });
   let res = await send();
   if (res.status === 401 && (await refreshOnce())) res = await send();
@@ -66,11 +63,14 @@ export async function apiDownload(path: string, fileName: string): Promise<void>
     throw new ApiRequestError(res.status, text ? (JSON.parse(text) as ApiErrorBody) : null);
   }
   const url = URL.createObjectURL(await res.blob());
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
 }

@@ -115,6 +115,11 @@ model User {
   referralsAsTeacher ReferralAttribution[] @relation("ReferralTeacher")
   referralsAsLearner ReferralAttribution[] @relation("ReferralLearner")
 
+  payouts            Payout[]     @relation("PayoutTeacher")
+  processedPayouts   Payout[]     @relation("PayoutProcessor")
+  payoutHold         PayoutHold?  @relation("PayoutHoldTeacher")
+  payoutHoldsCreated PayoutHold[] @relation("PayoutHoldActor")
+
   @@map("users")
 }
 
@@ -965,6 +970,8 @@ model TeacherEarningEntry {
   teacher  User      @relation("EarningTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
   actor    User?     @relation("EarningActor", fields: [actorId], references: [id], onDelete: SetNull)
   purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  /// PAYOUT бичилтийн эх хүсэлт (ticket 20)
+  payout   Payout?
 
   @@index([teacherId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([purchaseId])
@@ -1124,4 +1131,60 @@ model Certificate {
   @@unique([userId, courseId])
   @@index([courseId])
   @@map("certificates")
+}
+
+// ---------------------------------------------------------------------------
+// Payout (ticket 20)
+// ---------------------------------------------------------------------------
+
+enum PayoutStatus {
+  /// Багш хүссэн, админ шилжүүлэхийг хүлээж буй (дүн түгжигдсэн)
+  REQUESTED
+  /// Админ гараар шилжүүлж "төлсөн" гэж тэмдэглэсэн — ledger-т PAYOUT бичилттэй
+  PAID
+  /// Админ татгалзсан — дүн үлдэгдэлд буцна (ledger-т бичилтгүй)
+  REJECTED
+}
+
+/// Багшийн payout хүсэлт. Багш бүрт нэг л нээлттэй (REQUESTED) хүсэлт (partial unique index).
+/// Хүсэлтийн дүн = тухайн үеийн бүтэн үлдэгдэл; нээлттэй байх хугацаанд түгжигдэнэ.
+model Payout {
+  id             String       @id @default(uuid()) @db.Uuid
+  teacherId      String       @map("teacher_id") @db.Uuid
+  status         PayoutStatus @default(REQUESTED)
+  amountMnt      Int          @map("amount_mnt")
+  /// Хүсэлт гаргах үеийн банкны дансны хуулбар — дараа данс өөрчлөгдсөн ч энэ хүсэлтийн мөнгө хаашаа явахыг тогтооно
+  bank           String
+  accountNumber  String       @map("account_number")
+  holderName     String       @map("holder_name")
+  requestedAt    DateTime     @default(now()) @map("requested_at")
+  /// PAID / REJECTED болсон үе, хийсэн админ
+  processedAt    DateTime?    @map("processed_at")
+  processedById  String?      @map("processed_by_id") @db.Uuid
+  /// Банкны гүйлгээний утга / дугаар (сонголтоор)
+  transferRef    String?      @map("transfer_ref")
+  rejectReason   String?      @map("reject_reason")
+  /// PAID: ledger-ийн PAYOUT бичилт
+  earningEntryId String?      @unique @map("earning_entry_id") @db.Uuid
+
+  teacher      User                 @relation("PayoutTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  processedBy  User?                @relation("PayoutProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+  earningEntry TeacherEarningEntry? @relation(fields: [earningEntryId], references: [id], onDelete: Restrict)
+
+  @@index([status, requestedAt])
+  @@index([teacherId, requestedAt(sort: Desc), id(sort: Desc)])
+  @@map("payouts")
+}
+
+/// Админы payout hold: мөр байвал багш хүсэлт гаргахгүй, нээлттэй хүсэлтийг "төлсөн" болгохгүй.
+model PayoutHold {
+  teacherId   String   @id @map("teacher_id") @db.Uuid
+  reason      String
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teacher   User  @relation("PayoutHoldTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("PayoutHoldActor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("payout_holds")
 }

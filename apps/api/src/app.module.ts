@@ -16,6 +16,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { LearningModule } from './learning/learning.module';
 import { MediaModule } from './media/media.module';
+import { PayoutsModule } from './payouts/payouts.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { MediaModule } from './media/media.module';
     SubscriptionsModule,
     LearningModule,
     MediaModule,
+    PayoutsModule,
     MaintenanceModule,
   ],
 })

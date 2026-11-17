@@ -6,6 +6,7 @@ import type { TeacherEarningEntryView, TeacherEarningsView } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { PayoutSection } from './payouts';
 
 const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
 
@@ -71,6 +72,8 @@ export default function TeacherEarningsPage() {
       <p className="muted" style={{ margin: 0 }}>
         {t('earnings.formula')}
       </p>
+
+      <PayoutSection />
 
       <section style={{ display: 'grid', gap: 8 }}>
         <h2 style={{ margin: 0 }}>{t('earnings.history')}</h2>

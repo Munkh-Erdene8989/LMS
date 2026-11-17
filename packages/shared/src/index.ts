@@ -14,3 +14,4 @@ export * from './learning';
 export * from './live';
 export * from './media';
 export * from './certificates';
+export * from './payouts';
