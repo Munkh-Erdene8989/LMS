@@ -35,4 +35,4 @@ Web: багшийн курс засварлагчид live талбарууд + 
 - [ ] Ticket 10: `VIDEO` төрөл нэмэхэд бичлэг болгосон APPROVED lesson-д бичлэг оруулахыг зөвшөөрөх (одоо APPROVED агуулга түгжигддэг; `content.fromLive`-аар ялгана).
 - [ ] Story 63: багшийн удахгүй болох live-уудын хуанли (`lessons.content->>'startsAt'`-аар эсвэл тусдаа багана).
 - [ ] Production (Railway, `REDIS_URL`)-д `live.reminder` delayed ажил цагтаа ажилласныг log-оос шалгах.
-- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
+- [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.

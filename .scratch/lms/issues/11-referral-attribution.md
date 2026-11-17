@@ -4,7 +4,7 @@
 
 **Blocked by:** 09
 
-**Status:** done — `public` (dev) schema-д migration хэрэгжүүлэх үлдсэн (доорх "Үлдсэн")
+**Status:** done
 
 > Шийдвэр: Багш бүрт нэг тогтмол код (`referral_codes`, 8 тэмдэгт, андуурагдах 0/o/1/l/i-гүй) — `GET /teacher/referral` анх дуудахад үүснэ. Линк `/r/<code>` (сонголтоор `?next=/courses/…`). TEACHER эрхээ алдсан багшийн код 404.
 >
@@ -26,6 +26,6 @@ Web: `/r/[code]` (visit → багшийн profile эсвэл `?next=` руу), 
 
 ## Үлдсэн
 
-- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
+- [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
 - [ ] Ticket 21: багшийн analytics-д referral/платформ харьцааг (`purchases.attribution`) дэлгэрэнгүй (одоо `/teacher/referral`-д зөвхөн тоо).
 - [ ] Хүсвэл: курсийн хуудсанд багшид "энэ курсийн referral линк хуулах" товч (одоогоор `?next=/courses/<id>`-г гараар нэмнэ).
