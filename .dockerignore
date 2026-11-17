@@ -1,0 +1,21 @@
+# Нууц, local өгөгдөл
+.env
+.env.*
+!.env.example
+.git
+.github
+.scratch
+.claude
+.mcp.json
+
+# Build артефакт, суулгасан хамаарал (image дотор дахин үүснэ)
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+
+# Dev файл хадгалалт
+apps/api/.storage
+# АНХААР: apps/api/assets (фонт) заавал image-д орох ёстой — энд хасаж болохгүй.
