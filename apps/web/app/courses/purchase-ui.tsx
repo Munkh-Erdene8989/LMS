@@ -7,6 +7,7 @@ import type {
   CreditBalanceView,
   PublicCourseDetail,
   PublicLessonItem,
+  ReferralLinkView,
   PurchaseResult,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
@@ -382,6 +383,40 @@ function ConfirmDialog({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Курсийн багшид (өөрт нь) харагдана: "энэ курсийн referral линк хуулах". Багшийн referral линк
+ * (`/teacher/referral`-ийн ижил `GET /teacher/referral`) + `?next=/courses/<id>`.
+ */
+export function CourseReferralCopy() {
+  const { course } = usePurchase();
+  const isTeacher = !!course.viewer?.isTeacher;
+  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  if (!isTeacher) return null;
+
+  async function copy() {
+    try {
+      const r = await api<ReferralLinkView>('/teacher/referral');
+      await navigator.clipboard.writeText(`${window.location.origin}${r.data.path}?next=/courses/${course.id}`);
+      setState('copied');
+      setTimeout(() => setState('idle'), 2500);
+    } catch {
+      setState('error');
+    }
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 4 }}>
+      <button type="button" className="btn" onClick={() => void copy()}>
+        {t('referral.copyCourse')}
+      </button>
+      <small className="muted" role="status" aria-live="polite">
+        {state === 'copied' ? t('referral.courseCopied') : state === 'error' ? t('referral.copyFailed') : t('referral.courseCopyHint')}
+      </small>
     </div>
   );
 }

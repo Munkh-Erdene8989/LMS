@@ -9,7 +9,8 @@ export type SettingKey =
   | 'referralWindowDays'
   | 'payoutMinimumMnt'
   | 'creditValidityMonths'
-  | 'reviewMinOwnedPercent';
+  | 'reviewMinOwnedPercent'
+  | 'subscriptionReminderDays';
 
 /** `GET /admin/settings` */
 export interface SettingView {

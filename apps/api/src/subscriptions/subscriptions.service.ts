@@ -77,6 +77,7 @@ export class SubscriptionsService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     this.queue.register(SUBSCRIPTION_RENEW_JOB, async () => {
       await this.runRenewals();
+      await this.runRenewalReminders();
     });
     await this.queue.schedule(SUBSCRIPTION_RENEW_JOB, SUBSCRIPTION_RENEW_CRON);
   }
@@ -307,6 +308,88 @@ export class SubscriptionsService implements OnModuleInit {
       );
     }
     return report;
+  }
+
+  // ---- Cron: сунгалтын өмнөх сануулга (ticket 25) ----------------------------------------
+
+  /**
+   * Сунгалтаас `subscriptionReminderDays` (анхдагч 3) хоногийн өмнө сануулна. "Хоног" нь Улаанбаатарын
+   * календарийн өдрөөр: үе дуусах өдөр ≤ өнөөдөр + N бол (мөн үе дуураагүй) сануулна.
+   *
+   * - Зөвхөн ACTIVE (цуцалсан/зогссон/хоцорсон алгасна).
+   * - Үе бүрт нэг л удаа: `renewal_reminded_for = current_period_end`-ийг нөхцөлт `updateMany`-ээр
+   *   "claim" хийнэ (зэрэг/давхар ажилд нэг л нь авна; хэрэглэгчийн үйлдлийн optimistic түгжээ
+   *   `updated_at`-д нөлөөлөхгүй). Сунгагдсаны дараа үе төгсгөл өөрчлөгдөх тул дараагийн үед дахин сануулна.
+   * - Карт холбосон (автомат татна) бол өөр, QPay нэхэмжлэхээр бол өөр текст.
+   * - Илгээж чадаагүй бол claim-ийг буцаана → дараагийн ажил дахин оролдоно.
+   */
+  async runRenewalReminders(now = new Date()): Promise<number> {
+    const days = await this.settings.get('subscriptionReminderDays');
+    const cutoff = new Date(ubDayStart(now).getTime() + (days + 1) * DAY);
+    let sent = 0;
+    let after: string | undefined;
+    for (;;) {
+      const batch = await this.prisma.subscription.findMany({
+        where: { status: 'ACTIVE', currentPeriodEnd: { gt: now, lt: cutoff } },
+        include: { plan: true },
+        orderBy: { id: 'asc' },
+        take: BATCH,
+        ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+      });
+      for (const sub of batch) {
+        try {
+          if (await this.remindOne(sub, now)) sent++;
+        } catch (err) {
+          this.log.error(`Сунгалтын сануулга амжилтгүй (${sub.id}): ${(err as Error).message}`);
+        }
+      }
+      if (batch.length < BATCH) break;
+      after = batch[batch.length - 1]!.id;
+    }
+    if (sent > 0) this.log.log(`Сунгалтын сануулга: ${sent} илгээсэн`);
+    return sent;
+  }
+
+  private async remindOne(sub: SubWithPlan, now: Date): Promise<boolean> {
+    const end = sub.currentPeriodEnd!;
+    if (sub.renewalRemindedFor?.getTime() === end.getTime()) return false;
+    const { count } = await this.prisma.subscription.updateMany({
+      where: {
+        id: sub.id,
+        status: 'ACTIVE',
+        currentPeriodEnd: end,
+        updatedAt: sub.updatedAt,
+        OR: [{ renewalRemindedFor: null }, { renewalRemindedFor: { not: end } }],
+      },
+      data: { renewalRemindedFor: end, updatedAt: sub.updatedAt },
+    });
+    if (count !== 1) return false;
+
+    const card = await this.hasUsableCard(sub.userId);
+    const left = Math.max(0, Math.round((ubDayStart(end).getTime() - ubDayStart(now).getTime()) / DAY));
+    try {
+      await this.notifications.notify({
+        userId: sub.userId,
+        type: card ? 'SUBSCRIPTION_RENEWAL_REMINDER_CARD' : 'SUBSCRIPTION_RENEWAL_REMINDER_INVOICE',
+        params: { plan: sub.plan.name, amount: formatMnt(sub.plan.priceMnt), renewsAt: formatDay(end), days: left },
+        link: '/subscription',
+      });
+      return true;
+    } catch (err) {
+      this.log.error(`Сунгалтын сануулга илгээж чадсангүй (${sub.id}): ${(err as Error).message}`);
+      await this.prisma.subscription.updateMany({
+        where: { id: sub.id, renewalRemindedFor: end },
+        data: { renewalRemindedFor: null, updatedAt: sub.updatedAt },
+      });
+      return false;
+    }
+  }
+
+  /** Токеноор автоматаар татах боломжтой карт байгаа эсэх (`tryCard`-тай ижил нөхцөл). */
+  private async hasUsableCard(userId: string): Promise<boolean> {
+    if (!this.qpay.cardTokensSupported) return false;
+    const card = await this.prisma.paymentCard.findUnique({ where: { userId } });
+    return !!card && card.status === 'ACTIVE' && !!card.token;
   }
 
   private async renewOne(sub: SubWithPlan, now: Date, report: RenewalReport): Promise<void> {
@@ -792,4 +875,10 @@ export function toPaymentView(p: Payment): SubscriptionPaymentView {
     paidAt: p.paidAt?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
   };
+}
+
+/** Улаанбаатарын (UTC+8, DST-гүй) өдрийн эхлэл. */
+function ubDayStart(d: Date): Date {
+  const OFFSET = 8 * 60 * 60_000;
+  return new Date(Math.floor((d.getTime() + OFFSET) / DAY) * DAY - OFFSET);
 }

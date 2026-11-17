@@ -831,6 +831,8 @@ model Subscription {
   pastDueSince       DateTime?          @map("past_due_since")
   pausedAt           DateTime?          @map("paused_at")
   canceledAt         DateTime?          @map("canceled_at")
+  /// Сунгалтын сануулга илгээсэн үеийн төгсгөл (`current_period_end`) — үе бүрт нэг л сануулга (ticket 25)
+  renewalRemindedFor DateTime?          @map("renewal_reminded_for")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 

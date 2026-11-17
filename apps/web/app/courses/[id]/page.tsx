@@ -6,7 +6,7 @@ import { t } from '@/lib/i18n';
 import { fetchCourse, fetchCourseReviews } from '@/lib/catalog';
 import { Markdown } from '../../markdown';
 import { Credits, levelLabel, Rating } from '../catalog-ui';
-import { CoursePriceBox, LessonAction, PurchaseProvider } from '../purchase-ui';
+import { CoursePriceBox, CourseReferralCopy, LessonAction, PurchaseProvider } from '../purchase-ui';
 import { CourseReviews } from './reviews-ui';
 
 export const dynamic = 'force-dynamic';
@@ -76,6 +76,7 @@ export default async function CoursePage({ params }: { params: Params }) {
       <PurchaseProvider initial={course}>
         <div className="course-body">
           <div style={{ display: 'grid', gap: 24, minWidth: 0 }}>
+            <CourseReferralCopy />
             <section>
               <h2>{t('catalog.about')}</h2>
               <Markdown source={course.description} />

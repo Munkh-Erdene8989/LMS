@@ -26,6 +26,8 @@ export const SETTINGS: Record<SettingKey, IntSettingDefinition> = {
   creditValidityMonths: { default: 12, min: 1, max: 120, unit: 'MONTHS' },
   /** Үнэлгээ бичихэд курсийн нийтлэгдсэн lesson-уудаас эзэмших доод хувь (SPEC: ≥30%) */
   reviewMinOwnedPercent: { default: 30, min: 0, max: 100, unit: 'PERCENT' },
+  /** Сарын багцын сунгалтаас хэд хоногийн өмнө сануулах */
+  subscriptionReminderDays: { default: 3, min: 1, max: 14, unit: 'DAYS' },
 };
 
 export const SETTING_KEYS = Object.keys(SETTINGS) as SettingKey[];
