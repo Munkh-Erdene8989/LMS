@@ -8,6 +8,7 @@ import {
   type PhoneVerifier,
 } from './phone-verifier';
 import { DevStorageController } from './dev-storage.controller';
+import { DisabledMuxAdapter, HttpMuxAdapter, MUX, type MuxAdapter } from './mux';
 import { FakeQPay, HttpQPayAdapter, QPAY, type QPayAdapter } from './qpay';
 import { LOCAL_STORAGE_ROOT, LocalDiskStorage, STORAGE, SupabaseStorage, type StorageAdapter } from './storage';
 
@@ -74,7 +75,26 @@ const log = new Logger('Adapters');
         return new FakeQPay({ autoPay: true });
       },
     },
+    {
+      provide: MUX,
+      inject: [ENV],
+      useFactory: (env: Env): MuxAdapter => {
+        const config = {
+          tokenId: env.MUX_TOKEN_ID,
+          tokenSecret: env.MUX_TOKEN_SECRET,
+          signingKeyId: env.MUX_SIGNING_KEY_ID,
+          signingKeyPrivate: env.MUX_SIGNING_KEY_PRIVATE,
+          webhookSecret: env.MUX_WEBHOOK_SECRET,
+        };
+        const names = { tokenId: 'MUX_TOKEN_ID', tokenSecret: 'MUX_TOKEN_SECRET', signingKeyId: 'MUX_SIGNING_KEY_ID', signingKeyPrivate: 'MUX_SIGNING_KEY_PRIVATE', webhookSecret: 'MUX_WEBHOOK_SECRET' } as const;
+        const missing = (Object.keys(config) as (keyof typeof config)[]).filter((k) => !config[k]).map((k) => names[k]);
+        if (missing.length === 0) return new HttpMuxAdapter(config as Required<{ [K in keyof typeof config]: string }>);
+        // Fake тоглуулж чадахгүй тул dev-д видео идэвхгүй: upload/тоглуулах 503 VIDEO_UNAVAILABLE.
+        log.warn(`Mux тохируулаагүй — видео upload/тоглуулалт идэвхгүй (dev). Дутуу: ${missing.join(', ')}`);
+        return new DisabledMuxAdapter();
+      },
+    },
   ],
-  exports: [PHONE_VERIFIER, EMAIL_SENDER, STORAGE, QPAY],
+  exports: [PHONE_VERIFIER, EMAIL_SENDER, STORAGE, QPAY, MUX],
 })
 export class AdaptersModule {}

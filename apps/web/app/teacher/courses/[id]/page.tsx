@@ -16,10 +16,13 @@ import {
   type LessonView,
   type SectionView,
   type UploadTicket,
+  type VideoLessonContent,
+  type VideoUploadTicket,
+  videoUploadAllowed,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
-import { uploadFile } from '@/lib/upload';
+import { uploadFile, uploadWithProgress } from '@/lib/upload';
 import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
 import { Markdown } from '../../../markdown';
 import { QuizEditor, quizInputFrom } from './quiz-editor';
@@ -581,7 +584,7 @@ function LessonEditor({
           </div>
         )}
 
-        {lesson.type === 'VIDEO' && <LessonContentPreview lesson={lesson} />}
+        {lesson.content.type === 'VIDEO' && <VideoUpload lesson={lesson} content={lesson.content} locked={locked} run={run} />}
 
         {lesson.type === 'PDF' && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -618,5 +621,69 @@ function LessonEditor({
         </div>
       </fieldset>
     </form>
+  );
+}
+
+/** Видеоны төлөвийг автоматаар шалгах давтамж (UPLOADING / PROCESSING үед) */
+const VIDEO_POLL_MS = 10_000;
+
+/**
+ * Видео lesson: файлыг browser-оос шууд Mux руу (API-аар дамжихгүй), дараа нь боловсруулалтын төлөв.
+ * Төлөвийг webhook шинэчилнэ; энд `video-sync`-ээр (Mux API) давхар шалгана — webhook-гүй local dev-д ч ажиллана.
+ */
+function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; content: VideoLessonContent; locked: boolean; run: Run }) {
+  const [percent, setPercent] = useState<number | null>(null);
+  const allowed = !locked && videoUploadAllowed(lesson.reviewStatus, content);
+  const pending = content.status === 'UPLOADING' || content.status === 'PROCESSING';
+  const sync = useCallback(
+    () => run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}/video-sync`, { method: 'POST' })),
+    [lesson.id, run],
+  );
+
+  useEffect(() => {
+    if (!pending || percent !== null) return;
+    const timer = setInterval(() => void sync(), VIDEO_POLL_MS);
+    return () => clearInterval(timer);
+  }, [pending, percent, sync]);
+
+  async function upload(file: File) {
+    setPercent(0);
+    await run(async () => {
+      const ticket = (await api<VideoUploadTicket>(`/teacher/lessons/${lesson.id}/video-upload`, { method: 'POST' })).data;
+      await uploadWithProgress(ticket.url, file, setPercent, (status) => t('video.uploadFailed', { status }));
+      return api<CourseDetail>(`/teacher/lessons/${lesson.id}/video-sync`, { method: 'POST' });
+    });
+    setPercent(null);
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <LessonContentPreview lesson={lesson} />
+      {pending && <small className="muted">{t('video.processingHint')}</small>}
+      {allowed && content.fromLive && lesson.reviewStatus === 'APPROVED' && <small className="muted">{t('video.recordingHint')}</small>}
+      {allowed && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label className="btn btn-ghost">
+            {percent !== null ? t('video.uploadingPercent', { percent }) : content.status ? t('video.replace') : t('video.upload')}
+            <input
+              type="file"
+              accept="video/*"
+              hidden
+              disabled={percent !== null}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void upload(file);
+              }}
+            />
+          </label>
+          {pending && percent === null && (
+            <button type="button" className="btn btn-ghost" onClick={() => void sync()}>
+              {t('video.check')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

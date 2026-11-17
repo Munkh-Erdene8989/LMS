@@ -7,6 +7,7 @@ import { fetchCourse, fetchLesson } from '@/lib/catalog';
 import { LiveInfo } from '../../../../course-ui';
 import { Markdown } from '../../../../markdown';
 import { LockedLesson, PurchaseProvider } from '../../../purchase-ui';
+import { VideoPlayer } from '../../../../video-player';
 import { LessonLearning } from './lesson-learning';
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +66,15 @@ export default async function LessonPage({ params }: { params: Params }) {
           <LiveInfo content={data.content} linkHidden={data.access === 'PREVIEW' ? 'owners-only' : undefined} />
         </section>
       )}
-      {data.content.type === 'VIDEO' && <p className="muted">{t('live.recordingPending')}</p>}
+      {data.content.type === 'VIDEO' &&
+        (data.content.status === 'READY' ? (
+          <div style={{ display: 'grid', gap: 4 }}>
+            <VideoPlayer lessonId={data.lesson.id} />
+            {data.access !== 'PREVIEW' && <small className="muted">{t('video.watermarkHint')}</small>}
+          </div>
+        ) : (
+          <p className="muted">{data.content.fromLive ? t('live.recordingPending') : t('video.pending')}</p>
+        ))}
       {data.content.type === 'PDF' && data.content.url && (
         <div style={{ display: 'grid', gap: 8 }}>
           <iframe className="pdf-frame" src={data.content.url} title={data.content.fileName ?? data.lesson.title} />

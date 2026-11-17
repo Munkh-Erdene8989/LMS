@@ -45,6 +45,17 @@ const EnvSchema = z.object({
   QPAY_BASE_URL: z.string().url().default('https://merchant.qpay.mn'),
   /** QPay callback хүрэх нийтийн API хаяг. Хоосон бол `PUBLIC_WEB_URL` + `/api` (web proxy-оор). */
   QPAY_CALLBACK_BASE_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+  /**
+   * Mux Video (ticket 10). Бүгд байвал бодит adapter, үгүй бол видео идэвхгүй (dev: апп асна, upload/тоглуулах 503).
+   * Signing key: Mux → Settings → Signing Keys (private key base64 PEM). Webhook secret: Settings → Webhooks.
+   */
+  MUX_TOKEN_ID: z.string().optional(),
+  MUX_TOKEN_SECRET: z.string().optional(),
+  MUX_SIGNING_KEY_ID: z.string().optional(),
+  MUX_SIGNING_KEY_PRIVATE: z.string().optional(),
+  MUX_WEBHOOK_SECRET: z.string().optional(),
+  /** Mux Data (watch-time, drop-off) environment key — нийтэд ил (player-т очно). Заавал биш. */
+  MUX_DATA_ENV_KEY: z.string().optional(),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
   for (const key of [
@@ -56,6 +67,11 @@ const EnvSchema = z.object({
     'QPAY_CLIENT_ID',
     'QPAY_CLIENT_SECRET',
     'QPAY_INVOICE_CODE',
+    'MUX_TOKEN_ID',
+    'MUX_TOKEN_SECRET',
+    'MUX_SIGNING_KEY_ID',
+    'MUX_SIGNING_KEY_PRIVATE',
+    'MUX_WEBHOOK_SECRET',
   ] as const) {
     if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'production-д шаардлагатай' });
   }

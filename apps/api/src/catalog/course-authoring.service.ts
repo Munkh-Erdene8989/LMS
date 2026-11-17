@@ -52,7 +52,7 @@ const COVER_EXT: Record<(typeof COVER_TYPES)[number], string> = {
  * - `DRAFT` / `REJECTED` курсэд бүгд чөлөөтэй (устгах = бүрмөсөн).
  * - `PUBLISHED` курсэд: мета мэдээлэл засна; шинэ lesson `DRAFT`-аар нэмэгдэж тусдаа шалгагдана;
  *   `APPROVED` lesson-ы агуулга түгжигдэнэ (худалдан авсан хүмүүст өөрчлөгдөхгүй), устгавал архивлана.
- *   Үл хамаарах: LIVE хичээлийн хуваарь, линк (ticket 14).
+ *   Үл хамаарах: LIVE хичээлийн хуваарь, линк (ticket 14); бичлэг болгосон live-д бичлэг оруулах (ticket 10, `videoUploadAllowed`).
  * Бусдын курс 404 (оршин буйг ч илчлэхгүй).
  */
 @Injectable()
@@ -205,7 +205,7 @@ export class CourseAuthoringService {
 
   /**
    * Дууссан live хичээлийг бичлэгийн (VIDEO) хичээл болгоно. Lesson-ы id, эрх, үнэ, шалгалтын төлөв
-   * хэвээр — эзэмшигчид бичлэгийг үзнэ. Бичлэг оруулах (Mux) ticket 10-д.
+   * хэвээр — эзэмшигчид бичлэгийг үзнэ. Бичлэгийг `POST /teacher/lessons/:id/video-upload`-оор (media) оруулна.
    */
   async convertLiveToVideo(teacherId: string, lessonId: string, now = new Date()): Promise<CourseDetail> {
     const lesson = await this.editableLesson(teacherId, lessonId);
@@ -214,7 +214,10 @@ export class CourseAuthoringService {
     if (!c.startsAt || !c.durationMinutes || now.getTime() < new Date(liveEndsAt(c.startsAt, c.durationMinutes)).getTime()) {
       throw E.liveNotEnded();
     }
-    const content: VideoContent = { fromLive: { startsAt: c.startsAt, durationMinutes: c.durationMinutes } };
+    const content: VideoContent = {
+      ...(LESSON_TYPES.VIDEO!.empty as VideoContent),
+      fromLive: { startsAt: c.startsAt, durationMinutes: c.durationMinutes },
+    };
     const { count } = await this.prisma.lesson.updateMany({
       where: { id: lesson.id, type: 'LIVE' },
       data: { type: 'VIDEO', content: content as unknown as Prisma.InputJsonValue },
@@ -314,7 +317,8 @@ export class CourseAuthoringService {
     return section;
   }
 
-  private async editableLesson(teacherId: string, lessonId: string): Promise<Lesson> {
+  /** Багшийн засварлаж болох lesson (өөрийн, архивлаагүй, шалгагдаагүй). Видео upload (media) ч ашиглана. */
+  async editableLesson(teacherId: string, lessonId: string): Promise<Lesson> {
     const lesson = await this.prisma.lesson.findFirst({
       where: { id: lessonId, course: { teacherId } },
       include: { course: true },

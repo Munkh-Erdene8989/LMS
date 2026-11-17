@@ -14,3 +14,4 @@ delete process.env.RESEND_API_KEY;
 delete process.env.REDIS_URL;
 delete process.env.QPAY_CLIENT_ID;
 delete process.env.QPAY_CLIENT_SECRET;
+for (const key of Object.keys(process.env)) if (key.startsWith('MUX_')) delete process.env[key];

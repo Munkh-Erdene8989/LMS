@@ -11,6 +11,6 @@ import { PublicCatalogService } from './public-catalog.service';
 @Module({
   controllers: [TeacherCourseController, AdminCatalogController, CategoryController, PublicCatalogController],
   providers: [CourseAuthoringService, CourseReviewService, CategoryService, PublicCatalogService, LessonAccessPolicy, LiveLessonsService],
-  exports: [CategoryService, LessonAccessPolicy],
+  exports: [CategoryService, LessonAccessPolicy, CourseAuthoringService],
 })
 export class CatalogModule {}

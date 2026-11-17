@@ -2,7 +2,7 @@ import type { Prisma } from '@lms/db';
 import type { CourseDetail, CourseSummary, LessonContent, LessonView, QuizContent } from '@lms/shared';
 import { liveEndsAt } from '@lms/shared';
 import type { StorageAdapter } from '../adapters/storage';
-import { LESSON_TYPES, type LiveContent, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
+import { LESSON_TYPES, type LiveContent, type PdfContent, type StoredQuiz, type TextContent, type VideoContent } from './lesson-types';
 
 export const courseDetailInclude = {
   teacher: { select: { id: true, name: true } },
@@ -147,6 +147,17 @@ export async function toContent(
     };
   }
   if (l.type === 'QUIZ') return quizContent(l.content as unknown as StoredQuiz, revealAnswers);
+  if (l.type === 'VIDEO') {
+    // Playback token энд биш — `POST /media/lessons/:id/playback` (эрх + төхөөрөмжийн хязгаар).
+    const c = l.content as unknown as VideoContent;
+    return {
+      type: 'VIDEO',
+      status: c.status ?? null,
+      durationSeconds: c.durationSeconds ?? null,
+      error: c.error ?? null,
+      fromLive: c.fromLive ?? null,
+    };
+  }
   return { type: l.type };
 }
 

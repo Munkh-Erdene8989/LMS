@@ -7,7 +7,8 @@ import { configureApp } from './configure-app';
 async function bootstrap() {
   loadDotenv();
   const env = parseEnv();
-  const app = await NestFactory.create(AppModule);
+  // rawBody: Mux webhook-ийн гарын үсгийг яг ирсэн body-оор шалгана.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   configureApp(app, env);
   await app.listen(env.PORT);
   console.log(`API: http://localhost:${env.PORT}`);
