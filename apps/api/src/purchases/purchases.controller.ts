@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import type { PurchasePage, PurchaseResult, TeacherEarningsView } from '@lms/shared';
+import type { Request } from 'express';
 import { z } from 'zod';
 import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
+import { readCookie } from '../auth/cookies';
+import { REFERRAL_COOKIE } from '../referrals/cookie';
 import { ZodPipe } from '../zod-pipe';
 import { TeacherEarningsService } from './earnings.service';
 import { PurchaseErrors as E } from './errors';
-import { PurchasesService } from './purchases.service';
+import { PurchasesService, type PurchaseConfirmation } from './purchases.service';
 
 const Uuid = new ParseUUIDPipe();
 
@@ -21,9 +24,9 @@ const PageQuery = z.object({
   before: z.string().uuid().optional(),
 });
 
-function confirmed(b: PurchaseBody): { expectedCredits: number } {
+function confirmed(b: PurchaseBody, req: Request): PurchaseConfirmation {
   if (b.confirmNoRefund !== true) throw E.noRefundNotConfirmed();
-  return { expectedCredits: b.expectedCredits };
+  return { expectedCredits: b.expectedCredits, referralCookie: readCookie(req, REFERRAL_COOKIE) };
 }
 
 /** Кредитээр lesson / курс худалдаж авах, өөрийн худалдан авалтын түүх. */
@@ -37,8 +40,9 @@ export class PurchasesController {
     @CurrentUser() u: CurrentUserInfo,
     @Param('id', Uuid) id: string,
     @Body(new ZodPipe(PurchaseBody)) b: PurchaseBody,
+    @Req() req: Request,
   ): Promise<PurchaseResult> {
-    return this.purchases.buyLesson(u, id, confirmed(b));
+    return this.purchases.buyLesson(u, id, confirmed(b, req));
   }
 
   @Post('courses/:id')
@@ -46,8 +50,9 @@ export class PurchasesController {
     @CurrentUser() u: CurrentUserInfo,
     @Param('id', Uuid) id: string,
     @Body(new ZodPipe(PurchaseBody)) b: PurchaseBody,
+    @Req() req: Request,
   ): Promise<PurchaseResult> {
-    return this.purchases.buyCourse(u, id, confirmed(b));
+    return this.purchases.buyCourse(u, id, confirmed(b, req));
   }
 
   @Get()

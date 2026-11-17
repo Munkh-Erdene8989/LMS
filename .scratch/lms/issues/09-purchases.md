@@ -45,7 +45,7 @@ Web: `/courses/[id]` (lesson бүрт "Авах"/"Үзэх", үнийн хайр
 
 ## Үлдсэн
 
-- [ ] Ticket 11: `PurchasesService.attribution()`-д referral record/cookie шалгаж `{ source: 'REFERRAL', referrerId }` буцаах (өөр багшийн курс бол PLATFORM).
+- [x] Ticket 11 (done): `PurchasesService.attribution()`-д referral record/cookie шалгаж `{ source: 'REFERRAL', referrerId }` буцаах (өөр багшийн курс бол PLATFORM).
 - [ ] Ticket 20: payout хүсэлт/төлөлтөд `TeacherEarningsService.balance()` ба `append(tx, { type: 'PAYOUT', amountMnt: −дүн, refType: 'payout', refId })`; давхар payout-оос сэргийлж багшийн мөрийг түгжих.
 - [ ] Ticket 12 ("Миний сургалт"): эзэмшсэн архивласан lesson-ыг курсийн curriculum-д харуулах (одоо `/catalog/courses/:id` зөвхөн идэвхтэй lesson; архивласан lesson-ы контент endpoint эзэмшигчид ажилладаг).
 - [ ] Ticket 21/22: тайланд `purchases` (`teacher_id`, `attribution`, `is_test`) ба `teacher_earning_entries`-ийг ашиглах; админы орлогын гар засвар (`append` `ADMIN_ADJUST` + audit) UI.

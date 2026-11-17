@@ -105,6 +105,10 @@ model User {
   subscription Subscription?
   paymentCard  PaymentCard?
 
+  referralCode       ReferralCode?
+  referralsAsTeacher ReferralAttribution[] @relation("ReferralTeacher")
+  referralsAsLearner ReferralAttribution[] @relation("ReferralLearner")
+
   @@map("users")
 }
 
@@ -882,4 +886,36 @@ model TeacherEarningEntry {
   @@index([type, createdAt])
   @@index([refType, refId])
   @@map("teacher_earning_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Referral (ticket 11)
+// ---------------------------------------------------------------------------
+
+/// Багшийн тогтмол referral код (`/r/<code>`). Багш referral хэсгээ анх нээхэд үүснэ.
+model ReferralCode {
+  teacherId String   @id @map("teacher_id") @db.Uuid
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("referral_codes")
+}
+
+/// Хэрэглэгч багшийн линкээр орж ирсэн бичлэг — (хэрэглэгч, багш) хос бүрт нэг мөр.
+/// Дахин орвол `lastSeenAt` шинэчлэгдэнэ; худалдан авалтын мөчид `now − lastSeenAt ≤ referralWindowDays` бол REFERRAL.
+model ReferralAttribution {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  teacherId   String   @map("teacher_id") @db.Uuid
+  firstSeenAt DateTime @map("first_seen_at")
+  lastSeenAt  DateTime @map("last_seen_at")
+
+  user    User @relation("ReferralLearner", fields: [userId], references: [id], onDelete: Cascade)
+  teacher User @relation("ReferralTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teacherId])
+  @@index([teacherId, lastSeenAt(sort: Desc)])
+  @@map("referral_attributions")
 }

@@ -124,6 +124,11 @@ export default function MePage() {
             {t('earnings.title')}
           </a>
         )}
+        {user.roles.includes('TEACHER') && (
+          <a className="btn btn-ghost" href="/teacher/referral">
+            {t('referral.nav')}
+          </a>
+        )}
         {!user.roles.includes('TEACHER') && (
           <a className="btn btn-ghost" href="/teacher/apply">
             {t('teacher.title')}

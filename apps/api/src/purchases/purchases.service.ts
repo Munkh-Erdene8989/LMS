@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, type PurchaseAttribution, type PurchaseKind } from '@lms/db';
+import { Prisma, type PurchaseKind } from '@lms/db';
 import type { PurchasePage, PurchaseResult, PurchaseView } from '@lms/shared';
 import { SettingsService } from '../admin/settings.service';
 import type { CurrentUserInfo } from '../auth/auth.guard';
 import { CREDIT_TX_OPTIONS, CreditsService } from '../credits/credits.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { TeacherEarningsService } from './earnings.service';
 import { courseOwnership, ownsFrom } from './entitlements';
 import { PurchaseErrors as E } from './errors';
@@ -16,13 +17,8 @@ type Tx = Prisma.TransactionClient;
 export interface PurchaseConfirmation {
   /** Хэрэглэгчийн харсан үнэ — одоогийнхтой таарахгүй бол `PRICE_CHANGED` */
   expectedCredits: number;
-}
-
-/** Худалдан авалтын attribution (шимтгэлийн хувийг тодорхойлно). */
-export interface Attribution {
-  source: PurchaseAttribution;
-  /** REFERRAL үед урьсан багш */
-  referrerId: string | null;
+  /** Зочин байхдаа авсан referral cookie (`lms_ref`) — нэвтрэлтээр шилжээгүй бол энд DB-д бичигдэнэ */
+  referralCookie?: string;
 }
 
 interface Item {
@@ -68,6 +64,7 @@ export class PurchasesService {
     private readonly settings: SettingsService,
     private readonly earnings: TeacherEarningsService,
     private readonly notifications: NotificationsService,
+    private readonly referrals: ReferralsService,
   ) {}
 
   buyLesson(user: CurrentUserInfo, lessonId: string, confirm: PurchaseConfirmation): Promise<PurchaseResult> {
@@ -90,14 +87,6 @@ export class PurchasesService {
     return { items: page.map(toView), nextCursor: rows.length > opts.limit ? page[page.length - 1]!.id : null };
   }
 
-  /**
-   * Attribution — ticket 11 (referral) энд referral cookie/record-ыг шалгаж `REFERRAL` + `referrerId` буцаана.
-   * Одоогоор бүх худалдан авалт platform-sourced.
-   */
-  protected async attribution(_tx: Tx, _userId: string, _teacherId: string): Promise<Attribution> {
-    return { source: 'PLATFORM', referrerId: null };
-  }
-
   // ---------------------------------------------------------------------------
 
   private async buy(
@@ -117,7 +106,9 @@ export class PurchasesService {
 
         const now = new Date();
         const purchaseId = randomUUID();
-        const attribution = await this.attribution(tx, user.id, item.teacherId);
+        // Attribution (ticket 11): курсийн багшийн referral линкээр `referralWindowDays` дотор орсон бол REFERRAL.
+        await this.referrals.claimCookie(tx, user.id, confirm.referralCookie, now);
+        const attribution = await this.referrals.attribution(tx, user.id, item.teacherId, now);
         const creditPriceMnt = await this.settings.get('creditPriceMnt', tx);
         const commissionPercent = await this.settings.get(
           attribution.source === 'REFERRAL' ? 'commissionReferralPercent' : 'commissionPlatformPercent',
