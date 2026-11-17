@@ -99,10 +99,99 @@ export interface LessonLearningState {
   progress: LessonProgressView;
   /** QUIZ lesson-д л */
   quiz: QuizState | null;
+  /** ASSIGNMENT lesson-д л */
+  assignment: AssignmentState | null;
 }
 
 export interface QuizAttemptResult {
   attempt: QuizAttemptView;
   progress: LessonProgressView;
   quiz: QuizState;
+}
+
+// ---- Даалгавар (ticket 13) ----------------------------------------------------
+
+/** Илгээх файлын дээд хэмжээ. */
+export const ASSIGNMENT_FILE_MAX_BYTES = 50 * 1024 * 1024;
+export const ASSIGNMENT_TEXT_MAX = 20_000;
+export const ASSIGNMENT_COMMENT_MAX = 5_000;
+
+/**
+ * Сертификатын нөхцөлд (ticket 15) ТООЦОХГҮЙ lesson-ы төрлүүд: "бүх lesson дууссан" шалгалтаас хасна.
+ * Даалгаврын оноо `lesson_progress.best_score_percent`-д хэзээ ч бичигдэхгүй (quiz-ийн дунджид орохгүй).
+ */
+export const CERTIFICATE_EXCLUDED_LESSON_TYPES: readonly LessonType[] = ['ASSIGNMENT'];
+
+export interface SubmissionFileView {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export interface SubmissionReviewView {
+  score: number;
+  maxScore: number;
+  comment: string | null;
+  reviewedAt: string;
+}
+
+export interface SubmissionView {
+  id: string;
+  text: string | null;
+  file: SubmissionFileView | null;
+  submittedAt: string;
+  /** null = шалгагдаагүй */
+  review: SubmissionReviewView | null;
+}
+
+/** `GET /learning/lessons/:id` → `assignment` (ASSIGNMENT lesson-д л) */
+export interface AssignmentState {
+  maxScore: number;
+  /** Зөвхөн эзэмшигч илгээнэ (free preview, багш, админ — үгүй) */
+  canSubmit: boolean;
+  /** Шинэ нь эхэндээ; эхнийх нь одоогийн (хамгийн сүүлийн) илгээлт */
+  submissions: SubmissionView[];
+}
+
+/** `POST /learning/lessons/:id/assignment/upload` */
+export interface AssignmentUploadInput {
+  fileName: string;
+  size: number;
+}
+
+/** `POST /learning/lessons/:id/assignment/submissions` — текст, файл хоёрын дор хаяж нэг. */
+export interface AssignmentSubmitInput {
+  text?: string;
+  file?: { key: string; name: string };
+}
+
+/** `GET /learning/assignment-submissions/:id/file` — богино хугацаатай signed URL */
+export interface SubmissionFileUrl {
+  url: string;
+  expiresInSeconds: number;
+}
+
+export type AssignmentInboxStatus = 'UNREVIEWED' | 'REVIEWED';
+
+/** `GET /teacher/assignments?status=&courseId=&before=` — суралцагч × даалгавар бүрийн хамгийн сүүлийн илгээлт */
+export interface AssignmentInboxItem extends SubmissionView {
+  learner: { id: string; name: string | null };
+  lesson: { id: string; title: string; maxScore: number };
+  course: { id: string; title: string };
+  /** Энэ суралцагч энэ даалгаварт хэд дэх удаагаа илгээсэн */
+  attempt: number;
+  /** Өмнөх илгээлтийн үнэлгээ (дахин илгээсэн бол) */
+  previousReview: SubmissionReviewView | null;
+}
+
+export interface AssignmentInboxPage {
+  items: AssignmentInboxItem[];
+  nextCursor: string | null;
+  unreviewedCount: number;
+}
+
+/** `POST /teacher/assignments/:submissionId/review` */
+export interface AssignmentReviewInput {
+  score: number;
+  comment?: string;
 }

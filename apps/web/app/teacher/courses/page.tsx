@@ -32,7 +32,12 @@ export default function TeacherCoursesPage() {
 
   return (
     <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('course.myCourses')}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <h1 style={{ margin: 0 }}>{t('course.myCourses')}</h1>
+        <Link className="btn btn-ghost" href="/teacher/assignments">
+          {t('assignment.inboxTitle')}
+        </Link>
+      </div>
       {error && <p style={{ color: 'var(--err)' }}>{error}</p>}
       {courses && (
         <form onSubmit={create} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
