@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { HttpQPayAdapter, QPayError } from '../src/adapters/qpay';
+import { HttpQPayAdapter, QPayCardNotSupportedError, QPayError } from '../src/adapters/qpay';
 
 /**
  * Бодит HTTP adapter-ийг QPay-г дуурайсан local сервертэй шалгана (сүлжээ рүү гарахгүй):
@@ -70,6 +70,10 @@ beforeAll(async () => {
         ],
       });
     }
+    if (req.method === 'DELETE' && req.url === '/v2/invoice/inv-1') {
+      res.writeHead(200);
+      return res.end();
+    }
     json(404, {});
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -137,4 +141,20 @@ it('401 үед токеныг шинээр авч нэг удаа давтана
 
 it('буруу түлхүүр → QPayError', async () => {
   await expect(adapter('wrong').checkInvoice('inv-1')).rejects.toBeInstanceOf(QPayError);
+});
+
+it('нэхэмжлэх цуцлах: DELETE /v2/invoice/{id} (хоосон хариу ч болно)', async () => {
+  await adapter().cancelInvoice('inv-1');
+  expect(seen.find((s) => s.method === 'DELETE')).toMatchObject({ path: '/v2/invoice/inv-1', body: null });
+  await expect(adapter().cancelInvoice('missing')).rejects.toBeInstanceOf(QPayError);
+});
+
+it('карт токен (батлагдаагүй): бодит adapter дэмжихгүй, QPay руу хүсэлт илгээхгүй', async () => {
+  const q = adapter();
+  expect(q.cardTokensSupported).toBe(false);
+  await expect(q.registerCard()).rejects.toBeInstanceOf(QPayCardNotSupportedError);
+  await expect(q.getCardRegistration()).rejects.toBeInstanceOf(QPayCardNotSupportedError);
+  await expect(q.chargeCard()).rejects.toBeInstanceOf(QPayCardNotSupportedError);
+  await expect(q.removeCard()).rejects.toBeInstanceOf(QPayCardNotSupportedError);
+  expect(seen).toHaveLength(0);
 });

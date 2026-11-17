@@ -7,5 +7,6 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   globalSetup: '<rootDir>/test/global-setup.ts',
   setupFiles: ['<rootDir>/test/setup-env.ts'],
-  testTimeout: 30000,
+  // Алслагдсан dev DB (Supabase, ap-south-1): хүсэлт бүр ~200мс.
+  testTimeout: 120000,
 };

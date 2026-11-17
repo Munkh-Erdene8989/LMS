@@ -104,6 +104,14 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Attribution: `PurchasesService.attribution()` одоогоор үргэлж `PLATFORM` (`commissionPlatformPercent`); ticket 11 `REFERRAL` + `referrerId` буцааж `commissionReferralPercent` хэрэглэнэ.
 - Тест lot-оос зарцуулсан худалдан авалт, орлого `isTest` — payout үлдэгдэлд орохгүй.
 
+## Сарын багц (subscription)
+
+- Модуль: `apps/api/src/subscriptions/`. Төлөвийн машин нэг газар — `state.ts` (`TRANSITIONS`, `USER_ACTIONS`): `INCOMPLETE → ACTIVE → PAST_DUE (3 хоног) → PAUSED`, `CANCELED`; буруу шилжилт `409 INVALID_SUBSCRIPTION_TRANSITION`.
+- Төлбөр нь `payments` хүснэгт (`purpose = SUBSCRIPTION`, `method = INVOICE | CARD`), callback `…/payments/qpay/subscription-callback/:token` (кредит цэнэглэлтийн callback энэ төлбөрийг танихгүй). Төлөгдмөгц **нэг transaction-д**: payment `PAID` + `subscription_periods` мөр + `SUBSCRIPTION_GRANT` lot + үе урагшилна. Нэг үе (subscription, starts_at) болон нэг төлбөр нэг л удаа.
+- Сунгалт: cron `subscriptions.renew` өдөр бүр 09:00 (`SubscriptionsService.runRenewals(now)`) — idempotent, зэрэг ажиллахад аюулгүй. Тестэд `t.queue.runScheduled('subscriptions.renew')`, хугацааг DB-д `current_period_end` / `past_due_since`-ийг ухрааж дуурайна.
+- Карт холбох: QPay-ийн нийтийн баримтад card-token API **алга** → бодит adapter `cardTokensSupported = false`, бүх төлбөр нэхэмжлэхээр. Fake-д (dev/тест) карт ажиллана: `t.qpay.completeCard(registrationId)`, `t.qpay.declineNextCharge()`.
+- Web: `/subscription` (хэрэглэгч), `/admin/subscription-plans` (админ, audit).
+
 ## Нууц түлхүүр
 
 `.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс харна уу.
