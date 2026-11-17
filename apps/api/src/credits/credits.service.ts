@@ -58,6 +58,16 @@ export interface SpendResult {
   allocations: { lotId: string; credits: number; isTest: boolean }[];
 }
 
+export interface ExpiredLot {
+  lotId: string;
+  userId: string;
+  /** Дуусгавраар хассан үлдэгдэл */
+  credits: number;
+  expiresAt: Date;
+  isTest: boolean;
+  entryId: string;
+}
+
 /**
  * Кредитийн балансыг өөрчлөх **цорын ганц** нэвтрэх цэг (SPEC: мөнгөний дүрэм).
  *
@@ -181,20 +191,35 @@ export class CreditsService {
    * Буцаах: дуусгасан lot-ын тоо.
    */
   async expireDue(now = new Date(), batchSize = 500): Promise<number> {
+    return (await this.expireDueLots(now, batchSize)).length;
+  }
+
+  /**
+   * `expireDue`-тэй ижил (нэг batch), харин **энэ дуудлага** дуусгасан lot-уудыг буцаана —
+   * зэрэг ажилласан өөр дуудлагын дуусгасныг оруулахгүй (мэдэгдэл давхардуулахгүйн тулд).
+   * Lot бүр хэрэглэгчийн түгжээ дор дахин уншигдана → `spend()`-тэй зэрэг ажиллахад аль нэг
+   * нь дараалж, үлдэгдэл давхар тоологдохгүй.
+   */
+  async expireDueLots(now = new Date(), batchSize = 500): Promise<ExpiredLot[]> {
     const due = await this.prisma.creditLot.findMany({
       where: { expiresAt: { lte: now }, remaining: { gt: 0 }, expiredAt: null },
       orderBy: { expiresAt: 'asc' },
       take: batchSize,
       select: { id: true, userId: true },
     });
-    let expired = 0;
+    const expired: ExpiredLot[] = [];
     for (const { id, userId } of due) {
-      const done = await this.prisma.$transaction(async (tx) => {
+      const done = await this.prisma.$transaction(async (tx): Promise<ExpiredLot | null> => {
         await this.lockUser(tx, userId);
         const lot = await tx.creditLot.findUnique({ where: { id } });
-        if (!lot || lot.expiredAt || lot.remaining === 0 || lot.expiresAt > now) return false;
-        await tx.creditLot.update({ where: { id }, data: { remaining: 0, expiredAt: now } });
-        await tx.creditLedgerEntry.create({
+        if (!lot || lot.expiredAt || lot.remaining === 0 || lot.expiresAt > now) return null;
+        // Түгжээ дор ч давхар хамгаалалт: дуусгаагүй, уншсан үлдэгдэлтэй хэвээр бол л.
+        const { count } = await tx.creditLot.updateMany({
+          where: { id, expiredAt: null, remaining: lot.remaining },
+          data: { remaining: 0, expiredAt: now },
+        });
+        if (count !== 1) return null;
+        const entry = await tx.creditLedgerEntry.create({
           data: {
             userId,
             type: 'EXPIRE',
@@ -204,11 +229,18 @@ export class CreditsService {
             allocations: { create: [{ lotId: id, amount: -lot.remaining }] },
           },
         });
-        return true;
+        return {
+          lotId: id,
+          userId,
+          credits: lot.remaining,
+          expiresAt: lot.expiresAt,
+          isTest: lot.isTest,
+          entryId: entry.id,
+        };
       }, CREDIT_TX_OPTIONS);
-      if (done) expired++;
+      if (done) expired.push(done);
     }
-    if (expired) this.log.log(`${expired} credit lot дууссан`);
+    if (expired.length) this.log.log(`${expired.length} credit lot дууссан`);
     return expired;
   }
 

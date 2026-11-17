@@ -41,4 +41,4 @@ QPay v2 — албан ёсны эх сурвалжаас (developer.qpay.mn, Po
 - [ ] QPay-ээс merchant гэрээ: `QPAY_CLIENT_ID`, `QPAY_CLIENT_SECRET`, `QPAY_INVOICE_CODE`-г Railway-д. Production-д заавал (env шалгалт).
 - [ ] Production-д админ 100₮ тест багцаар бодит төлбөр хийж шалгах: QR, банкны deeplink, callback (`PUBLIC_WEB_URL/api/payments/qpay/callback/…` Vercel proxy-оор API-д хүрч байгаа эсэх, эсвэл `QPAY_CALLBACK_BASE_URL`), дээрх таамаглалуудыг батлах.
 - [ ] Хуучирсан PENDING болон `AMOUNT_MISMATCH` төлбөрийг админд харуулах/шийдвэрлэх UI — ticket 22.
-- [ ] Хугацаа дуусалтын cron + сануулга — ticket 16 (`CreditsService.expireDue` бэлэн).
+- [x] Хугацаа дуусалтын cron + сануулга — ticket 16.

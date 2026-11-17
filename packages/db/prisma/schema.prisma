@@ -557,6 +557,9 @@ model CreditLot {
   expiresAt DateTime        @map("expires_at")
   /// EXPIRE бичилт хийгдсэн огноо (давхар дуусгахгүй)
   expiredAt DateTime?       @map("expired_at")
+  /// Дуусахаас 30 / 7 хоногийн өмнөх сануулга илгээсэн огноо (ticket 16 — lot бүрт нэг л удаа)
+  remind30SentAt DateTime?  @map("remind_30_sent_at")
+  remind7SentAt  DateTime?  @map("remind_7_sent_at")
   paymentId String?         @unique @map("payment_id") @db.Uuid
   isTest    Boolean         @default(false) @map("is_test")
   createdAt DateTime        @default(now()) @map("created_at")

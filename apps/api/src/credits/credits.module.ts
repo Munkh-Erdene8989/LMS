@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { AdminCreditsController, CreditsController, QPayCallbackController } from './credits.controller';
 import { CreditsService } from './credits.service';
+import { CreditExpiryService } from './expiry.service';
 import { CreditPackagesService } from './packages.service';
 import { PaymentsService } from './payments.service';
 
@@ -11,7 +12,7 @@ import { PaymentsService } from './payments.service';
 @Global()
 @Module({
   controllers: [CreditsController, QPayCallbackController, AdminCreditsController],
-  providers: [CreditsService, CreditPackagesService, PaymentsService],
+  providers: [CreditsService, CreditPackagesService, PaymentsService, CreditExpiryService],
   exports: [CreditsService, PaymentsService],
 })
 export class CreditsModule {}
