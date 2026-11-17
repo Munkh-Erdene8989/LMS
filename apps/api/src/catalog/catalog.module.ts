@@ -4,12 +4,13 @@ import { CategoryService } from './category.service';
 import { CourseAuthoringService } from './course-authoring.service';
 import { CourseReviewService } from './course-review.service';
 import { LessonAccessPolicy } from './lesson-access';
+import { LiveLessonsService } from './live-lessons.service';
 import { PublicCatalogController } from './public-catalog.controller';
 import { PublicCatalogService } from './public-catalog.service';
 
 @Module({
   controllers: [TeacherCourseController, AdminCatalogController, CategoryController, PublicCatalogController],
-  providers: [CourseAuthoringService, CourseReviewService, CategoryService, PublicCatalogService, LessonAccessPolicy],
+  providers: [CourseAuthoringService, CourseReviewService, CategoryService, PublicCatalogService, LessonAccessPolicy, LiveLessonsService],
   exports: [CategoryService, LessonAccessPolicy],
 })
 export class CatalogModule {}

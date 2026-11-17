@@ -36,6 +36,12 @@ export const CatalogErrors = {
   invalidStatus: () =>
     new ApiError(HttpStatus.CONFLICT, 'INVALID_STATUS', 'Курс энэ үйлдэлд тохирох төлөвт биш байна.'),
   invalidUpload: (reason: string) => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_UPLOAD', reason),
+  invalidLive: (reason: string) => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_LIVE', reason),
+  liveStartInPast: () =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'LIVE_START_IN_PAST', 'Эхлэх цаг ирээдүйд байх ёстой.'),
+  notLive: () => new ApiError(HttpStatus.CONFLICT, 'NOT_LIVE', 'Энэ хичээл шууд (live) хичээл биш.'),
+  liveNotEnded: () =>
+    new ApiError(HttpStatus.CONFLICT, 'LIVE_NOT_ENDED', 'Шууд хичээл дуусаагүй тул бичлэг болгох боломжгүй.'),
   categoryDepth: () =>
     new ApiError(HttpStatus.BAD_REQUEST, 'CATEGORY_DEPTH', 'Ангилал зөвхөн 2 түвшинтэй байна.'),
   categoryInUse: () =>

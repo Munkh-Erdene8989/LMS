@@ -4,6 +4,7 @@ import { Prisma, type Course, type CourseLevel, type Lesson, type LessonType } f
 import {
   COVER_MAX_BYTES,
   COVER_TYPES,
+  liveEndsAt,
   PDF_MAX_BYTES,
   type CourseDetail,
   type CourseSummary,
@@ -20,7 +21,8 @@ import {
   toCourseSummary,
 } from './course.view';
 import { CatalogErrors as E } from './errors';
-import { isAvailableType, LESSON_TYPES, type PdfContent } from './lesson-types';
+import { isAvailableType, LESSON_TYPES, type LiveContent, type PdfContent, type VideoContent } from './lesson-types';
+import { LiveLessonsService } from './live-lessons.service';
 
 export interface CourseUpdate {
   title?: string;
@@ -50,6 +52,7 @@ const COVER_EXT: Record<(typeof COVER_TYPES)[number], string> = {
  * - `DRAFT` / `REJECTED` курсэд бүгд чөлөөтэй (устгах = бүрмөсөн).
  * - `PUBLISHED` курсэд: мета мэдээлэл засна; шинэ lesson `DRAFT`-аар нэмэгдэж тусдаа шалгагдана;
  *   `APPROVED` lesson-ы агуулга түгжигдэнэ (худалдан авсан хүмүүст өөрчлөгдөхгүй), устгавал архивлана.
+ *   Үл хамаарах: LIVE хичээлийн хуваарь, линк (ticket 14).
  * Бусдын курс 404 (оршин буйг ч илчлэхгүй).
  */
 @Injectable()
@@ -57,6 +60,7 @@ export class CourseAuthoringService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(STORAGE) private readonly storage: StorageAdapter,
+    private readonly live: LiveLessonsService,
   ) {}
 
   // ---- курс ----------------------------------------------------------------
@@ -175,6 +179,10 @@ export class CourseAuthoringService {
     return this.detail(teacherId, section.courseId);
   }
 
+  /**
+   * Live хичээлийн хуваарь, линк нийтлэгдсэн (APPROVED) ч засагдана — цаг хойшлох, линк солигдох нь
+   * ажиллагааны өөрчлөлт. Эхлэх цаг өөрчлөгдвөл сануулга дахин товлогдож, эзэмшигчдэд мэдэгдэнэ.
+   */
   async updateLesson(teacherId: string, lessonId: string, input: LessonUpdate): Promise<CourseDetail> {
     const lesson = await this.editableLesson(teacherId, lessonId);
     const data: Prisma.LessonUpdateInput = {
@@ -182,11 +190,36 @@ export class CourseAuthoringService {
       priceCredits: input.priceCredits,
       isFreePreview: input.isFreePreview,
     };
+    let content: unknown;
     if (input.content !== undefined) {
-      if (lesson.reviewStatus === 'APPROVED') throw E.contentLocked();
-      data.content = (await this.parseContent(lesson, input.content)) as Prisma.InputJsonValue;
+      if (lesson.reviewStatus === 'APPROVED' && lesson.type !== 'LIVE') throw E.contentLocked();
+      content = await this.parseContent(lesson, input.content);
+      data.content = content as Prisma.InputJsonValue;
     }
     await this.prisma.lesson.update({ where: { id: lessonId }, data });
+    if (lesson.type === 'LIVE' && content !== undefined) {
+      await this.live.scheduleChanged(lesson, lesson.content as unknown as LiveContent, content as LiveContent);
+    }
+    return this.detail(teacherId, lesson.courseId);
+  }
+
+  /**
+   * Дууссан live хичээлийг бичлэгийн (VIDEO) хичээл болгоно. Lesson-ы id, эрх, үнэ, шалгалтын төлөв
+   * хэвээр — эзэмшигчид бичлэгийг үзнэ. Бичлэг оруулах (Mux) ticket 10-д.
+   */
+  async convertLiveToVideo(teacherId: string, lessonId: string, now = new Date()): Promise<CourseDetail> {
+    const lesson = await this.editableLesson(teacherId, lessonId);
+    if (lesson.type !== 'LIVE') throw E.notLive();
+    const c = lesson.content as unknown as LiveContent;
+    if (!c.startsAt || !c.durationMinutes || now.getTime() < new Date(liveEndsAt(c.startsAt, c.durationMinutes)).getTime()) {
+      throw E.liveNotEnded();
+    }
+    const content: VideoContent = { fromLive: { startsAt: c.startsAt, durationMinutes: c.durationMinutes } };
+    const { count } = await this.prisma.lesson.updateMany({
+      where: { id: lesson.id, type: 'LIVE' },
+      data: { type: 'VIDEO', content: content as unknown as Prisma.InputJsonValue },
+    });
+    if (count === 0) throw E.notLive();
     return this.detail(teacherId, lesson.courseId);
   }
 
@@ -296,7 +329,17 @@ export class CourseAuthoringService {
     const def = LESSON_TYPES[lesson.type];
     if (!def) throw E.lessonTypeUnavailable();
     const parsed = def.input.safeParse(raw);
-    if (!parsed.success) throw E.typeChangeForbidden();
+    if (!parsed.success) {
+      if (lesson.type === 'LIVE') throw E.invalidLive(parsed.error.issues.map((i) => i.message).join('; '));
+      throw E.typeChangeForbidden();
+    }
+    if (lesson.type === 'LIVE') {
+      const next = parsed.data as LiveContent;
+      const prev = lesson.content as unknown as LiveContent;
+      // Хуучин цагаа хэвээр үлдээж (жишээ нь зөвхөн линк солих) байвал шалгахгүй.
+      if (next.startsAt !== prev.startsAt && new Date(next.startsAt!).getTime() <= Date.now()) throw E.liveStartInPast();
+      return next;
+    }
     if (lesson.type !== 'PDF') return parsed.data;
 
     const { fileKey, fileName } = parsed.data as { fileKey: string; fileName: string };

@@ -9,7 +9,7 @@ export type LessonType = 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'ASSIGNMENT' | 'LIV
 export type LessonReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
 /** Одоогоор үүсгэж болох төрлүүд (бусад нь дараагийн ticket-үүдэд). */
-export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF'];
+export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['TEXT', 'PDF', 'LIVE'];
 
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
@@ -27,7 +27,20 @@ export interface CategoryNode {
 export type LessonContent =
   | { type: 'TEXT'; markdown: string }
   | { type: 'PDF'; fileName: string | null; size: number | null; url: string | null }
-  | { type: Exclude<LessonType, 'TEXT' | 'PDF'> };
+  | LiveLessonContent
+  | { type: Exclude<LessonType, 'TEXT' | 'PDF' | 'LIVE'> };
+
+/**
+ * Live хичээл (ticket 14). Цаг ISO (UTC); UI Улаанбаатарын цагаар харуулна (`formatUbDateTime`).
+ * `meetingUrl` зөвхөн эзэмшигч, курсийн багш, админд; free preview-ээр үзэж буй хүнд null.
+ */
+export interface LiveLessonContent {
+  type: 'LIVE';
+  startsAt: string | null;
+  durationMinutes: number | null;
+  endsAt: string | null;
+  meetingUrl: string | null;
+}
 
 export interface LessonView {
   id: string;
@@ -181,6 +194,8 @@ export interface PublicLessonItem {
   type: LessonType;
   priceCredits: number;
   isFreePreview: boolean;
+  /** Live хичээлийн хуваарь (нийтэд харагдана, линк биш). Бусад төрөлд null. */
+  live: { startsAt: string | null; durationMinutes: number | null } | null;
 }
 
 export interface PublicSection {
