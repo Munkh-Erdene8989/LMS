@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { MyCourseCard } from '@lms/shared';
+import { formatUbDateTime, type CertificateView, type MyCourseCard } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { ProgressBar } from './learning-ui';
@@ -13,6 +13,13 @@ export default function MyLearningPage() {
   const router = useRouter();
   const [items, setItems] = useState<MyCourseCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateView[]>([]);
+
+  useEffect(() => {
+    api<CertificateView[]>('/learning/certificates')
+      .then((r) => setCertificates(r.data))
+      .catch(() => setCertificates([]));
+  }, []);
 
   useEffect(() => {
     api<MyCourseCard[]>('/learning/courses')
@@ -71,6 +78,19 @@ export default function MyLearningPage() {
             </li>
           ))}
         </ul>
+      )}
+      {certificates.length > 0 && (
+        <section className="card" style={{ display: 'grid', gap: 8 }}>
+          <strong>{t('certificate.mine')}</strong>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+            {certificates.map((c) => (
+              <li key={c.code}>
+                <Link href={`/learning/${c.courseId}`}>{c.courseTitle}</Link>{' '}
+                <small className="muted">· {formatUbDateTime(c.issuedAt).slice(0, 10)}</small>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );

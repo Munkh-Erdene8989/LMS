@@ -21,6 +21,15 @@ export async function ownsLesson(db: Db, userId: string, lesson: { id: string; c
   return lessonRow !== null || courseRow !== null;
 }
 
+/**
+ * Курсийг БҮТНЭЭР нь авсан эсэх (`CourseEntitlement`) — сертификат (ticket 15) зөвхөн үүнийг шаардана:
+ * lesson-уудыг ширхэгээр бүгдийг нь авсан ч бүтэн эзэмшилд тооцогдохгүй.
+ */
+export async function ownsFullCourse(db: Db, userId: string, courseId: string): Promise<boolean> {
+  const row = await db.courseEntitlement.findUnique({ where: { userId_courseId: { userId, courseId } }, select: { id: true } });
+  return row !== null;
+}
+
 export interface CourseOwnership {
   /** Курсийг бүтнээр авсан */
   ownsCourse: boolean;

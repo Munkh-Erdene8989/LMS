@@ -24,3 +24,16 @@ export const LearningErrors = {
   submissionNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Илгээлт олдсонгүй.'),
   invalidScore: (max: number) => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_SCORE', `Оноо 0–${max} хооронд байна.`),
 };
+
+export const CertificateErrors = {
+  courseNotFound: LearningErrors.courseNotFound,
+  certificateNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'CERTIFICATE_NOT_FOUND', 'Ийм кодтой сертификат олдсонгүй.'),
+  notEligible: () =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'CERTIFICATE_NOT_ELIGIBLE',
+      'Сертификат авах нөхцөл хангагдаагүй байна: курсийг бүтнээр нь авч, бүх хичээлийг дуусгаж, тестийн дундаж оноо 70%-иас багагүй байх ёстой.',
+    ),
+  nameRequired: () =>
+    new ApiError(HttpStatus.CONFLICT, 'NAME_REQUIRED', 'Сертификат дээр нэр бичигдэнэ. Эхлээд профайлдаа нэрээ оруулна уу.'),
+};

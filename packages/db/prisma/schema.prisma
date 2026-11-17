@@ -103,6 +103,7 @@ model User {
   earningAdjustments TeacherEarningEntry[] @relation("EarningActor")
   lessonProgress     LessonProgress[]
   quizAttempts       QuizAttempt[]
+  certificates       Certificate[]
 
   submissions       AssignmentSubmission[] @relation("SubmissionLearner")
   gradedSubmissions AssignmentSubmission[] @relation("SubmissionReviewer")
@@ -402,6 +403,7 @@ model Course {
   courseEntitlements CourseEntitlement[]
   lessonProgress     LessonProgress[]
   quizAttempts       QuizAttempt[]
+  certificates       Certificate[]
 
   submissions AssignmentSubmission[]
 
@@ -1092,4 +1094,34 @@ model AssignmentSubmission {
   @@index([courseId, isLatest, reviewedAt])
   @@index([lessonId])
   @@map("assignment_submissions")
+}
+
+// ---------------------------------------------------------------------------
+// Сертификат (ticket 15)
+// ---------------------------------------------------------------------------
+
+/// Курс дүүргэсний сертификат — хэрэглэгч × курс тутамд нэг, олгогдсоны дараа ӨӨРЧЛӨГДӨХГҮЙ.
+/// Нэр, курс, багшийн нэрийг олгох мөчийнхөөр хадгална (дараа нь profile/курс өөрчлөгдсөн ч PDF, verify ижил).
+/// PDF-ийг эдгээр талбараас тухай бүр үүсгэнэ (apps/api/src/learning/certificate-pdf.ts).
+model Certificate {
+  id                 String   @id @default(uuid()) @db.Uuid
+  /// Нийтийн verify код (`/verify/<code>`): 16 тэмдэгт, crypto random (80 бит)
+  code               String   @unique
+  userId             String   @map("user_id") @db.Uuid
+  courseId           String   @map("course_id") @db.Uuid
+  recipientName      String   @map("recipient_name")
+  courseTitle        String   @map("course_title")
+  teacherName        String   @map("teacher_name")
+  /// Quiz-уудын хамгийн өндөр онооны дундаж (floor); quiz-гүй курст null
+  quizAveragePercent Int?     @map("quiz_average_percent")
+  /// Нөхцөлд тооцогдсон lesson-ы тоо
+  lessonCount        Int      @map("lesson_count")
+  issuedAt           DateTime @default(now()) @map("issued_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@map("certificates")
 }

@@ -19,6 +19,7 @@ import type { StoredQuiz } from '../catalog/lesson-types';
 import { teacherRef, teacherSelect } from '../catalog/public-catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ownedCourses, ownsFrom, type Db, type OwnedCourse } from '../purchases/entitlements';
+import { CertificatesService } from './certificates.service';
 import { LearningErrors as E } from './errors';
 import { AssignmentsService } from './assignments.service';
 import { bumpProgress, progressView, type ProgressPatch } from './progress';
@@ -54,6 +55,7 @@ export class LearningService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: LessonAccessPolicy,
+    private readonly certificates: CertificatesService,
     @Inject(STORAGE) private readonly storage: StorageAdapter,
     private readonly assignments: AssignmentsService,
   ) {}
@@ -143,14 +145,18 @@ export class LearningService {
       patch.watchedPercent = Math.floor(watchedPercent);
       if (patch.watchedPercent >= VIDEO_COMPLETE_PERCENT) patch.complete = true;
     }
-    return progressView(await bumpProgress(this.prisma, viewer.id, lesson, patch));
+    const row = await bumpProgress(this.prisma, viewer.id, lesson, patch);
+    if (patch.complete) await this.afterCompletion(row);
+    return progressView(row);
   }
 
   /** Текст / PDF: "Дууслаа" товч. */
   async complete(viewer: LessonViewer, lessonId: string): Promise<LessonProgressView> {
     const { lesson } = await this.access.open(lessonId, viewer);
     if (!MANUAL_COMPLETION.has(lesson.type)) throw E.completionNotManual();
-    return progressView(await bumpProgress(this.prisma, viewer.id, lesson, { complete: true }));
+    const row = await bumpProgress(this.prisma, viewer.id, lesson, { complete: true });
+    await this.afterCompletion(row);
+    return progressView(row);
   }
 
   // ---- quiz -------------------------------------------------------------------
@@ -162,7 +168,7 @@ export class LearningService {
     const quiz = lesson.content as unknown as StoredQuiz;
     const score = scoreQuiz(quiz, answers);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const attempt = await tx.quizAttempt.create({
         data: {
           userId: viewer.id,
@@ -186,9 +192,18 @@ export class LearningService {
         quiz: await this.quizState(tx, viewer.id, lesson, progress),
       };
     });
+    // Тэнцсэн оролдлого lesson-ыг дуусгаж / хамгийн өндөр оноог өсгөж болно → дундаж өөрчлөгдөнө.
+    // Тэнцээгүй оролдлого (оноо < тэнцэх оноо) lesson-ыг дуусгахгүй тул нөхцөлд нөлөөлөхгүй.
+    if (score.passed) await this.certificates.issueIfEligible(viewer.id, lesson.courseId);
+    return result;
   }
 
   // ---- дотоод ----------------------------------------------------------------
+
+  /** Lesson дууссан → курсийн сертификатын нөхцөл хангагдвал автоматаар олгоно (ticket 15). */
+  private async afterCompletion(row: LessonProgress): Promise<void> {
+    if (row.completedAt) await this.certificates.issueIfEligible(row.userId, row.courseId);
+  }
 
   private head(c: CourseRow) {
     const t = teacherRef(c.teacher);

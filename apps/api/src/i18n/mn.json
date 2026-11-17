@@ -119,6 +119,11 @@
       "title": "\"{title}\" даалгавар шалгагдлаа: {score}/{maxScore}",
       "body": "\"{course}\" курсийн \"{title}\" даалгаврыг багш шалгаж, {score}/{maxScore} оноо өглөө. Сэтгэгдлийг хичээлийн хуудаснаас харна уу.",
       "emailSubject": "{brand}: \"{title}\" даалгавар шалгагдлаа — {score}/{maxScore}"
+    },
+    "CERTIFICATE_ISSUED": {
+      "title": "Баяр хүргэе! \"{course}\" курсийн сертификат олгогдлоо",
+      "body": "Та \"{course}\" курсийн бүх хичээлийг амжилттай дүүргэлээ. Сертификатаа (PDF, QR кодтой) курсийн хуудаснаас татаж авна уу. Шалгах код: {code}.",
+      "emailSubject": "{brand}: \"{course}\" курсийн сертификат"
     }
   },
   "payments": {
@@ -128,5 +133,19 @@
     "invoiceDescription": "{brand}: {plan} сарын багц ({credits} кредит)",
     "cardDeclined": "карт татгалзсан",
     "noCard": "карт холбоогүй"
+  },
+  "certificate": {
+    "pdf": {
+      "title": "СЕРТИФИКАТ",
+      "subtitle": "Курс амжилттай дүүргэсний гэрчилгээ",
+      "presented": "Энэхүү сертификатыг",
+      "completed": "«{course}» курсийг амжилттай дүүргэсний төлөө олгов.",
+      "teacher": "Багш: {name}",
+      "issuedAt": "Олгосон огноо: {date}",
+      "quizAverage": "Тестийн дундаж оноо: {percent}%",
+      "date": "{year} оны {month}-р сарын {day}",
+      "verify": "Жинхэнэ эсэхийг шалгах:",
+      "code": "Код: {code}"
+    }
   }
 }
