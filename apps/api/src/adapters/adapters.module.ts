@@ -8,6 +8,7 @@ import {
   type PhoneVerifier,
 } from './phone-verifier';
 import { DevStorageController } from './dev-storage.controller';
+import { FakeQPay, HttpQPayAdapter, QPAY, type QPayAdapter } from './qpay';
 import { LOCAL_STORAGE_ROOT, LocalDiskStorage, STORAGE, SupabaseStorage, type StorageAdapter } from './storage';
 
 const log = new Logger('Adapters');
@@ -57,7 +58,23 @@ const log = new Logger('Adapters');
         return new LocalDiskStorage(LOCAL_STORAGE_ROOT, env.JWT_SECRET, env.COOKIE_PATH_PREFIX);
       },
     },
+    {
+      provide: QPAY,
+      inject: [ENV],
+      useFactory: (env: Env): QPayAdapter => {
+        if (env.QPAY_CLIENT_ID && env.QPAY_CLIENT_SECRET && env.QPAY_INVOICE_CODE) {
+          return new HttpQPayAdapter({
+            clientId: env.QPAY_CLIENT_ID,
+            clientSecret: env.QPAY_CLIENT_SECRET,
+            invoiceCode: env.QPAY_INVOICE_CODE,
+            baseUrl: env.QPAY_BASE_URL,
+          });
+        }
+        log.warn('QPAY_CLIENT_ID алга — fake QPay: нэхэмжлэх шууд төлөгдсөнд тооцогдоно (dev)');
+        return new FakeQPay({ autoPay: true });
+      },
+    },
   ],
-  exports: [PHONE_VERIFIER, EMAIL_SENDER, STORAGE],
+  exports: [PHONE_VERIFIER, EMAIL_SENDER, STORAGE, QPAY],
 })
 export class AdaptersModule {}

@@ -49,6 +49,14 @@
       "title": "\"{title}\" — хичээл буцаагдлаа",
       "body": "Шалтгаан: {reason}\nЗасаад дахин шалгуулна уу.",
       "emailSubject": "{brand}: хичээл буцаагдлаа"
+    },
+    "CREDIT_TOPUP_PAID": {
+      "title": "{credits} кредит нэмэгдлээ",
+      "body": "Таны {amount}₮-ийн төлбөр баталгаажиж, {credits} кредит нэмэгдлээ. Гүйлгээний дугаар: {paymentId}. Кредит {expiresAt} хүртэл хүчинтэй.",
+      "emailSubject": "{brand}: төлбөрийн баримт — {credits} кредит"
     }
+  },
+  "payments": {
+    "invoiceDescription": "{brand}: {credits} кредит"
   }
 }

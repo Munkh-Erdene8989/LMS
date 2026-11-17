@@ -2,6 +2,7 @@ export * from './admin';
 export * from './auth';
 export * from './brand';
 export * from './catalog';
+export * from './credits';
 export * from './health';
 export * from './i18n';
 export * from './notifications';

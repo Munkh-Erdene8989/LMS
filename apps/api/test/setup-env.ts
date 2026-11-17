@@ -12,3 +12,5 @@ process.env.COOKIE_PATH_PREFIX = '';
 delete process.env.VERIFY_MN_API_KEY;
 delete process.env.RESEND_API_KEY;
 delete process.env.REDIS_URL;
+delete process.env.QPAY_CLIENT_ID;
+delete process.env.QPAY_CLIENT_SECRET;

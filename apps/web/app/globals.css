@@ -585,3 +585,86 @@ body {
     position: static;
   }
 }
+
+/* Кредит (ticket 08) */
+.credit-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.credit-balance strong {
+  font-size: 28px;
+}
+
+.package-card {
+  display: grid;
+  gap: 4px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.package-card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.qpay-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.qpay-qr {
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+  justify-self: center;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.bank-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.bank-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.bank-link img {
+  border-radius: 6px;
+}
+
+.package-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.package-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.package-form label.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -38,9 +38,25 @@ const EnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   /** Имэйл дэх линкүүдийн суурь хаяг */
   PUBLIC_WEB_URL: z.string().url().default('http://localhost:3000'),
+  /** QPay merchant v2 (https://developer.qpay.mn). Байхгүй бол dev-д fake (нэхэмжлэх шууд төлөгдсөнд тооцно). Production-д заавал. */
+  QPAY_CLIENT_ID: z.string().optional(),
+  QPAY_CLIENT_SECRET: z.string().optional(),
+  QPAY_INVOICE_CODE: z.string().optional(),
+  QPAY_BASE_URL: z.string().url().default('https://merchant.qpay.mn'),
+  /** QPay callback хүрэх нийтийн API хаяг. Хоосон бол `PUBLIC_WEB_URL` + `/api` (web proxy-оор). */
+  QPAY_CALLBACK_BASE_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV !== 'production') return;
-  for (const key of ['VERIFY_MN_API_KEY', 'RESEND_API_KEY', 'REDIS_URL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const) {
+  for (const key of [
+    'VERIFY_MN_API_KEY',
+    'RESEND_API_KEY',
+    'REDIS_URL',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'QPAY_CLIENT_ID',
+    'QPAY_CLIENT_SECRET',
+    'QPAY_INVOICE_CODE',
+  ] as const) {
     if (!env[key]) ctx.addIssue({ code: 'custom', path: [key], message: 'production-д шаардлагатай' });
   }
 });

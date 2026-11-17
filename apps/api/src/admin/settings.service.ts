@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { SettingKey, SettingRevisionView, SettingView } from '@lms/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from './audit.service';
+import { AuditService, type Db } from './audit.service';
 import { isSettingKey, SETTING_KEYS, SETTINGS } from './settings.registry';
 
 /**
@@ -15,8 +15,9 @@ export class SettingsService {
     private readonly audit: AuditService,
   ) {}
 
-  async get(key: SettingKey): Promise<number> {
-    const row = await this.prisma.setting.findUnique({ where: { key } });
+  /** `db` — transaction дотроос уншихад (pool-оос нэмэлт холболт авахгүй). */
+  async get(key: SettingKey, db: Db = this.prisma): Promise<number> {
+    const row = await db.setting.findUnique({ where: { key } });
     return row ? Number(row.value) : SETTINGS[key].default;
   }
 

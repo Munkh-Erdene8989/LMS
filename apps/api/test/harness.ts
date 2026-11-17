@@ -8,6 +8,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { EMAIL_SENDER, FakeEmailSender } from '../src/adapters/email';
 import { FakePhoneVerifier, PHONE_VERIFIER } from '../src/adapters/phone-verifier';
 import { FakeStorage, STORAGE } from '../src/adapters/storage';
+import { FakeQPay, QPAY } from '../src/adapters/qpay';
 import { InMemoryJobQueue } from '../src/queue/in-memory-queue';
 import { JOB_QUEUE } from '../src/queue/job-queue';
 
@@ -23,6 +24,8 @@ export interface TestApp {
   queue: InMemoryJobQueue;
   /** `t.storage.put(bucket, key, info)` — browser upload хийсэн мэт */
   storage: FakeStorage;
+  /** `t.qpay.markPaid(invoiceId)` — хэрэглэгч банкны апп-аар төлсөн мэт */
+  qpay: FakeQPay;
   /** Тестийн schema-ийн бүх хүснэгтийг цэвэрлэж, fake-уудыг хоосолно. */
   reset: () => Promise<void>;
   close: () => Promise<void>;
@@ -45,6 +48,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const email = new FakeEmailSender();
   const queue = new InMemoryJobQueue('manual');
   const storage = new FakeStorage();
+  const qpay = new FakeQPay();
 
   let builder = Test.createTestingModule({ imports: [AppModule, ...(options.imports ?? [])] })
     .overrideProvider(PHONE_VERIFIER)
@@ -54,7 +58,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(JOB_QUEUE)
     .useValue(queue)
     .overrideProvider(STORAGE)
-    .useValue(storage);
+    .useValue(storage)
+    .overrideProvider(QPAY)
+    .useValue(qpay);
   if (options.override) builder = options.override(builder);
 
   const moduleRef = await builder.compile();
@@ -74,12 +80,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     email,
     queue,
     storage,
+    qpay,
     reset: async () => {
       await truncateAll(prisma);
       phone.clear();
       email.clear();
       queue.clear();
       storage.clear();
+      qpay.clear();
     },
     close: () => app.close(),
   };
