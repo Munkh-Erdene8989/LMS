@@ -122,10 +122,16 @@ const buyLesson = (a: Agent, lessonId: string) =>
 const buyCourse = (a: Agent, courseId: string, expected: number) =>
   a.post(`/purchases/courses/${courseId}`).send({ confirmNoRefund: true, expectedCredits: expected }).expect(201);
 
-/** Lesson-ыг төрлөөр нь дуусгана (quiz — өгсөн хариултаар). */
+/**
+ * Lesson-ыг төрлөөр нь дуусгана (quiz — өгсөн хариултаар). Quiz-ийн хурдны хязгаар (30 сек / 24 цагт 10)
+ * дахин оролдлогод саад болохгүйн тулд өмнөх оролдлогуудыг 25 цагаар хуучруулна (`learning.spec.ts`-тэй адил).
+ */
 async function finish(a: Agent, lesson: { id: string; type: LessonType }, answers = ALL_CORRECT) {
   if (lesson.type === 'VIDEO') await a.post(`/learning/lessons/${lesson.id}/progress`).send({ watchedPercent: 100 }).expect(200);
-  else if (lesson.type === 'QUIZ') await a.post(`/learning/lessons/${lesson.id}/quiz-attempts`).send({ answers }).expect(201);
+  else if (lesson.type === 'QUIZ') {
+    await t.prisma.$executeRaw`UPDATE quiz_attempts SET created_at = created_at - interval '25 hours'`;
+    await a.post(`/learning/lessons/${lesson.id}/quiz-attempts`).send({ answers }).expect(201);
+  }
   else await a.post(`/learning/lessons/${lesson.id}/complete`).expect(200);
 }
 
