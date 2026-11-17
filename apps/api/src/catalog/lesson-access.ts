@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { Role } from '@lms/db';
+import type { Lesson, Role } from '@lms/db';
 import type { LessonAccessReason } from '@lms/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { ownsLesson } from '../purchases/entitlements';
+import { CatalogErrors as E } from './errors';
 
 export interface LessonAccessSubject {
   id: string;
@@ -15,6 +16,8 @@ export interface LessonViewer {
   id: string;
   roles: Role[];
 }
+
+export type OpenedLesson = Lesson & { course: { id: string; title: string; teacherId: string } };
 
 /**
  * Lesson-ы контентыг (текст, PDF signed URL, Mux token, live линк, quiz асуулт …) хэн үзэж болох —
@@ -39,5 +42,22 @@ export class LessonAccessPolicy {
 
   async canViewContent(lesson: LessonAccessSubject, viewer: LessonViewer | null): Promise<boolean> {
     return (await this.access(lesson, viewer)) !== null;
+  }
+
+  /**
+   * Learner-т нээгдэх lesson-ыг ачаалж эрхийг шалгана (контент, явц, quiz бүгд үүгээр):
+   * шалгагдсан (APPROVED) + нийтлэгдсэн курс, үгүй бол 404. Архивласан lesson нийтэд байхгүй мэт (preview ч) —
+   * эзэмшигч, багш, админд л. Эрхгүй бол 403 `LESSON_LOCKED`.
+   */
+  async open(lessonId: string, viewer: LessonViewer | null): Promise<{ lesson: OpenedLesson; access: LessonAccessReason }> {
+    const lesson = await this.prisma.lesson.findFirst({
+      where: { id: lessonId, reviewStatus: 'APPROVED', course: { status: 'PUBLISHED' } },
+      include: { course: { select: { id: true, title: true, teacherId: true } } },
+    });
+    if (!lesson) throw E.lessonNotFound();
+    const access = await this.access(lesson, viewer);
+    if (lesson.archivedAt && (access === null || access === 'PREVIEW')) throw E.lessonNotFound();
+    if (!access) throw E.lessonLocked();
+    return { lesson, access };
   }
 }

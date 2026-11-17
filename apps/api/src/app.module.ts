@@ -14,6 +14,7 @@ import { CreditsModule } from './credits/credits.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { LearningModule } from './learning/learning.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     ReferralsModule,
     PurchasesModule,
     SubscriptionsModule,
+    LearningModule,
     MaintenanceModule,
   ],
 })

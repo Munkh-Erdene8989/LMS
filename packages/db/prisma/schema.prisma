@@ -101,6 +101,8 @@ model User {
   courseEntitlements CourseEntitlement[]
   earningEntries     TeacherEarningEntry[] @relation("EarningTeacher")
   earningAdjustments TeacherEarningEntry[] @relation("EarningActor")
+  lessonProgress     LessonProgress[]
+  quizAttempts       QuizAttempt[]
 
   subscription Subscription?
   paymentCard  PaymentCard?
@@ -395,6 +397,8 @@ model Course {
   purchases          Purchase[]
   entitlements       Entitlement[]
   courseEntitlements CourseEntitlement[]
+  lessonProgress     LessonProgress[]
+  quizAttempts       QuizAttempt[]
 
   @@index([teacherId])
   @@index([status, submittedAt])
@@ -464,6 +468,8 @@ model Lesson {
 
   purchases    Purchase[]
   entitlements Entitlement[]
+  progress     LessonProgress[]
+  quizAttempts QuizAttempt[]
 
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
@@ -918,4 +924,60 @@ model ReferralAttribution {
   @@unique([userId, teacherId])
   @@index([teacherId, lastSeenAt(sort: Desc)])
   @@map("referral_attributions")
+}
+
+// ---------------------------------------------------------------------------
+// Суралцах үйл явц (ticket 12): lesson-ы явц, quiz оролдлого
+// ---------------------------------------------------------------------------
+
+/// Хэрэглэгч × lesson-ы явц. Утгууд зөвхөн өсөнө (watchedPercent, bestScorePercent max; completedAt нэг удаа).
+model LessonProgress {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  lessonId         String    @map("lesson_id") @db.Uuid
+  courseId         String    @map("course_id") @db.Uuid
+  /// VIDEO: хамгийн их үзсэн хувь (0–100); ≥ 90 → дууссан
+  watchedPercent   Int       @default(0) @map("watched_percent")
+  /// QUIZ: хамгийн өндөр оноо (0–100 %)
+  bestScorePercent Int?      @map("best_score_percent")
+  completedAt      DateTime? @map("completed_at")
+  lastViewedAt     DateTime  @default(now()) @map("last_viewed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, lessonId])
+  @@index([userId, courseId])
+  @@index([lessonId])
+  @@index([courseId])
+  @@map("lesson_progress")
+}
+
+/// Quiz-ийн оролдлого бүр (append-only). Хариулт + тухайн үеийн оноо хадгалагдана.
+model QuizAttempt {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  lessonId      String   @map("lesson_id") @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  /// [{ questionId, optionIds }]
+  answers       Json
+  correctCount  Int      @map("correct_count")
+  questionCount Int      @map("question_count")
+  scorePercent  Int      @map("score_percent")
+  /// Тухайн үеийн тэнцэх оноо
+  passPercent   Int      @map("pass_percent")
+  passed        Boolean
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@index([userId, lessonId, createdAt(sort: Desc)])
+  @@index([lessonId])
+  @@index([courseId])
+  @@map("quiz_attempts")
 }

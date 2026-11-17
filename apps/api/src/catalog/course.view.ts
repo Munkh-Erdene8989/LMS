@@ -1,7 +1,7 @@
 import type { Prisma } from '@lms/db';
-import type { CourseDetail, CourseSummary, LessonContent, LessonView } from '@lms/shared';
+import type { CourseDetail, CourseSummary, LessonContent, LessonView, QuizContent } from '@lms/shared';
 import type { StorageAdapter } from '../adapters/storage';
-import { LESSON_TYPES, type PdfContent, type TextContent } from './lesson-types';
+import { LESSON_TYPES, type PdfContent, type StoredQuiz, type TextContent } from './lesson-types';
 
 export const courseDetailInclude = {
   teacher: { select: { id: true, name: true } },
@@ -109,15 +109,20 @@ async function toLessonView(l: LessonRow, storage: StorageAdapter): Promise<Less
     reviewNote: l.reviewNote,
     archived: !!l.archivedAt,
     problems: lessonProblems(l),
-    content: await toContent(l, storage),
+    // Багш/админы view — quiz-ийн зөв хариулттай.
+    content: await toContent(l, storage, PREVIEW_URL_TTL, true),
   };
 }
 
-/** Lesson-ы агуулга (PDF бол `ttlSeconds` хугацаатай signed URL). Эрх шалгалтыг дуудагч хийнэ. */
+/**
+ * Lesson-ы агуулга (PDF бол `ttlSeconds` хугацаатай signed URL). Эрх шалгалтыг дуудагч хийнэ.
+ * `revealAnswers` — quiz-ийн зөв хариулт; ЗӨВХӨН багш/админы засварлах, шалгах view-д `true`.
+ */
 export async function toContent(
   l: Pick<LessonRow, 'type' | 'content'>,
   storage: StorageAdapter,
   ttlSeconds = PREVIEW_URL_TTL,
+  revealAnswers = false,
 ): Promise<LessonContent> {
   if (l.type === 'TEXT') return { type: 'TEXT', markdown: (l.content as unknown as TextContent).markdown ?? '' };
   if (l.type === 'PDF') {
@@ -129,5 +134,22 @@ export async function toContent(
       url: c.fileKey ? await storage.signedDownloadUrl('private', c.fileKey, ttlSeconds) : null,
     };
   }
+  if (l.type === 'QUIZ') return quizContent(l.content as unknown as StoredQuiz, revealAnswers);
   return { type: l.type };
+}
+
+/**
+ * Quiz-ийн view. `revealAnswers` = false (learner) үед зөв хариулт (`answerKey`) огт ордоггүй —
+ * асуулт, сонголтын зөвхөн id, текст.
+ */
+export function quizContent(c: StoredQuiz, revealAnswers: boolean): QuizContent {
+  const questions = (c.questions ?? []).map((q) => ({
+    id: q.id,
+    text: q.text,
+    multiple: q.multiple,
+    options: q.options.map((o) => ({ id: o.id, text: o.text })),
+  }));
+  const view: QuizContent = { type: 'QUIZ', passPercent: c.passPercent ?? 0, questions };
+  if (revealAnswers) view.answerKey = Object.fromEntries((c.questions ?? []).map((q) => [q.id, [...q.correctOptionIds]]));
+  return view;
 }
