@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { COMMUNITY_REMOVE_REASON_MAX, type AuthUser, type CommunityMember } from '@lms/shared';
+import { COMMUNITY_REMOVE_REASON_MAX, type AuthUser, type CommunityMember, type CommunityMemberPage } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -13,22 +13,27 @@ export default function TeacherCommunityPage() {
   const router = useRouter();
   const [me, setMe] = useState<string | null>(null);
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const [m, profile] = await Promise.all([
-        api<CommunityMember[]>('/teacher/community/members'),
+        api<CommunityMemberPage>(`/teacher/community/members?page=${page}`),
         api<AuthUser>('/me'),
       ]);
-      setMembers(m.data);
+      setMembers(m.data.items);
+      setTotal(m.data.total);
+      setPageSize(m.data.pageSize);
       setMe(profile.data.id);
     } catch (err) {
       if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/community');
       else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
     }
-  }, [router]);
+  }, [router, page]);
 
   useEffect(() => {
     void load();
@@ -98,6 +103,17 @@ export default function TeacherCommunityPage() {
           </div>
         ))}
       </div>
+      {total > pageSize && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-ghost btn-small" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            {t('community.membersPrev')}
+          </button>
+          <small className="muted">{t('community.membersPage', { page, total })}</small>
+          <button type="button" className="btn btn-ghost btn-small" disabled={page * pageSize >= total} onClick={() => setPage((p) => p + 1)}>
+            {t('community.membersNext')}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

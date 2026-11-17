@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import type { Notification } from '@lms/db';
-import type { NotificationItem, NotificationPage } from '@lms/shared';
+import { NOTIFICATION_CATEGORIES, type NotificationCategory, type NotificationItem, type NotificationPage, type NotificationPreferenceView } from '@lms/shared';
 import { EMAIL_SENDER, type EmailSender } from '../adapters/email';
 import { ENV, type Env } from '../env';
 import { PrismaService } from '../prisma/prisma.service';
 import { JOB_QUEUE, type JobQueue } from '../queue/job-queue';
+import { categoryOf } from './categories';
 import { renderEmail, renderNotification, type NotificationType } from './render';
 
 export const NOTIFICATION_EMAIL_JOB = 'notification.email';
@@ -43,7 +44,15 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async notify(input: NotifyInput): Promise<Notification> {
-    const hasEmail = await this.prisma.identifier.count({ where: { userId: input.userId, type: 'EMAIL' } });
+    // Имэйл: баталгаажсан имэйлтэй БӨГӨӨД хэрэглэгч энэ ангиллын имэйлийг унтраагаагүй. In-app үргэлж үүснэ.
+    const category = categoryOf(input.type);
+    const [emailCount, muted] = await Promise.all([
+      this.prisma.identifier.count({ where: { userId: input.userId, type: 'EMAIL' } }),
+      category
+        ? this.prisma.notificationPreference.count({ where: { userId: input.userId, category, emailEnabled: false } })
+        : Promise.resolve(0),
+    ]);
+    const hasEmail = emailCount > 0 && muted === 0;
     const notification = await this.prisma.notification.create({
       data: {
         userId: input.userId,
@@ -75,6 +84,22 @@ export class NotificationsService implements OnModuleInit {
       items: page.map(toItem),
       nextCursor: rows.length > opts.limit ? page[page.length - 1]!.id : null,
     };
+  }
+
+  /** Бүх ангилал, мөр байхгүй бол идэвхтэй. */
+  async preferences(userId: string): Promise<NotificationPreferenceView[]> {
+    const rows = await this.prisma.notificationPreference.findMany({ where: { userId } });
+    const byCategory = new Map(rows.map((r) => [r.category, r.emailEnabled]));
+    return NOTIFICATION_CATEGORIES.map((category) => ({ category, emailEnabled: byCategory.get(category) ?? true }));
+  }
+
+  async setPreference(userId: string, category: NotificationCategory, emailEnabled: boolean): Promise<NotificationPreferenceView> {
+    await this.prisma.notificationPreference.upsert({
+      where: { userId_category: { userId, category } },
+      create: { userId, category, emailEnabled },
+      update: { emailEnabled },
+    });
+    return { category, emailEnabled };
   }
 
   unreadCount(userId: string): Promise<number> {

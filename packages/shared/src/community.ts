@@ -7,6 +7,10 @@ export const COMMUNITY_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', '
 /** Нэг community-д зэрэг pin хийж болох нийтлэлийн тоо */
 export const COMMUNITY_PIN_MAX = 3;
 export const COMMUNITY_REMOVE_REASON_MAX = 500;
+/** Админ нуух/устгах шалтгаан */
+export const COMMUNITY_MODERATION_REASON_MAX = 500;
+/** Гишүүдийн жагсаалтын нэг хуудас */
+export const COMMUNITY_MEMBERS_PAGE_SIZE = 20;
 
 /**
  * Үзэгчийн эрх: `TEACHER` — community-ийн эзэн (pin, устгах, гишүүн хасах), `ADMIN` — платформын модератор
@@ -60,7 +64,14 @@ export interface CommunityPostView {
   likedByMe: boolean;
   commentCount: number;
   canDelete: boolean;
+  /** Зөвхөн зохиогч засна (багш/админ ч бусдынхыг засахгүй, зөвхөн устгана/нууна) */
+  canEdit: boolean;
   createdAt: string;
+  /** Зохиогч засварласан үе (null = засаагүй) */
+  editedAt: string | null;
+  /** Админ нуусан: энгийн гишүүнд `body`/`imageUrl` хоосон ирнэ */
+  hidden: boolean;
+  hiddenReason: string | null;
 }
 
 export interface CommunityFeed {
@@ -75,7 +86,11 @@ export interface CommunityCommentView {
   author: CommunityPerson & { isTeacher: boolean };
   body: string;
   canDelete: boolean;
+  canEdit: boolean;
   createdAt: string;
+  editedAt: string | null;
+  hidden: boolean;
+  hiddenReason: string | null;
 }
 
 export interface CommunityCommentPage {
@@ -93,4 +108,34 @@ export interface CommunityMember extends CommunityPerson {
   /** Анхны эзэмшил үүссэн огноо */
   since: string;
   removed: { reason: string | null; at: string } | null;
+}
+
+/** `GET /teacher/community/members?page=&limit=` — хуудаслалттай (SQL-ээр) */
+export interface CommunityMemberPage {
+  items: CommunityMember[];
+  /** Хасагдсан гишүүдийг оруулсан нийт тоо */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Админы moderation-ий мөр: нийтлэл эсвэл сэтгэгдэл */
+export interface AdminCommunityItem {
+  kind: 'post' | 'comment';
+  id: string;
+  teacher: CommunityPerson;
+  author: CommunityPerson;
+  body: string;
+  hasImage: boolean;
+  /** Сэтгэгдлийн хувьд: харьяалагдах нийтлэлийн id */
+  postId: string;
+  createdAt: string;
+  editedAt: string | null;
+  hidden: { reason: string | null; at: string; by: { id: string; name: string | null } | null } | null;
+}
+
+/** `GET /admin/community/items` */
+export interface AdminCommunityPage {
+  items: AdminCommunityItem[];
+  nextCursor: string | null;
 }

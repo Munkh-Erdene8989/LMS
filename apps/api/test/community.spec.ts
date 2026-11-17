@@ -384,7 +384,7 @@ describe('Community — moderation', () => {
 
     // Гишүүдийн жагсаалт — зөвхөн багш
     await m.agent.get('/teacher/community/members').expect(403);
-    const members = (await tch.agent.get('/teacher/community/members').expect(200)).body;
+    const members = (await tch.agent.get('/teacher/community/members').expect(200)).body.items;
     expect(members.map((x: { id: string }) => x.id).sort()).toEqual([m.user.id, m2.user.id].sort());
     expect(members.every((x: { removed: unknown }) => x.removed === null)).toBe(true);
 
@@ -416,7 +416,7 @@ describe('Community — moderation', () => {
     expect((await m.agent.get('/communities').expect(200)).body).toEqual([]);
 
     expect((await tch.agent.get(`/communities/${teacherId}`).expect(200)).body.memberCount).toBe(1);
-    const after = (await tch.agent.get('/teacher/community/members').expect(200)).body;
+    const after = (await tch.agent.get('/teacher/community/members').expect(200)).body.items;
     expect(after.find((x: { id: string }) => x.id === m.user.id).removed).toEqual(expect.objectContaining({ reason: 'Спам' }));
 
     // Хасагдсан оролцогчид шинэ сэтгэгдлийн мэдэгдэл очихгүй
@@ -473,5 +473,326 @@ describe('Community — live хуанли', () => {
     const asTeacher = (await tch.agent.get(`/communities/${tch.user.id}`).expect(200)).body;
     expect(asTeacher.upcomingLive.every((l: { canJoin: boolean }) => l.canJoin)).toBe(true);
     expect(asTeacher.upcomingLive.map((l: { courseId: string }) => l.courseId)).toContain(c2.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 26: засах, хуудаслалт, мэдэгдэл, имэйл тохиргоо, админ moderation
+// ---------------------------------------------------------------------------
+
+const randomId = '00000000-0000-4000-8000-000000000001';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function feedItem(res: { body: { items: { id: string }[]; pinned: { id: string }[] } }, id: string): any {
+  return [...res.body.pinned, ...res.body.items].find((x) => x.id === id);
+}
+
+describe('Community — нийтлэл/сэтгэгдэл засах', () => {
+  it('зөвхөн зохиогч засна (багш/админ ч бусдынхыг засахгүй); "засварласан" тэмдэг; хоосон 400; өөрчлөлтгүй бол тэмдэглэхгүй', async () => {
+    const { tch, m, teacherId } = await setup();
+    const adm = await admin();
+    const m2 = await learner('member2@example.mn');
+    const c = await course(teacherId);
+    await buyLesson(m2.agent, c.lessonIds[0]!);
+
+    const p = (await post(m.agent, teacherId, { body: 'Анхны' }).expect(201)).body;
+    expect(p.canEdit).toBe(true);
+    expect(p.editedAt).toBeNull();
+
+    const edited = (await m.agent.patch(`/community/posts/${p.id}`).send({ body: '  Засварласан  ' }).expect(200)).body;
+    expect(edited.body).toBe('Засварласан');
+    expect(edited.editedAt).toEqual(expect.any(String));
+    expect(feedItem(await feed(m.agent, teacherId).expect(200), p.id).editedAt).toBe(edited.editedAt);
+
+    // Өөрчлөлтгүй -> editedAt хэвээр
+    const same = (await m.agent.patch(`/community/posts/${p.id}`).send({ body: 'Засварласан' }).expect(200)).body;
+    expect(same.editedAt).toBe(edited.editedAt);
+
+    // Бусад: гишүүн, багш, админ -> 403; гадны хэрэглэгч -> гишүүн биш; зочин 401
+    for (const who of [m2, tch, adm]) await who.agent.patch(`/community/posts/${p.id}`).send({ body: 'x' }).expect(403);
+    const outsider = await learner('outsider@example.mn');
+    expect((await outsider.agent.patch(`/community/posts/${p.id}`).send({ body: 'x' }).expect(403)).body.code).toBe('COMMUNITY_MEMBERS_ONLY');
+    await t.agent().patch(`/community/posts/${p.id}`).send({ body: 'x' }).expect(401);
+    expect(feedItem(await feed(tch.agent, teacherId).expect(200), p.id).canEdit).toBe(false);
+
+    // Хоосон / хэт урт / байхгүй
+    expect((await m.agent.patch(`/community/posts/${p.id}`).send({ body: '   ' }).expect(400)).body.code).toBe('EMPTY_POST');
+    await m.agent.patch(`/community/posts/${p.id}`).send({ body: 'a'.repeat(5001) }).expect(400);
+    await m.agent.patch(`/community/posts/${randomId}`).send({ body: 'x' }).expect(404);
+
+    // Сэтгэгдэл
+    const cm = (await comment(m2.agent, p.id, 'Анхны сэтгэгдэл').expect(201)).body;
+    expect(cm.canEdit).toBe(true);
+    const ce = (await m2.agent.patch(`/community/comments/${cm.id}`).send({ body: 'Засав' }).expect(200)).body;
+    expect(ce.body).toBe('Засав');
+    expect(ce.editedAt).toEqual(expect.any(String));
+    for (const who of [m, tch, adm]) await who.agent.patch(`/community/comments/${cm.id}`).send({ body: 'x' }).expect(403);
+    expect((await m2.agent.patch(`/community/comments/${cm.id}`).send({ body: ' ' }).expect(400)).body.code).toBe('EMPTY_COMMENT');
+    const listed = (await m.agent.get(`/community/posts/${p.id}/comments`).expect(200)).body.items[0];
+    expect(listed).toEqual(expect.objectContaining({ body: 'Засав', editedAt: ce.editedAt, canEdit: false }));
+    // Засвар мэдэгдэл үүсгэхгүй (зөвхөн шинэ сэтгэгдэл)
+    expect(await t.prisma.notification.count({ where: { type: { startsWith: 'COMMUNITY_' } } })).toBe(1);
+
+    // Модерац хэвээр: багш бусдын сэтгэгдлийг устгана
+    await tch.agent.delete(`/community/comments/${cm.id}`).expect(204);
+    await m2.agent.patch(`/community/comments/${cm.id}`).send({ body: 'x' }).expect(404);
+  });
+
+  it('хасагдсан гишүүн засаж чадахгүй (COMMUNITY_REMOVED)', async () => {
+    const { tch, m, teacherId } = await setup();
+    const p = (await post(m.agent, teacherId, { body: 'Анхны' }).expect(201)).body;
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/remove`).send({}).expect(204);
+    expect((await m.agent.patch(`/community/posts/${p.id}`).send({ body: 'Шинэ' }).expect(403)).body.code).toBe('COMMUNITY_REMOVED');
+  });
+});
+
+describe('Community — гишүүдийн хуудаслалт, memberCount', () => {
+  it('SQL-ээр хуудаслана (шинэ нь эхэнд), total хасагдсаныг оруулна, memberCount оруулахгүй; курс + lesson эзэмшигч давхардахгүй', async () => {
+    const tch = await teacher();
+    const teacherId = tch.user.id as string;
+    const c = await course(teacherId, [{}, {}, {}]);
+    const other = await teacher('other@example.mn');
+    const oc = await course(other.user.id);
+
+    const users: Awaited<ReturnType<typeof learner>>[] = [];
+    for (let i = 0; i < 5; i++) {
+      const u = await learner(`m${i}@example.mn`);
+      users.push(u);
+      await buyLesson(u.agent, c.lessonIds[0]!);
+      // Эрэмбэ тогтвортой байлгахын тулд эзэмшлийн огноог тодорхой болгоно
+      await t.prisma.entitlement.updateMany({ where: { userId: u.user.id }, data: { createdAt: new Date(Date.now() - (10 - i) * HOUR) } });
+    }
+    // Нэг хэрэглэгч өөр lesson нэмж авбал давхардахгүй
+    await buyLesson(users[0]!.agent, c.lessonIds[1]!);
+    // Бүтэн курс авсан гишүүн (хамгийн шинэ)
+    const full = await learner('full@example.mn', 500);
+    await buyCourse(full.agent, (await course(teacherId, [{}, {}])).id, 10);
+    // Өөр багшийн эзэмшигч гишүүн биш
+    const foreign = await learner('foreign@example.mn');
+    await buyLesson(foreign.agent, oc.lessonIds[0]!);
+
+    expect((await tch.agent.get(`/communities/${teacherId}`).expect(200)).body.memberCount).toBe(6);
+
+    const p1 = (await tch.agent.get('/teacher/community/members?limit=4').expect(200)).body;
+    expect(p1).toEqual(expect.objectContaining({ total: 6, page: 1, pageSize: 4 }));
+    expect(p1.items).toHaveLength(4);
+    const p2 = (await tch.agent.get('/teacher/community/members?limit=4&page=2').expect(200)).body;
+    expect(p2.items).toHaveLength(2);
+    const ids = [...p1.items, ...p2.items].map((x: { id: string }) => x.id);
+    expect(new Set(ids).size).toBe(6);
+    expect(ids).not.toContain(foreign.user.id);
+    expect(ids.slice(0, 3)).toEqual([full.user.id, users[4]!.user.id, users[3]!.user.id]);
+    expect((await tch.agent.get('/teacher/community/members?page=9').expect(200)).body.items).toEqual([]);
+    await tch.agent.get('/teacher/community/members?limit=101').expect(400);
+    await tch.agent.get('/teacher/community/members?page=0').expect(400);
+
+    // Хасалт: total хэвээр, memberCount буурна, жагсаалтад тэмдэглэгээтэй
+    await tch.agent.post(`/teacher/community/members/${users[4]!.user.id}/remove`).send({ reason: 'Дүрэм' }).expect(204);
+    expect((await tch.agent.get(`/communities/${teacherId}`).expect(200)).body.memberCount).toBe(5);
+    const again = (await tch.agent.get('/teacher/community/members?limit=2').expect(200)).body;
+    expect(again.total).toBe(6);
+    expect(again.items[1]).toEqual(expect.objectContaining({ id: users[4]!.user.id, removed: expect.objectContaining({ reason: 'Дүрэм' }) }));
+  });
+});
+
+describe('Community — гишүүнчлэлийн мэдэгдэл', () => {
+  it('хасахад (шалтгаантай) ба сэргээхэд гишүүнд мэдэгдэл; давтан хасалт дахин мэдэгдэхгүй; багшид очихгүй', async () => {
+    const { tch, m, teacherId } = await setup();
+    await t.prisma.user.update({ where: { id: teacherId }, data: { name: 'Болд' } });
+
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/remove`).send({ reason: 'Спам' }).expect(204);
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/remove`).send({}).expect(204); // давтан
+    let notes = await t.prisma.notification.findMany({ where: { type: { startsWith: 'COMMUNITY_MEMBER_' } } });
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toEqual(expect.objectContaining({ userId: m.user.id, type: 'COMMUNITY_MEMBER_REMOVED', link: `/communities/${teacherId}` }));
+
+    let inbox = (await m.agent.get('/notifications').expect(200)).body.items;
+    expect(inbox[0].title).toContain('Болд');
+    expect(inbox[0].body).toContain('Шалтгаан: Спам.');
+    expect(inbox[0].body).toContain('хичээлийн эрх хэвээр');
+
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/restore`).expect(204);
+    notes = await t.prisma.notification.findMany({ where: { type: { startsWith: 'COMMUNITY_MEMBER_' } }, orderBy: { createdAt: 'asc' } });
+    expect(notes.map((n) => n.type)).toEqual(['COMMUNITY_MEMBER_REMOVED', 'COMMUNITY_MEMBER_RESTORED']);
+    inbox = (await m.agent.get('/notifications').expect(200)).body.items;
+    expect(inbox[0].title).toContain('буцаж нэгдлээ');
+
+    // Шалтгаангүй хасалт -> "Шалтгаан" хэсэггүй
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/remove`).send({}).expect(204);
+    inbox = (await m.agent.get('/notifications').expect(200)).body.items;
+    expect(inbox[0].body).not.toContain('Шалтгаан');
+    expect(await t.prisma.notification.count({ where: { userId: teacherId, type: { startsWith: 'COMMUNITY_' } } })).toBe(0);
+  });
+});
+
+describe('Community — сэтгэгдлийн имэйл тохиргоо', () => {
+  const prefs = (a: Agent) => a.get('/notifications/preferences');
+  // Нэвтрэх OTP имэйлүүдийг оруулахгүй: зөвхөн notification имэйл (community-ийн сэтгэгдэл, гишүүнчлэл)
+  const emailsTo = (to: string) => t.email.sent.filter((e) => e.to === to && /(сэтгэгдэл|community)/i.test(e.subject)).length;
+
+  it('default идэвхтэй; унтраахад имэйл явахгүй (in-app хэвээр), асаахад дахин явна; хэрэглэгч тус бүр; буруу утга 400', async () => {
+    const { m, teacherId } = await setup();
+    const m2 = await learner('member2@example.mn');
+    const c = await course(teacherId);
+    await buyLesson(m2.agent, c.lessonIds[0]!);
+    const p = (await post(m.agent, teacherId, { body: 'Асуулт' }).expect(201)).body;
+
+    expect((await prefs(m.agent).expect(200)).body).toEqual([{ category: 'COMMUNITY_COMMENT', emailEnabled: true }]);
+    await t.agent().get('/notifications/preferences').expect(401);
+
+    // Идэвхтэй: имэйл явна
+    await comment(m2.agent, p.id, 'Нэгдүгээр').expect(201);
+    await t.queue.drain();
+    expect(emailsTo('member@example.mn')).toBe(1);
+
+    // Унтраах
+    expect((await m.agent.put('/notifications/preferences/COMMUNITY_COMMENT').send({ emailEnabled: false }).expect(200)).body).toEqual({
+      category: 'COMMUNITY_COMMENT',
+      emailEnabled: false,
+    });
+    expect((await prefs(m.agent).expect(200)).body[0].emailEnabled).toBe(false);
+    expect((await prefs(m2.agent).expect(200)).body[0].emailEnabled).toBe(true); // бусдад нөлөөлөхгүй
+
+    await comment(m2.agent, p.id, 'Хоёрдугаар').expect(201);
+    await t.queue.drain();
+    expect(emailsTo('member@example.mn')).toBe(1); // нэмэгдээгүй
+    const latest = await t.prisma.notification.findFirstOrThrow({ where: { userId: m.user.id }, orderBy: { createdAt: 'desc' } });
+    expect(latest.emailStatus).toBe('NONE');
+    const comments = (await m.agent.get('/notifications').expect(200)).body.items.filter((n: { type: string }) => n.type === 'COMMUNITY_POST_COMMENT');
+    expect(comments).toHaveLength(2); // in-app хэвээр
+
+    // Асаах
+    await m.agent.put('/notifications/preferences/COMMUNITY_COMMENT').send({ emailEnabled: true }).expect(200);
+    await comment(m2.agent, p.id, 'Гуравдугаар').expect(201);
+    await t.queue.drain();
+    expect(emailsTo('member@example.mn')).toBe(2);
+
+    await m.agent.put('/notifications/preferences/NOPE').send({ emailEnabled: false }).expect(400);
+    await m.agent.put('/notifications/preferences/COMMUNITY_COMMENT').send({ emailEnabled: 'no' }).expect(400);
+  });
+
+  it('сэтгэгдлийн имэйлийг унтраасан ч гишүүнчлэлийн мэдэгдэл (хасалт) имэйлээр явна', async () => {
+    const { tch, m } = await setup();
+    await m.agent.put('/notifications/preferences/COMMUNITY_COMMENT').send({ emailEnabled: false }).expect(200);
+    await tch.agent.post(`/teacher/community/members/${m.user.id}/remove`).send({}).expect(204);
+    await t.queue.drain();
+    expect(emailsTo('member@example.mn')).toBe(1);
+  });
+});
+
+describe('Community — админ moderation', () => {
+  const list = (a: Agent, q = '') => a.get(`/admin/community/items${q}`);
+
+  it('админ биш 403, зочин 401; жагсаалт (нийтлэл/сэтгэгдэл, статус, хуудаслалт)', async () => {
+    const { tch, m, teacherId } = await setup();
+    const adm = await admin();
+    const p1 = (await post(m.agent, teacherId, { body: 'Нэг' }).expect(201)).body;
+    const p2 = (await post(tch.agent, teacherId, { body: 'Хоёр' }).expect(201)).body;
+    await comment(m.agent, p2.id, 'Сэтгэгдэл').expect(201);
+
+    await t.agent().get('/admin/community/items').expect(401);
+    for (const who of [m, tch]) {
+      await list(who.agent).expect(403);
+      await who.agent.post(`/admin/community/posts/${p1.id}/hide`).send({ reason: 'x' }).expect(403);
+      await who.agent.post(`/admin/community/posts/${p1.id}/unhide`).expect(403);
+      await who.agent.post(`/admin/community/posts/${p1.id}/delete`).send({ reason: 'x' }).expect(403);
+    }
+
+    const posts = (await list(adm.agent).expect(200)).body;
+    expect(posts.items.map((x: { id: string }) => x.id)).toEqual([p2.id, p1.id]);
+    expect(posts.items[1]).toEqual(
+      expect.objectContaining({
+        kind: 'post',
+        body: 'Нэг',
+        hasImage: false,
+        hidden: null,
+        teacher: expect.objectContaining({ id: teacherId }),
+        author: expect.objectContaining({ id: m.user.id }),
+      }),
+    );
+    const cms = (await list(adm.agent, '?kind=comment').expect(200)).body;
+    expect(cms.items).toHaveLength(1);
+    expect(cms.items[0]).toEqual(expect.objectContaining({ kind: 'comment', postId: p2.id, teacher: expect.objectContaining({ id: teacherId }) }));
+
+    const page1 = (await list(adm.agent, '?limit=1').expect(200)).body;
+    expect(page1.items).toHaveLength(1);
+    expect(page1.nextCursor).toBe(p2.id);
+    const page2 = (await list(adm.agent, `?limit=1&before=${page1.nextCursor}`).expect(200)).body;
+    expect(page2.items.map((x: { id: string }) => x.id)).toEqual([p1.id]);
+    expect(page2.nextCursor).toBeNull();
+    await list(adm.agent, '?status=BAD').expect(400);
+    await list(adm.agent, `?before=${randomId}`).expect(404);
+  });
+
+  it('нуух/сэргээх: шалтгаан заавал, audit, нуусан агуулга гишүүнд харагдахгүй (багшид харагдана), давхар нуух 409, нуугдсан зохиогч засахгүй', async () => {
+    const { tch, m, teacherId } = await setup();
+    const adm = await admin();
+    const m2 = await learner('member2@example.mn');
+    const c = await course(teacherId);
+    await buyLesson(m2.agent, c.lessonIds[0]!);
+    const p = (await post(m.agent, teacherId, { body: 'Зохисгүй' }).expect(201)).body;
+    const cm = (await comment(m.agent, p.id, 'Зохисгүй сэтгэгдэл').expect(201)).body;
+
+    await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({}).expect(400);
+    await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: '  ' }).expect(400);
+    await adm.agent.post(`/admin/community/posts/${randomId}/hide`).send({ reason: 'x' }).expect(404);
+
+    const hidden = (await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: 'Доромжлол' }).expect(200)).body;
+    expect(hidden.hidden).toEqual({ reason: 'Доромжлол', at: expect.any(String), by: { id: adm.user.id, name: null } });
+    expect((await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: 'дахин' }).expect(409)).body.code).toBe('ALREADY_HIDDEN');
+    await adm.agent.post(`/admin/community/comments/${cm.id}/hide`).send({ reason: 'Спам' }).expect(200);
+
+    // Гишүүнд: агуулга хоосон, hidden тэмдэгтэй; багшид агуулга харагдана
+    expect(feedItem(await feed(m2.agent, teacherId).expect(200), p.id)).toEqual(
+      expect.objectContaining({ body: '', hidden: true, hiddenReason: 'Доромжлол', canEdit: false }),
+    );
+    expect(feedItem(await feed(tch.agent, teacherId).expect(200), p.id).body).toBe('Зохисгүй');
+    const cmMember = (await m2.agent.get(`/community/posts/${p.id}/comments`).expect(200)).body.items[0];
+    expect(cmMember).toEqual(expect.objectContaining({ body: '', hidden: true }));
+    expect((await tch.agent.get(`/community/posts/${p.id}/comments`).expect(200)).body.items[0].body).toBe('Зохисгүй сэтгэгдэл');
+    // Нуугдсан нийтлэл/сэтгэгдлийг зохиогч засахгүй
+    await m.agent.patch(`/community/posts/${p.id}`).send({ body: 'Засав' }).expect(403);
+    await m.agent.patch(`/community/comments/${cm.id}`).send({ body: 'Засав' }).expect(403);
+
+    const hiddenOnly = (await list(adm.agent, '?status=HIDDEN').expect(200)).body;
+    expect(hiddenOnly.items.map((x: { id: string }) => x.id)).toEqual([p.id]);
+    expect((await list(adm.agent, '?status=VISIBLE').expect(200)).body.items).toEqual([]);
+
+    // Сэргээх
+    expect((await adm.agent.post(`/admin/community/posts/${p.id}/unhide`).expect(200)).body.hidden).toBeNull();
+    expect((await adm.agent.post(`/admin/community/posts/${p.id}/unhide`).expect(409)).body.code).toBe('NOT_HIDDEN');
+    expect(feedItem(await feed(m2.agent, teacherId).expect(200), p.id)).toEqual(expect.objectContaining({ body: 'Зохисгүй', hidden: false }));
+
+    const audit = await t.prisma.auditLog.findMany({ where: { action: { startsWith: 'community.' } }, orderBy: { createdAt: 'asc' } });
+    expect(audit.map((a) => [a.action, a.actorId, a.targetId])).toEqual([
+      ['community.post.hide', adm.user.id, p.id],
+      ['community.comment.hide', adm.user.id, cm.id],
+      ['community.post.unhide', adm.user.id, p.id],
+    ]);
+    expect(audit[0]!.after).toEqual({ reason: 'Доромжлол' });
+  });
+
+  it('устгах: шалтгаан заавал, зураг storage-оос устна, audit-д агуулга + шалтгаан', async () => {
+    const { m, teacherId } = await setup();
+    const adm = await admin();
+    const key = await uploadImage(m.agent, teacherId);
+    const p = (await post(m.agent, teacherId, { body: 'Устгах', imageKey: key }).expect(201)).body;
+    const cm = (await comment(m.agent, p.id, 'Сэтгэгдэл').expect(201)).body;
+
+    await adm.agent.post(`/admin/community/comments/${cm.id}/delete`).send({}).expect(400);
+    await adm.agent.post(`/admin/community/comments/${cm.id}/delete`).send({ reason: 'Спам' }).expect(204);
+    expect(await t.prisma.communityComment.count()).toBe(0);
+    await adm.agent.post(`/admin/community/comments/${cm.id}/delete`).send({ reason: 'Спам' }).expect(404);
+
+    await adm.agent.post(`/admin/community/posts/${p.id}/delete`).send({ reason: 'Хууль бус' }).expect(204);
+    expect(await t.prisma.communityPost.count()).toBe(0);
+    expect(await t.storage.info('private', key)).toBeFalsy();
+
+    const audit = await t.prisma.auditLog.findMany({ where: { action: { startsWith: 'community.' } }, orderBy: { createdAt: 'asc' } });
+    expect(audit.map((a) => [a.action, a.actorId, a.targetId])).toEqual([
+      ['community.comment.delete', adm.user.id, cm.id],
+      ['community.post.delete', adm.user.id, p.id],
+    ]);
+    expect(audit[1]!.after).toEqual({ reason: 'Хууль бус', by: 'admin-moderation' });
+    expect(audit[1]!.before).toEqual(expect.objectContaining({ body: 'Устгах', authorId: m.user.id }));
   });
 });

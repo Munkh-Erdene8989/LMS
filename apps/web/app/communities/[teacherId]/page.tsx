@@ -270,14 +270,72 @@ function Composer({ teacherId, onPosted }: { teacherId: string; onPosted: (p: Co
   );
 }
 
-function AuthorLine({ author, at }: { author: CommunityPostView['author']; at: string }) {
+function AuthorLine({ author, at, editedAt }: { author: CommunityPostView['author']; at: string; editedAt?: string | null }) {
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       {author.avatarUrl ? <img className="avatar" src={author.avatarUrl} alt="" /> : <div className="avatar" />}
       <strong>{author.name ?? t('community.unnamed')}</strong>
       {author.isTeacher && <span className="pill">{t('community.teacherBadge')}</span>}
       <small className="muted">{formatDate(at)}</small>
+      {editedAt && <small className="muted">· {t('community.edited', { date: formatDate(editedAt) })}</small>}
     </div>
+  );
+}
+
+/** Нийтлэл/сэтгэгдлийн текст засах inline форм. */
+function InlineEdit({
+  initial,
+  max,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  max: number;
+  onSave: (body: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await onSave(value);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} style={{ display: 'grid', gap: 6 }}>
+      <textarea className="input" rows={3} maxLength={max} value={value} aria-label={t('community.edit')} onChange={(e) => setValue(e.target.value)} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-small" disabled={busy}>
+          {busy ? t('community.saving') : t('community.save')}
+        </button>
+        <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={onCancel}>
+          {t('community.cancel')}
+        </button>
+      </div>
+      {error && (
+        <small role="alert" style={{ color: 'var(--err)' }}>
+          {error}
+        </small>
+      )}
+    </form>
+  );
+}
+
+function HiddenNotice({ hidden, reason, staff }: { hidden: boolean; reason: string | null; staff: boolean }) {
+  if (!hidden) return null;
+  return (
+    <small role="status" style={{ color: 'var(--err)' }}>
+      {t(staff ? 'community.hiddenNoticeStaff' : 'community.hiddenNotice', { reason: reason ?? '' })}
+    </small>
   );
 }
 
@@ -295,6 +353,7 @@ function PostCard({
   onDeleted: () => void;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -329,8 +388,21 @@ function PostCard({
   return (
     <article id={`post-${post.id}`} className="card" style={{ display: 'grid', gap: 8 }}>
       {post.pinned && <small className="pill" style={{ justifySelf: 'start' }}>{t('community.pinned')}</small>}
-      <AuthorLine author={post.author} at={post.createdAt} />
-      {post.body && <Markdown source={post.body} />}
+      <AuthorLine author={post.author} at={post.createdAt} editedAt={post.editedAt} />
+      <HiddenNotice hidden={post.hidden} reason={post.hiddenReason} staff={post.body !== '' || post.imageUrl !== null} />
+      {editing ? (
+        <InlineEdit
+          initial={post.body}
+          max={COMMUNITY_POST_MAX}
+          onCancel={() => setEditing(false)}
+          onSave={async (body) => {
+            onChange((await api<CommunityPostView>(`/community/posts/${post.id}`, { method: 'PATCH', body: { body } })).data);
+            setEditing(false);
+          }}
+        />
+      ) : (
+        post.body && <Markdown source={post.body} />
+      )}
       {post.imageUrl && <img src={post.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className={post.likedByMe ? 'btn btn-small' : 'btn btn-ghost btn-small'} aria-pressed={post.likedByMe} onClick={() => void toggleLike()}>
@@ -342,6 +414,11 @@ function PostCard({
         {canPin && (
           <button type="button" className="btn btn-ghost btn-small" onClick={() => void togglePin()}>
             {post.pinned ? t('community.unpin') : t('community.pin')}
+          </button>
+        )}
+        {post.canEdit && !editing && (
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditing(true)}>
+            {t('community.edit')}
           </button>
         )}
         {post.canDelete && (
@@ -365,6 +442,7 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
   const [cursor, setCursor] = useState<string | null>(null);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
@@ -417,13 +495,34 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
     <div style={{ display: 'grid', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
       {items?.map((c) => (
         <div key={c.id} style={{ display: 'grid', gap: 4 }}>
-          <AuthorLine author={c.author} at={c.createdAt} />
-          <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.body}</p>
-          {c.canDelete && (
-            <button type="button" className="btn btn-ghost btn-small" style={{ justifySelf: 'start' }} onClick={() => void remove(c.id)}>
-              {t('community.delete')}
-            </button>
+          <AuthorLine author={c.author} at={c.createdAt} editedAt={c.editedAt} />
+          <HiddenNotice hidden={c.hidden} reason={c.hiddenReason} staff={c.body !== ''} />
+          {editingId === c.id ? (
+            <InlineEdit
+              initial={c.body}
+              max={COMMUNITY_COMMENT_MAX}
+              onCancel={() => setEditingId(null)}
+              onSave={async (body) => {
+                const r = (await api<CommunityCommentView>(`/community/comments/${c.id}`, { method: 'PATCH', body: { body } })).data;
+                setItems((prev) => prev?.map((x) => (x.id === r.id ? r : x)) ?? null);
+                setEditingId(null);
+              }}
+            />
+          ) : (
+            c.body && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.body}</p>
           )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {c.canEdit && editingId !== c.id && (
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditingId(c.id)}>
+                {t('community.edit')}
+              </button>
+            )}
+            {c.canDelete && (
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => void remove(c.id)}>
+                {t('community.delete')}
+              </button>
+            )}
+          </div>
         </div>
       ))}
       {cursor && (

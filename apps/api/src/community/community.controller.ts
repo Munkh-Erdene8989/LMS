@@ -1,13 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import {
   COMMUNITY_COMMENT_MAX,
+  COMMUNITY_MODERATION_REASON_MAX,
   COMMUNITY_POST_MAX,
   COMMUNITY_REMOVE_REASON_MAX,
   type CommunityCommentPage,
   type CommunityCommentView,
   type CommunityFeed,
   type CommunityLikeState,
-  type CommunityMember,
+  type AdminCommunityItem,
+  type AdminCommunityPage,
+  type CommunityMemberPage,
   type CommunityOverview,
   type CommunityPostView,
   type CommunitySummary,
@@ -43,6 +46,19 @@ const PostBody = z
   })
   .strict();
 const CommentBody = z.object({ body: z.string().max(COMMUNITY_COMMENT_MAX) }).strict();
+const PostEditBody = z.object({ body: z.string().max(COMMUNITY_POST_MAX) }).strict();
+const MembersQuery = z.object({
+  page: z.coerce.number().int().min(1).max(100_000).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+const AdminListQuery = z.object({
+  kind: z.enum(['post', 'comment']).default('post'),
+  status: z.enum(['ALL', 'VISIBLE', 'HIDDEN']).default('ALL'),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  before: z.string().uuid().optional(),
+});
+const ReasonBody = z.object({ reason: z.string().trim().min(1).max(COMMUNITY_MODERATION_REASON_MAX) }).strict();
+const AdminKind = new ZodPipe(z.enum(['posts', 'comments']));
 const RemoveBody = z.object({ reason: z.string().max(COMMUNITY_REMOVE_REASON_MAX).optional() }).strict();
 
 /** Community (ticket 19): багшийн id-аар. Эрх `CommunityService.role` — гишүүн, багш, админ. */
@@ -95,6 +111,16 @@ export class CommunityController {
 export class CommunityPostsController {
   constructor(private readonly community: CommunityService) {}
 
+  /** Нийтлэлийн текстийг засна (зөвхөн зохиогч). */
+  @Patch('posts/:id')
+  editPost(
+    @CurrentUser() u: CurrentUserInfo,
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(PostEditBody)) b: z.infer<typeof PostEditBody>,
+  ): Promise<CommunityPostView> {
+    return this.community.editPost(u, id, b.body);
+  }
+
   @Delete('posts/:id')
   @HttpCode(204)
   deletePost(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string, @Req() req: Request): Promise<void> {
@@ -139,6 +165,16 @@ export class CommunityPostsController {
     return this.community.addComment(u, id, b.body);
   }
 
+  /** Сэтгэгдлийг засна (зөвхөн зохиогч). */
+  @Patch('comments/:id')
+  editComment(
+    @CurrentUser() u: CurrentUserInfo,
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(CommentBody)) b: z.infer<typeof CommentBody>,
+  ): Promise<CommunityCommentView> {
+    return this.community.editComment(u, id, b.body);
+  }
+
   @Delete('comments/:id')
   @HttpCode(204)
   deleteComment(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string, @Req() req: Request): Promise<void> {
@@ -153,8 +189,8 @@ export class TeacherCommunityController {
   constructor(private readonly community: CommunityService) {}
 
   @Get('members')
-  members(@CurrentUser() u: CurrentUserInfo): Promise<CommunityMember[]> {
-    return this.community.members(u.id);
+  members(@CurrentUser() u: CurrentUserInfo, @Query(new ZodPipe(MembersQuery)) q: z.infer<typeof MembersQuery>): Promise<CommunityMemberPage> {
+    return this.community.members(u.id, q);
   }
 
   @Post('members/:userId/remove')
@@ -174,3 +210,52 @@ export class TeacherCommunityController {
     return this.community.restoreMember(u.id, userId, req.ip);
   }
 }
+
+/** Админ: бүх community-ийн нийтлэл/сэтгэгдлийн moderation (нуух, сэргээх, устгах — шалтгаантай, audit-тай). */
+@Controller('admin/community')
+@Auth('ADMIN')
+export class AdminCommunityController {
+  constructor(private readonly community: CommunityService) {}
+
+  @Get('items')
+  list(@Query(new ZodPipe(AdminListQuery)) q: z.infer<typeof AdminListQuery>): Promise<AdminCommunityPage> {
+    return this.community.adminList(q);
+  }
+
+  @Post(':kind/:id/hide')
+  @HttpCode(200)
+  hide(
+    @Param('kind', AdminKind) kind: 'posts' | 'comments',
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(ReasonBody)) b: z.infer<typeof ReasonBody>,
+    @CurrentUser() admin: CurrentUserInfo,
+    @Req() req: Request,
+  ): Promise<AdminCommunityItem> {
+    return this.community.adminHide(single(kind), id, admin.id, b.reason, req.ip);
+  }
+
+  @Post(':kind/:id/unhide')
+  @HttpCode(200)
+  unhide(
+    @Param('kind', AdminKind) kind: 'posts' | 'comments',
+    @Param('id', Uuid) id: string,
+    @CurrentUser() admin: CurrentUserInfo,
+    @Req() req: Request,
+  ): Promise<AdminCommunityItem> {
+    return this.community.adminUnhide(single(kind), id, admin.id, req.ip);
+  }
+
+  @Post(':kind/:id/delete')
+  @HttpCode(204)
+  remove(
+    @Param('kind', AdminKind) kind: 'posts' | 'comments',
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(ReasonBody)) b: z.infer<typeof ReasonBody>,
+    @CurrentUser() admin: CurrentUserInfo,
+    @Req() req: Request,
+  ): Promise<void> {
+    return this.community.adminDelete(single(kind), id, admin.id, b.reason, req.ip);
+  }
+}
+
+const single = (kind: 'posts' | 'comments'): 'post' | 'comment' => (kind === 'posts' ? 'post' : 'comment');

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AuthUser, IdentifierType } from '@lms/shared';
+import type { AuthUser, IdentifierType, NotificationPreferenceView } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { OtpFlow } from '../otp-flow';
@@ -14,6 +14,8 @@ export default function MePage() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [linked, setLinked] = useState(false);
+  const [prefs, setPrefs] = useState<NotificationPreferenceView[]>([]);
+  const [prefError, setPrefError] = useState<string | null>(null);
 
   useEffect(() => {
     api<AuthUser>('/me')
@@ -23,6 +25,22 @@ export default function MePage() {
         else setStatus(t('auth.genericError'));
       });
   }, [router]);
+
+  useEffect(() => {
+    api<NotificationPreferenceView[]>('/notifications/preferences')
+      .then((r) => setPrefs(r.data))
+      .catch(() => undefined);
+  }, []);
+
+  async function setPref(category: NotificationPreferenceView['category'], emailEnabled: boolean) {
+    setPrefError(null);
+    try {
+      const r = await api<NotificationPreferenceView>(`/notifications/preferences/${category}`, { method: 'PUT', body: { emailEnabled } });
+      setPrefs((prev) => prev.map((p) => (p.category === category ? r.data : p)));
+    } catch {
+      setPrefError(t('notifPrefs.saveError'));
+    }
+  }
 
   function load(u: AuthUser) {
     setUser(u);
@@ -112,6 +130,26 @@ export default function MePage() {
           </>
         )}
       </section>
+
+      {prefs.length > 0 && (
+        <section className="card" style={{ display: 'grid', gap: 8 }}>
+          <strong>{t('notifPrefs.title')}</strong>
+          <small className="muted">{t('notifPrefs.hint')}</small>
+          {prefs.map((p) => (
+            <label key={p.category} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="checkbox" checked={p.emailEnabled} onChange={(e) => void setPref(p.category, e.target.checked)} />
+              <span>
+                {t(`notifPrefs.${p.category}` as MessageKey)} — <small className="muted">{t('notifPrefs.email')}</small>
+              </span>
+            </label>
+          ))}
+          {prefError && (
+            <small role="alert" style={{ color: 'var(--err)' }}>
+              {prefError}
+            </small>
+          )}
+        </section>
+      )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {user.roles.includes('TEACHER') && (
