@@ -139,6 +139,16 @@
       "title": "Payout хүсэлт татгалзагдлаа",
       "body": "Таны {amount}₮-ийн payout хүсэлт татгалзагдлаа. Шалтгаан: {reason}. Дүн таны үлдэгдэлд хэвээр байна.",
       "emailSubject": "{brand}: payout хүсэлт татгалзагдлаа"
+    },
+    "COMMUNITY_POST_COMMENT": {
+      "title": "{name} таны нийтлэлд сэтгэгдэл бичлээ",
+      "body": "{teacher} багшийн community-д таны \"{post}\" нийтлэлд {name}: \"{comment}\"",
+      "emailSubject": "{brand}: {name} таны нийтлэлд сэтгэгдэл бичлээ"
+    },
+    "COMMUNITY_THREAD_COMMENT": {
+      "title": "{name} таны оролцсон нийтлэлд сэтгэгдэл бичлээ",
+      "body": "{teacher} багшийн community-д \"{post}\" нийтлэлд {name}: \"{comment}\"",
+      "emailSubject": "{brand}: \"{post}\" нийтлэлд шинэ сэтгэгдэл"
     }
   },
   "payments": {

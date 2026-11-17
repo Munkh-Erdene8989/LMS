@@ -835,3 +835,20 @@ body {
   white-space: nowrap;
   transition: top 1.5s ease-in-out, left 1.5s ease-in-out;
 }
+
+/* Community (ticket 19): нийтлэлүүд + live хуанли */
+.community-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .community-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .community-layout > aside {
+    order: -1;
+  }
+}

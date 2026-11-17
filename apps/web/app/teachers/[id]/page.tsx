@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BRAND } from '@lms/shared';
 import { t } from '@/lib/i18n';
@@ -36,6 +37,10 @@ export default async function TeacherPage({ params }: { params: Params }) {
           <h1 style={{ margin: 0 }}>{teacher.name}</h1>
           {teacher.expertise && <span className="muted">{teacher.expertise}</span>}
         </div>
+        {/* Гишүүн эсэхийг community хуудас өөрөө шалгаж тайлбарлана */}
+        <Link className="btn btn-ghost" style={{ marginLeft: 'auto' }} href={`/communities/${teacher.id}`}>
+          {t('community.open')}
+        </Link>
       </div>
       {teacher.bio && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{teacher.bio}</p>}
       <section>

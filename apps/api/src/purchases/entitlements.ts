@@ -97,3 +97,39 @@ export async function lessonOwnerIds(db: Db, lesson: { id: string; courseId: str
   ]);
   return [...new Set([...lessonRows, ...courseRows].map((r) => r.userId))];
 }
+
+// ---- багшийн түвшний эзэмшил (community, ticket 19) ---------------------------------------------
+
+/** Тухайн багшийн (аль ч курсийн) ямар нэг lesson-ыг эзэмшдэг эсэх — community-ийн гишүүнчлэлийн нөхцөл. */
+export async function ownsAnyLessonOfTeacher(db: Db, userId: string, teacherId: string): Promise<boolean> {
+  const [lessonRow, courseRow] = await Promise.all([
+    db.entitlement.findFirst({ where: { userId, course: { teacherId } }, select: { id: true } }),
+    db.courseEntitlement.findFirst({ where: { userId, course: { teacherId } }, select: { id: true } }),
+  ]);
+  return lessonRow !== null || courseRow !== null;
+}
+
+/** Хэрэглэгчийн ямар нэг lesson-ыг нь эзэмшдэг багш нар (давхардалгүй). */
+export async function teachersOwnedBy(db: Db, userId: string): Promise<string[]> {
+  const [lessons, courses] = await Promise.all([
+    db.entitlement.findMany({ where: { userId }, distinct: ['courseId'], select: { course: { select: { teacherId: true } } } }),
+    db.courseEntitlement.findMany({ where: { userId }, select: { course: { select: { teacherId: true } } } }),
+  ]);
+  return [...new Set([...lessons, ...courses].map((r) => r.course.teacherId))];
+}
+
+/** Багшийн ямар нэг lesson эзэмшдэг бүх хэрэглэгч → анхны эзэмшлийн огноо. */
+export async function teacherCustomers(db: Db, teacherId: string): Promise<Map<string, Date>> {
+  const where = { course: { teacherId } };
+  const [lessons, courses] = await Promise.all([
+    db.entitlement.groupBy({ by: ['userId'], where, _min: { createdAt: true } }),
+    db.courseEntitlement.groupBy({ by: ['userId'], where, _min: { createdAt: true } }),
+  ]);
+  const map = new Map<string, Date>();
+  for (const r of [...lessons, ...courses]) {
+    const at = r._min.createdAt!;
+    const prev = map.get(r.userId);
+    if (!prev || at < prev) map.set(r.userId, at);
+  }
+  return map;
+}
