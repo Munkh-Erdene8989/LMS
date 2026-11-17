@@ -7,6 +7,7 @@ import type { MyCourseDetail, MyCourseLesson } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { ProgressBar } from '../learning-ui';
+import { CertificateCard } from './certificate-card';
 
 /** Эзэмшсэн курсийн хөтөлбөр: lesson бүрийн дууссан эсэх, видеоны хувь, quiz-ийн оноо. */
 export default function MyCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
@@ -56,6 +57,8 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
           </Link>
         </div>
       </div>
+
+      <CertificateCard courseId={course.id} />
 
       <section className="card" style={{ display: 'grid', gap: 12 }}>
         <strong>{t('learning.curriculum')}</strong>

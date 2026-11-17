@@ -12,3 +12,4 @@ export * from './subscriptions';
 export * from './referrals';
 export * from './learning';
 export * from './live';
+export * from './certificates';

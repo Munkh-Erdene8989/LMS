@@ -12,3 +12,16 @@ export const LearningErrors = {
     ),
   invalidAnswers: () => new ApiError(HttpStatus.BAD_REQUEST, 'INVALID_ANSWERS', 'Хариулт quiz-ийн асуулттай таарахгүй байна.'),
 };
+
+export const CertificateErrors = {
+  courseNotFound: LearningErrors.courseNotFound,
+  certificateNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'CERTIFICATE_NOT_FOUND', 'Ийм кодтой сертификат олдсонгүй.'),
+  notEligible: () =>
+    new ApiError(
+      HttpStatus.CONFLICT,
+      'CERTIFICATE_NOT_ELIGIBLE',
+      'Сертификат авах нөхцөл хангагдаагүй байна: курсийг бүтнээр нь авч, бүх хичээлийг дуусгаж, тестийн дундаж оноо 70%-иас багагүй байх ёстой.',
+    ),
+  nameRequired: () =>
+    new ApiError(HttpStatus.CONFLICT, 'NAME_REQUIRED', 'Сертификат дээр нэр бичигдэнэ. Эхлээд профайлдаа нэрээ оруулна уу.'),
+};

@@ -112,6 +112,12 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Карт холбох: QPay-ийн нийтийн баримтад card-token API **алга** → бодит adapter `cardTokensSupported = false`, бүх төлбөр нэхэмжлэхээр. Fake-д (dev/тест) карт ажиллана: `t.qpay.completeCard(registrationId)`, `t.qpay.declineNextCharge()`.
 - Web: `/subscription` (хэрэглэгч), `/admin/subscription-plans` (админ, audit).
 
+## Сертификат
+
+- `CertificatesService` (`apps/api/src/learning/certificates.service.ts`): нөхцөл (бүтэн курс эзэмшил + архивлаагүй APPROVED VIDEO/TEXT/PDF/QUIZ бүгд дууссан + quiz дундаж ≥ 70% + нэртэй). Lesson дуусах үед `issueIfEligible()` автоматаар олгоно; бусад үед `POST /learning/courses/:id/certificate`.
+- `certificates` мөр өөрчлөгдөхгүй (DB trigger) — нэр, курс, багшийг олгох мөчийнхөөр хадгална. PDF-ийг хүсэлт бүрт үүсгэнэ (`certificate-pdf.ts`, `pdfkit` + `qrcode`, Noto Sans фонт `apps/api/assets/fonts` — монгол кирилл). Deploy-д `apps/api/assets/` хамт явах ёстой.
+- Нийтийн шалгалт: API `GET /certificates/verify/:code`, web `/verify/<code>` (QR энд заана, `PUBLIC_WEB_URL`).
+
 ## Нууц түлхүүр
 
 `.env` git-д орохгүй. Production-д Vercel/Railway-ийн environment variables-д тохируулна. Шаардлагатай хувьсагчдыг `.env.example`-ээс харна уу.
