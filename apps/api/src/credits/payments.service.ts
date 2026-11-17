@@ -105,14 +105,17 @@ export class PaymentsService {
    */
   async handleCallback(token: string): Promise<Payment | null> {
     const payment = await this.prisma.payment.findUnique({ where: { callbackToken: token } });
-    if (!payment) return null;
+    // Subscription төлбөр (ticket 17) өөрийн callback-тэй — энд зөвхөн кредит цэнэглэлт.
+    if (!payment || payment.purpose !== 'CREDIT_TOPUP') return null;
     return this.verify(payment.id, false);
   }
 
   /** QPay-аас дахин шалгаж, төлөгдсөн бол яг нэг удаа кредит олгоно. */
   private async verify(paymentId: string, userInitiated: boolean): Promise<Payment> {
     const payment = await this.prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
-    if (payment.status !== 'PENDING' || !payment.providerInvoiceId) return payment;
+    if (payment.purpose !== 'CREDIT_TOPUP' || payment.status !== 'PENDING' || !payment.providerInvoiceId) {
+      return payment;
+    }
 
     let check;
     try {
@@ -191,7 +194,7 @@ export class PaymentsService {
 
   private async own(userId: string, id: string): Promise<Payment> {
     const payment = await this.prisma.payment.findUnique({ where: { id } });
-    if (!payment || payment.userId !== userId) throw E.paymentNotFound();
+    if (!payment || payment.userId !== userId || payment.purpose !== 'CREDIT_TOPUP') throw E.paymentNotFound();
     return payment;
   }
 

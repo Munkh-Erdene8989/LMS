@@ -94,6 +94,9 @@ model User {
   creditLots    CreditLot[]
   creditEntries CreditLedgerEntry[]
 
+  subscription Subscription?
+  paymentCard  PaymentCard?
+
   @@map("users")
 }
 
@@ -478,12 +481,16 @@ enum PaymentStatus {
   PAID
   /// Төлсөн дүн нэхэмжлэхтэй таарахгүй — кредит олгоогүй, админ шалгана
   AMOUNT_MISMATCH
-  /// Нэхэмжлэх үүсгэж чадаагүй
+  /// Нэхэмжлэх үүсгэж чадаагүй (эсвэл картын төлбөр татгалзсан)
   FAILED
+  /// Цуцалсан нэхэмжлэх — төлөх шаардлагагүй болсон (subscription цуцлах/зогсоох, ticket 17)
+  CANCELED
 }
 
 enum PaymentPurpose {
   CREDIT_TOPUP
+  /// Сарын багцын төлбөр (ticket 17)
+  SUBSCRIPTION
 }
 
 /// QPay төлбөр. Худалдан авах үеийн дүн, кредит, кредитийн ₮ үнийг хадгална.
@@ -514,12 +521,25 @@ model Payment {
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
 
+  // --- Subscription (ticket 17) ---
+  subscriptionId    String?        @map("subscription_id") @db.Uuid
+  planId            String?        @map("plan_id") @db.Uuid
+  /// Сунгалтын төлбөр бол аль үеийн төгсгөлийг (`current_period_end`) сунгаж буй нь. Эхлэх/дахин идэвхжүүлэхэд null.
+  renewalFor        DateTime?      @map("renewal_for")
+  method            PaymentMethod  @default(INVOICE)
+  failureReason     String?        @map("failure_reason")
+
   user    User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   package CreditPackage? @relation(fields: [packageId], references: [id], onDelete: Restrict)
   lot     CreditLot?
 
+  subscription Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  plan         SubscriptionPlan?   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  period       SubscriptionPeriod?
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt])
+  @@index([subscriptionId, status])
   @@map("payments")
 }
 
@@ -596,4 +616,112 @@ model CreditAllocation {
   @@index([entryId])
   @@index([lotId])
   @@map("credit_allocations")
+}
+
+// ---------------------------------------------------------------------------
+// Subscription (ticket 17)
+// ---------------------------------------------------------------------------
+
+enum PaymentMethod {
+  /// QPay нэхэмжлэх (QR / банкны deeplink)
+  INVOICE
+  /// Холбосон картын токеноор
+  CARD
+}
+
+/// Админаас тохируулдаг сарын багц.
+model SubscriptionPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  priceMnt  Int      @map("price_mnt")
+  /// Сар бүр олгох кредит
+  credits   Int
+  active    Boolean  @default(true)
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@index([active, position])
+  @@map("subscription_plans")
+}
+
+/// INCOMPLETE → ACTIVE → PAST_DUE (3 хоног) → PAUSED; CANCELED. Шилжилтүүд: apps/api/src/subscriptions/state.ts
+enum SubscriptionStatus {
+  /// Анхны төлбөр хүлээгдэж байна
+  INCOMPLETE
+  ACTIVE
+  /// Сунгалтын төлбөр ороогүй (нэхэмжлэх илгээсэн)
+  PAST_DUE
+  /// 3 хоног төлөөгүй — сунгалт зогссон, дахин идэвхжүүлэх хүртэл
+  PAUSED
+  /// Хэрэглэгч цуцалсан — дахин сунгагдахгүй
+  CANCELED
+}
+
+/// Хэрэглэгч бүрт нэг мөр (дахин идэвхжүүлэхэд ижил мөр).
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @map("user_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  status             SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart DateTime?          @map("current_period_start")
+  currentPeriodEnd   DateTime?          @map("current_period_end")
+  pastDueSince       DateTime?          @map("past_due_since")
+  pausedAt           DateTime?          @map("paused_at")
+  canceledAt         DateTime?          @map("canceled_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  plan     SubscriptionPlan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+  periods  SubscriptionPeriod[]
+
+  @@index([status, currentPeriodEnd])
+  @@index([status, pastDueSince])
+  @@map("subscriptions")
+}
+
+/// Төлөгдсөн үе бүр. (subscription, starts_at) болон payment нь unique → нэг үе нэг л удаа олгогдоно.
+model SubscriptionPeriod {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  paymentId      String   @unique @map("payment_id") @db.Uuid
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime @map("ends_at")
+  credits        Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  payment      Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([subscriptionId, startsAt])
+  @@map("subscription_periods")
+}
+
+enum PaymentCardStatus {
+  /// QPay-ийн карт бүртгэлийн хуудас руу илгээсэн, дуусаагүй
+  PENDING
+  ACTIVE
+}
+
+/// Холбосон карт: зөвхөн QPay-ийн токен + маск дугаар. Картын түүхий мэдээлэл хэзээ ч хадгалахгүй.
+model PaymentCard {
+  id             String            @id @default(uuid()) @db.Uuid
+  userId         String            @unique @map("user_id") @db.Uuid
+  status         PaymentCardStatus @default(PENDING)
+  registrationId String            @unique @map("registration_id")
+  /// QPay-ийн картын токен (API-д хэзээ ч буцаахгүй)
+  token          String?
+  maskedPan      String?           @map("masked_pan")
+  brand          String?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payment_cards")
 }

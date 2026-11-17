@@ -668,3 +668,13 @@ body {
   align-items: center;
   gap: 6px;
 }
+
+/* Сарын багц (ticket 17) */
+.sub-status-active {
+  color: var(--ok);
+}
+
+.sub-status-past_due,
+.sub-status-paused {
+  color: var(--err);
+}

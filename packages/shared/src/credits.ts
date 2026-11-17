@@ -1,7 +1,7 @@
 /** Кредит, цэнэглэлт (QPay). Бүх дүн бүхэл тоо: кредит, ₮. */
 
 export type CreditEntryType = 'TOPUP' | 'SUBSCRIPTION_GRANT' | 'SPEND' | 'EXPIRE' | 'ADMIN_ADJUST';
-export type PaymentStatus = 'PENDING' | 'PAID' | 'AMOUNT_MISMATCH' | 'FAILED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'AMOUNT_MISMATCH' | 'FAILED' | 'CANCELED';
 
 /** `GET /credits/packages` (хэрэглэгч), `GET /admin/credit-packages` (админ) */
 export interface CreditPackageView {

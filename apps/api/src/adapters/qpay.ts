@@ -42,14 +42,77 @@ export interface QPayCheckResult {
   rows: QPayPaymentRow[];
 }
 
+// ---- Карт холбох / токеноор төлөх (ticket 17) -------------------------------------------
+//
+// БАТЛАГДААГҮЙ: developer.qpay.mn-ийн нийтэд нээлттэй баримтад (Merchant V2, Quick QR; 2026-11
+// шалгасан) карт хадгалах, токеноор давтан төлөх endpoint алга. Тиймээс interface нь манай
+// хэрэгцээг илэрхийлнэ (hosted хуудсаар карт бүртгүүлэх → токен; токеноор төлөх). Бодит HTTP
+// adapter `cardTokensSupported = false`, эдгээр аргууд `QPayCardNotSupportedError` шиднэ →
+// subscription нэхэмжлэх рүү шилжинэ. QPay-ээс албан ёсны card-token API авмагц
+// `HttpQPayAdapter`-ийн 4 аргыг хэрэгжүүлнэ. Картын түүхий мэдээлэл манай системээр хэзээ ч
+// дамжихгүй — зөвхөн токен, маск дугаар.
+
+export interface QPayCardRegistrationInput {
+  /** Манай талын хэрэглэгчийн id */
+  customerRef: string;
+  /** Карт бүртгэсний дараа хэрэглэгчийг буцаах web хуудас */
+  returnUrl: string;
+}
+
+export interface QPayCardRegistration {
+  registrationId: string;
+  /** QPay-ийн карт оруулах (hosted) хуудас */
+  redirectUrl: string;
+}
+
+export interface QPayCardRegistrationStatus {
+  status: 'PENDING' | 'ACTIVE' | 'FAILED';
+  token: string | null;
+  /** жишээ нь `•••• 1111` */
+  maskedPan: string | null;
+  brand: string | null;
+}
+
+export interface QPayCardChargeInput {
+  cardToken: string;
+  /** Манай талын давтагдашгүй дугаар (Payment.id) — provider талын idempotency (таамаг) */
+  senderInvoiceNo: string;
+  description: string;
+  amountMnt: number;
+}
+
+export interface QPayCardChargeResult {
+  status: 'PAID' | 'DECLINED';
+  providerPaymentId: string | null;
+  amountMnt: number;
+  reason: string | null;
+}
+
 export interface QPayAdapter {
   createInvoice(input: QPayInvoiceInput): Promise<QPayInvoice>;
   checkInvoice(invoiceId: string): Promise<QPayCheckResult>;
+  /** `DELETE /v2/invoice/{invoice_id}` — төлөгдөөгүй нэхэмжлэхийг цуцлах (баримтад байгаа endpoint). */
+  cancelInvoice(invoiceId: string): Promise<void>;
+
+  /** Карт холбох / токеноор төлөх боломжтой эсэх (UI, fallback). */
+  readonly cardTokensSupported: boolean;
+  registerCard(input: QPayCardRegistrationInput): Promise<QPayCardRegistration>;
+  getCardRegistration(registrationId: string): Promise<QPayCardRegistrationStatus>;
+  /** Сүлжээ/provider-ийн алдаа бол throw; банк татгалзвал `DECLINED`. */
+  chargeCard(input: QPayCardChargeInput): Promise<QPayCardChargeResult>;
+  removeCard(cardToken: string): Promise<void>;
 }
 
 export const QPAY = Symbol('QPAY');
 
 export class QPayError extends Error {}
+
+/** Бодит QPay-д card-token API батлагдаагүй — дуудагч нэхэмжлэх рүү шилжинэ. */
+export class QPayCardNotSupportedError extends QPayError {
+  constructor() {
+    super('QPay card token API батлагдаагүй (developer.qpay.mn-д байхгүй) — нэхэмжлэх ашиглана');
+  }
+}
 
 const TIMEOUT_MS = 15_000;
 /** Хугацаа дуусахаас өмнө токеныг шинэчлэх зай */
@@ -115,22 +178,49 @@ export class HttpQPayAdapter implements QPayAdapter {
     return { paidAmountMnt, rows };
   }
 
+  async cancelInvoice(invoiceId: string): Promise<void> {
+    await this.authedResponse('DELETE', `/v2/invoice/${encodeURIComponent(invoiceId)}`, undefined);
+  }
+
+  // Card token — батлагдаагүй (дээрх тайлбар). Нэхэмжлэх fallback ашиглагдана.
+  readonly cardTokensSupported = false;
+
+  registerCard(): Promise<QPayCardRegistration> {
+    return Promise.reject(new QPayCardNotSupportedError());
+  }
+
+  getCardRegistration(): Promise<QPayCardRegistrationStatus> {
+    return Promise.reject(new QPayCardNotSupportedError());
+  }
+
+  chargeCard(): Promise<QPayCardChargeResult> {
+    return Promise.reject(new QPayCardNotSupportedError());
+  }
+
+  removeCard(): Promise<void> {
+    return Promise.reject(new QPayCardNotSupportedError());
+  }
+
   /** 401/403 үед токеныг шинээр авч нэг л удаа давтана (QPay-ийн зөвлөмж). */
   private async authed(method: string, path: string, json: unknown): Promise<unknown> {
+    return (await this.authedResponse(method, path, json)).json();
+  }
+
+  private async authedResponse(method: string, path: string, json: unknown): Promise<Response> {
     let res = await this.send(method, path, json, await this.accessToken());
     if (res.status === 401 || res.status === 403) {
       this.token = null;
       res = await this.send(method, path, json, await this.accessToken());
     }
     if (!res.ok) throw new QPayError(`QPay ${method} ${path} ${res.status}: ${await safeText(res)}`);
-    return res.json();
+    return res;
   }
 
   private send(method: string, path: string, json: unknown, token: string): Promise<Response> {
     return fetch(`${this.opts.baseUrl}${path}`, {
       method,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(json),
+      body: json === undefined ? undefined : JSON.stringify(json),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   }
@@ -217,11 +307,25 @@ interface FakeInvoice {
   input: QPayInvoiceInput;
   invoiceId: string;
   rows: QPayPaymentRow[];
+  canceled?: boolean;
+}
+
+type FakeOp = 'create' | 'check' | 'cancel' | 'register' | 'charge';
+
+interface FakeCard {
+  registrationId: string;
+  input: QPayCardRegistrationInput;
+  status: QPayCardRegistrationStatus['status'];
+  token: string | null;
+  maskedPan: string | null;
+  removed: boolean;
 }
 
 /**
  * Тест болон local dev-д. Тест `markPaid(invoiceId)` / `markPaid(invoiceId, 50)` (өөр дүн),
- * `failNext('create' | 'check')`-оор QPay-ийн хариуг дуурайна.
+ * `failNext('create' | 'check' | …)`-оор QPay-ийн хариуг дуурайна.
+ * Карт (ticket 17): `completeCard(registrationId)` — хэрэглэгч hosted хуудсанд карт оруулсан мэт;
+ * `declineNextCharge()` — банк татгалзсан; `charges` — токеноор хийсэн төлбөрүүд.
  * `autoPay` (dev) — нэхэмжлэх үүсмэгц төлөгдсөнд тооцно ("Төлбөр шалгах" дарахад кредит орно).
  */
 export class FakeQPay implements QPayAdapter {
@@ -229,7 +333,11 @@ export class FakeQPay implements QPayAdapter {
   /** `checkInvoice` дуудагдсан тоо */
   checks = 0;
   private seq = 0;
-  private failures: ('create' | 'check')[] = [];
+  private failures: FakeOp[] = [];
+  readonly cards: FakeCard[] = [];
+  readonly charges: (QPayCardChargeInput & { result: QPayCardChargeResult })[] = [];
+  private declines: string[] = [];
+  readonly cardTokensSupported = true;
 
   constructor(private readonly opts: { autoPay?: boolean } = {}) {}
 
@@ -271,7 +379,61 @@ export class FakeQPay implements QPayAdapter {
     this.get(invoiceId).rows = [];
   }
 
-  failNext(op: 'create' | 'check'): void {
+  async cancelInvoice(invoiceId: string): Promise<void> {
+    this.consumeFailure('cancel');
+    this.get(invoiceId).canceled = true;
+  }
+
+  async registerCard(input: QPayCardRegistrationInput): Promise<QPayCardRegistration> {
+    this.consumeFailure('register');
+    const registrationId = `fake-card-reg-${++this.seq}`;
+    this.cards.push({ registrationId, input, status: 'PENDING', token: null, maskedPan: null, removed: false });
+    if (this.opts.autoPay) this.completeCard(registrationId);
+    // Dev: hosted хуудас байхгүй — шууд буцах хуудас руу.
+    const sep = input.returnUrl.includes('?') ? '&' : '?';
+    return { registrationId, redirectUrl: `${input.returnUrl}${sep}card=${registrationId}` };
+  }
+
+  async getCardRegistration(registrationId: string): Promise<QPayCardRegistrationStatus> {
+    const card = this.card(registrationId);
+    return { status: card.status, token: card.token, maskedPan: card.maskedPan, brand: card.token ? 'VISA' : null };
+  }
+
+  async chargeCard(input: QPayCardChargeInput): Promise<QPayCardChargeResult> {
+    this.consumeFailure('charge');
+    const card = this.cards.find((c) => c.token === input.cardToken && !c.removed);
+    const decline = this.declines.shift();
+    const result: QPayCardChargeResult =
+      !card || decline !== undefined
+        ? { status: 'DECLINED', providerPaymentId: null, amountMnt: 0, reason: decline ?? 'unknown card' }
+        : {
+            status: 'PAID',
+            providerPaymentId: `fake-card-payment-${++this.seq}`,
+            amountMnt: input.amountMnt,
+            reason: null,
+          };
+    this.charges.push({ ...input, result });
+    return result;
+  }
+
+  async removeCard(cardToken: string): Promise<void> {
+    for (const c of this.cards) if (c.token === cardToken) c.removed = true;
+  }
+
+  /** Хэрэглэгч QPay-ийн хуудсанд карт амжилттай оруулсан мэт. Токеныг буцаана. */
+  completeCard(registrationId: string, maskedPan = '•••• 1111'): string {
+    const card = this.card(registrationId);
+    card.status = 'ACTIVE';
+    card.token = `fake-card-token-${++this.seq}`;
+    card.maskedPan = maskedPan;
+    return card.token;
+  }
+
+  declineNextCharge(reason = 'insufficient funds'): void {
+    this.declines.push(reason);
+  }
+
+  failNext(op: FakeOp): void {
     this.failures.push(op);
   }
 
@@ -283,6 +445,15 @@ export class FakeQPay implements QPayAdapter {
     this.invoices.length = 0;
     this.failures = [];
     this.checks = 0;
+    this.cards.length = 0;
+    this.charges.length = 0;
+    this.declines = [];
+  }
+
+  private card(registrationId: string): FakeCard {
+    const card = this.cards.find((c) => c.registrationId === registrationId);
+    if (!card) throw new QPayError(`FakeQPay: карт ${registrationId} алга`);
+    return card;
   }
 
   private get(invoiceId: string): FakeInvoice {
@@ -291,7 +462,7 @@ export class FakeQPay implements QPayAdapter {
     return inv;
   }
 
-  private consumeFailure(op: 'create' | 'check'): void {
+  private consumeFailure(op: FakeOp): void {
     const i = this.failures.indexOf(op);
     if (i >= 0) {
       this.failures.splice(i, 1);
