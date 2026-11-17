@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { LessonProgress, Prisma } from '@lms/db';
 import {
+  QUIZ_ATTEMPTS_PER_DAY,
+  quizNextAttemptAt,
   VIDEO_COMPLETE_PERCENT,
+  type LessonAccessReason,
   type CourseProgressSummary,
   type LessonLearningState,
   type LessonProgressView,
@@ -129,7 +132,7 @@ export class LearningService {
     });
     return {
       progress: row ? progressView(row) : emptyProgress(lessonId),
-      quiz: lesson.type === 'QUIZ' ? await this.quizState(this.prisma, viewer.id, lesson, row) : null,
+      quiz: lesson.type === 'QUIZ' ? await this.quizState(this.prisma, viewer.id, lesson, row, rateLimited(access)) : null,
       assignment: lesson.type === 'ASSIGNMENT' ? await this.assignments.state(viewer.id, lesson, access) : null,
     };
   }
@@ -161,14 +164,25 @@ export class LearningService {
 
   // ---- quiz -------------------------------------------------------------------
 
-  /** Оролдлого бүр хадгалагдана; хамгийн өндөр оноо явцад; тэнцвэл lesson дууссан. Зөв хариулт буцаахгүй. */
+  /**
+   * Оролдлого бүр хадгалагдана; хамгийн өндөр оноо явцад; тэнцвэл lesson дууссан. Зөв хариулт буцаахгүй.
+   * Хурдны хязгаар (суралцагчид): `QUIZ_ATTEMPT_COOLDOWN_SECONDS` ба 24 цагт `QUIZ_ATTEMPTS_PER_DAY` — хэтэрвэл 429
+   * `QUIZ_RATE_LIMITED`. Хэрэглэгч × lesson-ы advisory lock-оор шалгах + бичих нь атомар (зэрэг хүсэлтээр давахгүй).
+   */
   async submitQuiz(viewer: LessonViewer, lessonId: string, answers: QuizAnswerInput[]): Promise<QuizAttemptResult> {
-    const { lesson } = await this.access.open(lessonId, viewer);
+    const { lesson, access } = await this.access.open(lessonId, viewer);
     if (lesson.type !== 'QUIZ') throw E.notAQuiz();
     const quiz = lesson.content as unknown as StoredQuiz;
     const score = scoreQuiz(quiz, answers);
+    const limited = rateLimited(access);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      if (limited) {
+        const lockKey = `quiz:${viewer.id}:${lesson.id}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+        const next = quizNextAttemptAt(await recentAttemptTimes(tx, viewer.id, lesson.id));
+        if (next) throw E.quizRateLimited(next);
+      }
       const attempt = await tx.quizAttempt.create({
         data: {
           userId: viewer.id,
@@ -189,7 +203,7 @@ export class LearningService {
       return {
         attempt: attemptView(attempt),
         progress: progressView(progress),
-        quiz: await this.quizState(tx, viewer.id, lesson, progress),
+        quiz: await this.quizState(tx, viewer.id, lesson, progress, limited),
       };
     });
     // Тэнцсэн оролдлого lesson-ыг дуусгаж / хамгийн өндөр оноог өсгөж болно → дундаж өөрчлөгдөнө.
@@ -215,7 +229,13 @@ export class LearningService {
     };
   }
 
-  private async quizState(db: Db, userId: string, lesson: OpenedLesson, row: LessonProgress | null): Promise<QuizState> {
+  private async quizState(
+    db: Db,
+    userId: string,
+    lesson: OpenedLesson,
+    row: LessonProgress | null,
+    limited: boolean,
+  ): Promise<QuizState> {
     const quiz = lesson.content as unknown as StoredQuiz;
     const attempts = await db.quizAttempt.findMany({
       where: { userId, lessonId: lesson.id },
@@ -229,8 +249,25 @@ export class LearningService {
       bestScorePercent: best,
       passed: best !== null && best >= quiz.passPercent,
       attempts: attempts.map(attemptView),
+      // `ATTEMPTS_SHOWN` ≥ `QUIZ_ATTEMPTS_PER_DAY` тул эдгээр мөр хязгаарыг тооцоход хангалттай.
+      nextAttemptAt: limited ? (quizNextAttemptAt(attempts.map((a) => a.createdAt))?.toISOString() ?? null) : null,
     };
   }
+}
+
+/** Багш (өөрийн quiz-ийг шалгах), админд хурдны хязгаар үгүй — зөв хариултыг аль хэдийн мэднэ. */
+function rateLimited(access: LessonAccessReason): boolean {
+  return access === 'OWNED' || access === 'PREVIEW';
+}
+
+async function recentAttemptTimes(db: Db, userId: string, lessonId: string): Promise<Date[]> {
+  const rows = await db.quizAttempt.findMany({
+    where: { userId, lessonId },
+    orderBy: { createdAt: 'desc' },
+    take: QUIZ_ATTEMPTS_PER_DAY,
+    select: { createdAt: true },
+  });
+  return rows.map((r) => r.createdAt);
 }
 
 function allLessons(c: CourseRow): LessonRow[] {
