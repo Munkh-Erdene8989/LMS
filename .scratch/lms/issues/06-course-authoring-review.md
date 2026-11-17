@@ -28,4 +28,4 @@ Web: `/teacher/courses`, `/teacher/courses/[id]`, `/admin/course-reviews`, `/adm
 ## Үлдсэн
 
 - [ ] Supabase → Project Settings → API: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`-г `.env` болон Railway-д. API асахдаа `lms-public`, `lms-private` bucket-уудыг өөрөө үүсгэнэ. Production-д заавал.
-- [ ] Learner-т lesson агуулга харуулах (entitlement шалгалттай) — ticket 07/09.
+- [x] Learner-т lesson агуулга харуулах (entitlement шалгалттай) — ticket 07/09.

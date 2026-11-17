@@ -27,5 +27,5 @@ Web: `/r/[code]` (visit → багшийн profile эсвэл `?next=` руу), 
 ## Үлдсэн
 
 - [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
-- [ ] Ticket 21: багшийн analytics-д referral/платформ харьцааг (`purchases.attribution`) дэлгэрэнгүй (одоо `/teacher/referral`-д зөвхөн тоо).
+- [x] Ticket 21: багшийн analytics-д referral/платформ харьцааг (`purchases.attribution`) дэлгэрэнгүй (одоо `/teacher/referral`-д зөвхөн тоо).
 - [ ] Хүсвэл: курсийн хуудсанд багшид "энэ курсийн referral линк хуулах" товч (одоогоор `?next=/courses/<id>`-г гараар нэмнэ).
