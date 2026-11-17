@@ -9,25 +9,40 @@ import {
   type PublicLessonContent,
   type PublicTeacherProfile,
 } from '@lms/shared';
+import { cookies } from 'next/headers';
 import { API_URL } from './api';
+
+/**
+ * Нэвтэрсэн хэрэглэгчийн access cookie-г (байвал) API руу дамжуулна — курс, lesson-ы endpoint optional auth:
+ * хувийн үнэ, эзэмшил, эрхтэй контент. Хугацаа нь дууссан бол зочин мэт; client тал refresh хийгээд дахин уншина.
+ */
+async function viewerHeaders(): Promise<Record<string, string>> {
+  const token = (await cookies()).get('access_token')?.value;
+  return token ? { cookie: `access_token=${encodeURIComponent(token)}` } : {};
+}
 
 /**
  * Нийтийн каталогийг server component-оос (SSR) уншина. Нэвтрэлтгүй.
  * `null` = олдсонгүй (404/400) → `notFound()`; бусад алдаа throw (error boundary / дахин ачаалах).
  */
-async function getPublic<T>(path: string): Promise<T | null> {
-  const res = await fetch(`${API_URL}${path}`, { cache: 'no-store' });
+async function getPublic<T>(path: string, withViewer = false): Promise<T | null> {
+  const headers = withViewer ? await viewerHeaders() : {};
+  const res = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers });
   if (res.status === 404 || res.status === 400) return null;
   if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
   return (await res.json()) as T;
 }
 
 export const fetchCategories = () => getPublic<CategoryNode[]>('/categories');
-export const fetchCourse = (id: string) => getPublic<PublicCourseDetail>(`/catalog/courses/${encodeURIComponent(id)}`);
+export const fetchCourse = (id: string) =>
+  getPublic<PublicCourseDetail>(`/catalog/courses/${encodeURIComponent(id)}`, true);
 export const fetchTeacher = (id: string) => getPublic<PublicTeacherProfile>(`/catalog/teachers/${encodeURIComponent(id)}`);
 /** Lesson контент (PDF signed URL богино хугацаатай) — кэшлэхгүй. 403 = эрхгүй. */
 export async function fetchLesson(id: string): Promise<PublicLessonContent | 'locked' | null> {
-  const res = await fetch(`${API_URL}/catalog/lessons/${encodeURIComponent(id)}`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/catalog/lessons/${encodeURIComponent(id)}`, {
+    cache: 'no-store',
+    headers: await viewerHeaders(),
+  });
   if (res.status === 403) return 'locked';
   if (res.status === 404 || res.status === 400) return null;
   if (!res.ok) throw new Error(`API ${res.status}: lesson`);

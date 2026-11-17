@@ -1,5 +1,7 @@
 /** Каталог: ангилал, курс, section, lesson. */
 
+import type { CourseViewerState, LessonAccessReason } from './purchases';
+
 export type CourseLevel = 'ALL' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 export const COURSE_LEVELS: readonly CourseLevel[] = ['ALL', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 export type CourseStatus = 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'REJECTED';
@@ -192,9 +194,11 @@ export interface CoursePricing {
   listCredits: number;
   /** Хичээлүүдийг тус тусад нь авбал нийт үнэ */
   lessonsTotalCredits: number;
+  /** Энэ хэрэглэгч курсийн lesson-уудад аль хэдийн зарцуулсан кредит (нэвтрээгүй бол 0) */
+  alreadySpentCredits: number;
   /**
    * Энэ хэрэглэгч курсийг бүтнээр авахад төлөх дүн = max(0, list − аль хэдийн зарцуулсан).
-   * Худалдан авалт ticket 09-д — одоогоор үргэлж `listCredits`.
+   * Курсийг бүтнээр авсан бол 0.
    */
   payableCredits: number;
 }
@@ -205,11 +209,15 @@ export interface PublicCourseDetail extends Omit<CatalogCourseCard, 'excerpt' | 
   teacher: PublicTeacherRef & { bio: string | null };
   pricing: CoursePricing;
   sections: PublicSection[];
+  /** Нэвтэрсэн үед л (optional auth) — эзэмшил, багш/админ эсэх */
+  viewer: CourseViewerState | null;
 }
 
-/** `GET /catalog/lessons/:id` — зөвхөн контент үзэх эрхтэй үед (одоогоор free preview). */
+/** `GET /catalog/lessons/:id` — зөвхөн контент үзэх эрхтэй үед (`LessonAccessPolicy`). */
 export interface PublicLessonContent {
   lesson: PublicLessonItem;
+  /** Контент яагаад нээлттэй вэ (preview, эзэмшсэн, багш, админ) */
+  access: LessonAccessReason;
   course: { id: string; title: string };
   /** PDF-ийн `url` богино хугацаатай signed URL */
   content: LessonContent;

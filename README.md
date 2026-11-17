@@ -64,7 +64,8 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 ## Каталог
 
 - Нийтэд (`/catalog/*`, нэвтрэлтгүй) зөвхөн `PUBLISHED` курс, `APPROVED` + архивлаагүй lesson. Бусад нь 404.
-- Lesson-ы контентыг суралцагчид өгөх цорын ганц шалгалт: `LessonAccessPolicy.canViewContent()` (`apps/api/src/catalog/lesson-access.ts`).
+- Lesson-ы контентыг өгөх цорын ганц шалгалт: `LessonAccessPolicy.access(lesson, viewer)` / `canViewContent()` (`apps/api/src/catalog/lesson-access.ts`) — админ → курсийн багш → эзэмшил → free preview. Mux token, live линк, quiz асуулт г.м шинэ контент бүр үүгээр шалгана.
+- `GET /catalog/courses/:id`, `GET /catalog/lessons/:id` нь optional auth (`@OptionalAuth()` + `@Viewer()`, `apps/api/src/auth/auth.guard.ts` — хэзээ ч 401 өгөхгүй): нэвтэрсэн бол хувийн үнэ (`pricing.payableCredits`), `viewer` (эзэмшил), эрхтэй контент. Web SSR access cookie-г API руу дамжуулна (`apps/web/lib/catalog.ts`).
 - `pg_trgm` нь `extensions` schema-д — SQL-д үргэлж бүрэн нэрээр: `extensions.word_similarity(...)`, `OPERATOR(extensions.<%)`, `extensions.gin_trgm_ops`. Raw SQL зөвхөн `Prisma.sql` tagged template-ээр.
 - Үнэлгээ (шүүлтүүр, эрэмбэ, карт): `apps/api/src/catalog/ratings.ts`.
 - Migration SQL үүсгэх (`migrate diff`) үед `DIRECT_URL`-ийг ч тестийн schema руу заана — эс бөгөөс Prisma `directUrl` (dev `public`)-тэй харьцуулна:
@@ -93,6 +94,15 @@ pnpm dev                  # web: http://localhost:3000, api: http://localhost:40
 - Бүх өөрчлөлт хэрэглэгчийн мөрийг (`users … FOR NO KEY UPDATE`) түгжинэ → зэрэг зарцуулалт сөрөг баланс үүсгэхгүй. Transaction-д `CREDIT_TX_OPTIONS` (урт timeout) өгнө.
 - QPay: `QPAY_*` хоосон бол dev-д fake (нэхэмжлэх шууд төлөгдсөнд тооцогдоно → `/credits` дээр "Төлбөр шалгах"). Callback-д итгэхгүй — үргэлж `POST /v2/payment/check`-ээр дахин шалгана. Тестэд `t.qpay.markPaid(invoiceId)`.
 - Тест багц (`isTest`) зөвхөн админд; түүний төлбөр, lot, ledger `isTest = true` — тайланд тусад нь.
+
+## Худалдан авалт ба багшийн орлого
+
+- Худалдан авах цорын ганц арга: `PurchasesService.buyLesson / buyCourse` (`apps/api/src/purchases/`). Нэг transaction (`CREDIT_TX_OPTIONS`): хэрэглэгчийн мөр түгжих → эзэмшил, үнэ шалгах → `credits.spend` → `purchases` (үнэ, шимтгэл, attribution) → `entitlements` (+ бүтэн курс бол `course_entitlements`) → `teacher_earning_entries`. API: `POST /purchases/lessons/:id`, `POST /purchases/courses/:id` body `{ confirmNoRefund: true, expectedCredits }`; `GET /purchases`; багш `GET /teacher/earnings`.
+- Эзэмшил шалгах: `ownsLesson(db, userId, lesson)`, `courseOwnership(db, userId, courseId)` (`apps/api/src/purchases/entitlements.ts`). Эзэмшил = lesson-ы `Entitlement` ЭСВЭЛ курсийн `CourseEntitlement` (бүтэн курс авсны дараа зөвшөөрөгдсөн lesson-ууд мөргүйгээр нээгдэнэ) — `entitlements` хүснэгтийг дангаар нь бүү тоол.
+- Курсийн үнэ = `max(0, курсийн үнэ − энэ курсийн lesson-д ширхэгээр зарцуулсан кредит)`; 0 бол кредит, орлогогүйгээр эрх үүснэ.
+- Багшийн орлого: `TeacherEarningsService` (`earnings.service.ts`) — `recordSale` (худалдан авалтын tx дотор), `append(tx, { type: 'PAYOUT' | 'ADMIN_ADJUST', amountMnt })`, `balance(teacherId)` (тест бичилтгүй нийлбэр). Дүн = `floor(кредит × creditPriceMnt × (100 − шимтгэл%) / 100)`; бутархай платформд. Үнэ, шимтгэл, attribution бичилт бүрт хадгалагдана — тохиргоо өөрчлөгдсөн ч түүх зөв.
+- Attribution: `PurchasesService.attribution()` одоогоор үргэлж `PLATFORM` (`commissionPlatformPercent`); ticket 11 `REFERRAL` + `referrerId` буцааж `commissionReferralPercent` хэрэглэнэ.
+- Тест lot-оос зарцуулсан худалдан авалт, орлого `isTest` — payout үлдэгдэлд орохгүй.
 
 ## Нууц түлхүүр
 

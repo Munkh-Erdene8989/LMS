@@ -67,3 +67,36 @@ export const Auth = (...roles: Role[]) => applyDecorators(SetMetadata(ROLES_KEY,
 export const CurrentUser = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): CurrentUserInfo => ctx.switchToHttp().getRequest<AuthedRequest>().user!,
 );
+
+/**
+ * Нэвтрэлт заавал биш (нийтийн каталог г.м): хүчинтэй access cookie байвал `req.user`-ийг тохируулна,
+ * үгүй/хүчингүй бол зочин хэвээр — хэзээ ч 401 өгөхгүй. Handler-т `@Viewer()`-ээр уншина.
+ */
+@Injectable()
+export class OptionalAuthGuard implements CanActivate {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    const req = ctx.switchToHttp().getRequest<AuthedRequest>();
+    const token = readCookie(req, ACCESS_COOKIE);
+    const claims = token ? verifyJwt(token, this.env.JWT_SECRET) : null;
+    if (!claims) return true;
+    const user = await this.prisma.user.findUnique({
+      where: { id: claims.sub },
+      select: { id: true, roles: true, tokenVersion: true },
+    });
+    if (user && user.tokenVersion === claims.ver) req.user = { id: user.id, roles: user.roles };
+    return true;
+  }
+}
+
+/** Нэвтрэлт заавал биш; `@Viewer()` нь нэвтэрсэн хэрэглэгч эсвэл `null`. */
+export const OptionalAuth = () => UseGuards(OptionalAuthGuard);
+
+export const Viewer = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): CurrentUserInfo | null =>
+    ctx.switchToHttp().getRequest<AuthedRequest>().user ?? null,
+);

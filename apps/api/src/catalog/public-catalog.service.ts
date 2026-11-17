@@ -6,6 +6,7 @@ import {
   type CatalogPage,
   type CatalogQuery,
   type CoursePricing,
+  type CourseViewerState,
   type PublicCategoryRef,
   type PublicCourseDetail,
   type PublicLessonContent,
@@ -15,10 +16,11 @@ import {
 } from '@lms/shared';
 import { STORAGE, type StorageAdapter } from '../adapters/storage';
 import { PrismaService } from '../prisma/prisma.service';
+import { courseOwnership, ownsFrom, type CourseOwnership } from '../purchases/entitlements';
 import { searchCatalog } from './catalog-search';
 import { toContent } from './course.view';
 import { CatalogErrors as E } from './errors';
-import { LessonAccessPolicy } from './lesson-access';
+import { LessonAccessPolicy, type LessonViewer } from './lesson-access';
 import { loadRatings, NO_RATING } from './ratings';
 
 /** Free preview PDF-ийн signed URL хүчинтэй хугацаа */
@@ -39,7 +41,7 @@ const teacherSelect = {
 const cardInclude = {
   teacher: { select: teacherSelect },
   category: { include: { parent: true } },
-  lessons: { where: publicLessonWhere, select: { isFreePreview: true, priceCredits: true } },
+  lessons: { where: publicLessonWhere, select: { id: true, isFreePreview: true, priceCredits: true } },
 } as const satisfies Prisma.CourseInclude;
 
 type TeacherRow = Prisma.UserGetPayload<{ select: typeof teacherSelect }>;
@@ -49,7 +51,9 @@ type CardRow = Prisma.CourseGetPayload<{ include: typeof cardInclude }>;
  * Нийтийн (нэвтрэлтгүй) каталог. Дүрэм:
  * - Зөвхөн `PUBLISHED` курс; бусад төлөвийнх 404 (оршин буйг ч илчлэхгүй).
  * - Зөвхөн `APPROVED`, архивлаагүй lesson (шалгалт хүлээж буй шинэ lesson харагдахгүй).
- * - Lesson-ы контент зөвхөн `LessonAccessPolicy` зөвшөөрвөл (одоогоор free preview).
+ * - Lesson-ы контент зөвхөн `LessonAccessPolicy` зөвшөөрвөл (preview, эзэмшил, багш, админ).
+ * - Архивласан lesson нийтэд 404, харин эзэмшигч (болон багш, админ) контентоо үзсээр байна.
+ * - `viewer` (optional auth) өгвөл үнэ хувийн (өмнө төлсөн кредит хасагдсан), эзэмшлийн төлөвтэй.
  * - Багшийн нийтийн нэр, bio: зөвшөөрөгдсөн багшийн өргөдлөөс (`displayName`), үгүй бол хэрэглэгчийн нэр.
  */
 @Injectable()
@@ -79,7 +83,7 @@ export class PublicCatalogService {
     return { items: await this.cards(hits.ids), total: hits.total, page, pageSize };
   }
 
-  async course(id: string): Promise<PublicCourseDetail> {
+  async course(id: string, viewer: LessonViewer | null = null): Promise<PublicCourseDetail> {
     const course = await this.prisma.course.findFirst({
       where: { id, status: 'PUBLISHED' },
       include: {
@@ -91,31 +95,39 @@ export class PublicCatalogService {
       },
     });
     if (!course) throw E.courseNotFound();
-    const ratings = await loadRatings([course.id]);
+    const [ratings, ownership] = await Promise.all([
+      loadRatings([course.id]),
+      viewer ? courseOwnership(this.prisma, viewer.id, course.id) : Promise.resolve(null),
+    ]);
     const { excerpt: _excerpt, teacher, ...card } = this.card(course, ratings.get(course.id));
     void _excerpt;
     return {
       ...card,
       description: course.description,
       teacher: { ...teacher, bio: publicBio(course.teacher) },
-      pricing: this.pricing(course, null),
+      pricing: this.pricing(course, ownership),
       sections: course.sections
         .map((s) => ({ id: s.id, title: s.title, lessons: s.lessons.map(lessonItem) }))
         .filter((s) => s.lessons.length > 0),
+      viewer: viewer && ownership ? viewerState(course, viewer, ownership) : null,
     };
   }
 
   /** Lesson-ы контент — эрх `LessonAccessPolicy`-оор. Нийтэд харагдахгүй lesson 404, эрхгүй бол 403. */
-  async lesson(id: string, viewerId: string | null): Promise<PublicLessonContent> {
+  async lesson(id: string, viewer: LessonViewer | null): Promise<PublicLessonContent> {
     const lesson = await this.prisma.lesson.findFirst({
-      where: { id, ...publicLessonWhere, course: { status: 'PUBLISHED' } },
-      include: { course: { select: { id: true, title: true } } },
+      where: { id, reviewStatus: 'APPROVED', course: { status: 'PUBLISHED' } },
+      include: { course: { select: { id: true, title: true, teacherId: true } } },
     });
     if (!lesson) throw E.lessonNotFound();
-    if (!(await this.access.canViewContent(lesson, viewerId))) throw E.lessonLocked();
+    const access = await this.access.access(lesson, viewer);
+    // Архивласан lesson нийтэд байхгүй мэт (preview ч гэсэн); эзэмшигч, багш, админд л.
+    if (lesson.archivedAt && (access === null || access === 'PREVIEW')) throw E.lessonNotFound();
+    if (!access) throw E.lessonLocked();
     return {
       lesson: lessonItem(lesson),
-      course: lesson.course,
+      access,
+      course: { id: lesson.course.id, title: lesson.course.title },
       content: await toContent(lesson, this.storage, PREVIEW_PDF_TTL),
     };
   }
@@ -140,16 +152,16 @@ export class PublicCatalogService {
 
   /**
    * Курсийг бүтнээр авах үнэ. SPEC: max(0, course_price − тухайн курсийн lesson-д аль хэдийн зарцуулсан кредит).
-   * Ticket 09: `viewerId`-ийн энэ курст зарцуулсан кредитийг хасна (controller optional auth-аас өгнө).
+   * Худалдан авалт (`PurchasesService.buyCourse`) ижил томьёог transaction дотор дахин тооцно.
    */
-  private pricing(course: CardRow, viewerId: string | null): CoursePricing {
-    void viewerId;
+  private pricing(course: CardRow, ownership: CourseOwnership | null): CoursePricing {
     const list = course.priceCredits ?? 0;
-    const alreadySpent = 0;
+    const alreadySpent = ownership?.spentOnLessons ?? 0;
     return {
       listCredits: list,
       lessonsTotalCredits: course.lessons.reduce((sum, l) => sum + l.priceCredits, 0),
-      payableCredits: Math.max(0, list - alreadySpent),
+      alreadySpentCredits: alreadySpent,
+      payableCredits: ownership?.ownsCourse ? 0 : Math.max(0, list - alreadySpent),
     };
   }
 
@@ -191,6 +203,20 @@ export class PublicCatalogService {
       publishedAt: (c.publishedAt ?? c.updatedAt).toISOString(),
     };
   }
+}
+
+function viewerState(
+  course: { teacherId: string; lessons: { id: string }[] },
+  viewer: LessonViewer,
+  o: CourseOwnership,
+): CourseViewerState {
+  const isTeacher = course.teacherId === viewer.id;
+  return {
+    ownsCourse: o.ownsCourse,
+    ownedLessonIds: course.lessons.filter((l) => ownsFrom(o, l.id)).map((l) => l.id),
+    canViewAll: isTeacher || viewer.roles.includes('ADMIN'),
+    isTeacher,
+  };
 }
 
 function teacherRef(u: TeacherRow): PublicTeacherRef {

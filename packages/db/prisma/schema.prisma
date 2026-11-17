@@ -94,6 +94,14 @@ model User {
   creditLots    CreditLot[]
   creditEntries CreditLedgerEntry[]
 
+  purchases          Purchase[]            @relation("PurchaseBuyer")
+  sales              Purchase[]            @relation("PurchaseTeacher")
+  referredPurchases  Purchase[]            @relation("PurchaseReferrer")
+  entitlements       Entitlement[]
+  courseEntitlements CourseEntitlement[]
+  earningEntries     TeacherEarningEntry[] @relation("EarningTeacher")
+  earningAdjustments TeacherEarningEntry[] @relation("EarningActor")
+
   @@map("users")
 }
 
@@ -377,6 +385,10 @@ model Course {
   sections   Section[]
   lessons    Lesson[]
 
+  purchases          Purchase[]
+  entitlements       Entitlement[]
+  courseEntitlements CourseEntitlement[]
+
   @@index([teacherId])
   @@index([status, submittedAt])
   // Каталог (ticket 07). Trigram index-ууд migration-д `extensions.gin_trgm_ops`-оор үүссэн; энд `raw("gin_trgm_ops")` нь
@@ -442,6 +454,9 @@ model Lesson {
 
   course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+
+  purchases    Purchase[]
+  entitlements Entitlement[]
 
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
@@ -596,4 +611,144 @@ model CreditAllocation {
   @@index([entryId])
   @@index([lotId])
   @@map("credit_allocations")
+}
+
+// ---------------------------------------------------------------------------
+// Худалдан авалт, эрх, багшийн орлого (ticket 09)
+// Бүгд apps/api/src/purchases/purchases.service.ts-ээр, кредит хасалттай НЭГ transaction-д.
+// ---------------------------------------------------------------------------
+
+enum PurchaseKind {
+  LESSON
+  COURSE
+}
+
+/// Худалдан авалт хэнээс эх үүсвэртэй — шимтгэлийн хувийг тодорхойлно (ticket 11 REFERRAL-ыг бөглөнө).
+enum PurchaseAttribution {
+  PLATFORM
+  REFERRAL
+}
+
+/// Худалдан авалт бүр (append-only). Үнэ, шимтгэл, attribution худалдан авах мөчийнхөөр хадгалагдана.
+model Purchase {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  courseId          String              @map("course_id") @db.Uuid
+  /// LESSON үед авсан lesson; COURSE үед null
+  lessonId          String?             @map("lesson_id") @db.Uuid
+  /// Худалдах үеийн курсийн багш (тайланд)
+  teacherId         String              @map("teacher_id") @db.Uuid
+  kind              PurchaseKind
+  /// Жагсаалтын үнэ (lesson-ы эсвэл курсийн бүтэн үнэ)
+  listCredits       Int                 @map("list_credits")
+  /// Бодит зарцуулсан кредит. COURSE: max(0, list − өмнө нь энэ курсийн lesson-д зарцуулсан)
+  credits           Int
+  /// Худалдах үеийн `creditPriceMnt`
+  creditPriceMnt    Int                 @map("credit_price_mnt")
+  /// Худалдах үеийн шимтгэл (%) — attribution-аас хамаарна
+  commissionPercent Int                 @map("commission_percent")
+  attribution       PurchaseAttribution @default(PLATFORM)
+  /// REFERRAL үед урьсан багш (ticket 11)
+  referrerId        String?             @map("referrer_id") @db.Uuid
+  /// Кредитийн SPEND бичилт (credits = 0 бол null)
+  creditEntryId     String?             @unique @map("credit_entry_id") @db.Uuid
+  /// Тест lot-оос зарцуулсан — тайланд тусад нь
+  isTest            Boolean             @default(false) @map("is_test")
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  user     User    @relation("PurchaseBuyer", fields: [userId], references: [id], onDelete: Restrict)
+  teacher  User    @relation("PurchaseTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  referrer User?   @relation("PurchaseReferrer", fields: [referrerId], references: [id], onDelete: Restrict)
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+
+  entitlements      Entitlement[]
+  courseEntitlement CourseEntitlement?
+  earningEntries    TeacherEarningEntry[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, courseId])
+  @@index([teacherId, createdAt(sort: Desc)])
+  @@index([lessonId])
+  @@map("purchases")
+}
+
+/// Learner-ийн lesson-д нэвтрэх эрх. Нэг lesson-ыг хоёр удаа авахгүй (unique).
+model Entitlement {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  lessonId   String   @map("lesson_id") @db.Uuid
+  courseId   String   @map("course_id") @db.Uuid
+  purchaseId String   @map("purchase_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lesson   Lesson   @relation(fields: [lessonId], references: [id], onDelete: Restrict)
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, lessonId])
+  @@index([userId, courseId])
+  @@index([lessonId])
+  @@index([purchaseId])
+  @@map("entitlements")
+}
+
+/// Курсийг бүтнээр авсан: тухайн үеийн lesson-ууд `Entitlement`-ээр, дараа нь зөвшөөрөгдөх шинэ lesson-ууд
+/// энэ мөрөөр эрхтэй болно. Нэг курсийг хоёр удаа бүтнээр авахгүй (unique).
+model CourseEntitlement {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  courseId   String   @map("course_id") @db.Uuid
+  purchaseId String   @unique @map("purchase_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@map("course_entitlements")
+}
+
+enum TeacherEarningType {
+  SALE_EARNING
+  PAYOUT
+  ADMIN_ADJUST
+}
+
+/// Багшийн орлогын append-only ledger (₮, тэмдэгтэй: орлого +, payout −). Засагдахгүй, устгагдахгүй.
+model TeacherEarningEntry {
+  id                String               @id @default(uuid()) @db.Uuid
+  teacherId         String               @map("teacher_id") @db.Uuid
+  type              TeacherEarningType
+  amountMnt         Int                  @map("amount_mnt")
+  /// SALE_EARNING: эх худалдан авалт
+  purchaseId        String?              @map("purchase_id") @db.Uuid
+  /// SALE_EARNING: тооцооны оролт (худалдах мөчийнх) — дараа тохиргоо өөрчлөгдсөн ч түүх зөв
+  credits           Int?
+  creditPriceMnt    Int?                 @map("credit_price_mnt")
+  commissionPercent Int?                 @map("commission_percent")
+  /// credits × creditPriceMnt
+  grossMnt          Int?                 @map("gross_mnt")
+  attribution       PurchaseAttribution?
+  isTest            Boolean              @default(false) @map("is_test")
+  reason            String?
+  /// ADMIN_ADJUST / PAYOUT хийсэн админ
+  actorId           String?              @map("actor_id") @db.Uuid
+  /// PAYOUT г.м-ийн объект (ticket 20: `payout`, id)
+  refType           String?              @map("ref_type")
+  refId             String?              @map("ref_id")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  teacher  User      @relation("EarningTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  actor    User?     @relation("EarningActor", fields: [actorId], references: [id], onDelete: SetNull)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@index([teacherId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([purchaseId])
+  @@index([type, createdAt])
+  @@index([refType, refId])
+  @@map("teacher_earning_entries")
 }

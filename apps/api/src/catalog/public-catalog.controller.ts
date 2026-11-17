@@ -9,6 +9,7 @@ import {
   type PublicTeacherProfile,
 } from '@lms/shared';
 import { z } from 'zod';
+import { OptionalAuth, Viewer, type CurrentUserInfo } from '../auth/auth.guard';
 import { ZodPipe } from '../zod-pipe';
 import { PublicCatalogService } from './public-catalog.service';
 
@@ -33,7 +34,7 @@ const CatalogQuerySchema = z.object({
 
 /**
  * Нийтийн каталог — нэвтрэлт шаардахгүй (web SSR-ээс шууд дуудна).
- * Ticket 09: `lessons/:id`-д optional auth нэмж `viewerId`-г дамжуулна (entitlement).
+ * Курс, lesson-ы endpoint optional auth-тай: нэвтэрсэн бол хувийн үнэ, эзэмшил, эрхтэй контент (ticket 09).
  */
 @Controller('catalog')
 export class PublicCatalogController {
@@ -45,13 +46,15 @@ export class PublicCatalogController {
   }
 
   @Get('courses/:id')
-  course(@Param('id', Uuid) id: string): Promise<PublicCourseDetail> {
-    return this.catalog.course(id);
+  @OptionalAuth()
+  course(@Param('id', Uuid) id: string, @Viewer() viewer: CurrentUserInfo | null): Promise<PublicCourseDetail> {
+    return this.catalog.course(id, viewer);
   }
 
   @Get('lessons/:id')
-  lesson(@Param('id', Uuid) id: string): Promise<PublicLessonContent> {
-    return this.catalog.lesson(id, null);
+  @OptionalAuth()
+  lesson(@Param('id', Uuid) id: string, @Viewer() viewer: CurrentUserInfo | null): Promise<PublicLessonContent> {
+    return this.catalog.lesson(id, viewer);
   }
 
   @Get('teachers/:id')

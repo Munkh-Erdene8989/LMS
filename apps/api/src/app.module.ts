@@ -11,6 +11,7 @@ import { AdminModule } from './admin/admin.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CreditsModule } from './credits/credits.module';
+import { PurchasesModule } from './purchases/purchases.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CreditsModule } from './credits/credits.module';
     TeacherModule,
     CatalogModule,
     CreditsModule,
+    PurchasesModule,
     MaintenanceModule,
   ],
 })

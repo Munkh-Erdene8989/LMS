@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
   CreditBalanceView,
@@ -12,10 +13,21 @@ import type {
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { safeNext } from '@/lib/next-path';
 
 const POLL_MS = 4_000;
 /** Хуудас нээлттэй үед төлбөрийн төлөвийг хэр удаан автоматаар шалгах */
 const POLL_LIMIT_MS = 15 * 60_000;
+/** Худалдан авалтаас ирсэн бол буцах хуудас (банкны апп-аас буцаж ирэхэд ч хадгалагдана) */
+const RETURN_KEY = 'credits:returnTo';
+
+function forgetReturn(): void {
+  try {
+    sessionStorage.removeItem(RETURN_KEY);
+  } catch {
+    // хувийн горим г.м — үл тооно
+  }
+}
 
 export default function CreditsPage() {
   const router = useRouter();
@@ -26,6 +38,7 @@ export default function CreditsPage() {
   const [topup, setTopup] = useState<TopupView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   const onError = useCallback(
     (err: unknown) => {
@@ -54,6 +67,13 @@ export default function CreditsPage() {
     api<CreditPackageView[]>('/credits/packages')
       .then((r) => setPackages(r.data))
       .catch(onError);
+    const next = safeNext(new URLSearchParams(window.location.search).get('next'));
+    try {
+      if (next) sessionStorage.setItem(RETURN_KEY, next);
+      setReturnTo(next ?? safeNext(sessionStorage.getItem(RETURN_KEY)));
+    } catch {
+      setReturnTo(next);
+    }
     // Банкны апп-аас буцаж ирэхэд нээлттэй төлбөрийг сэргээнэ.
     const id = new URLSearchParams(window.location.search).get('payment');
     if (id) {
@@ -144,6 +164,11 @@ export default function CreditsPage() {
   return (
     <main className="page" style={{ display: 'grid', gap: 16 }}>
       <h1 style={{ margin: 0 }}>{t('credits.title')}</h1>
+      {returnTo && (
+        <Link href={returnTo} onClick={forgetReturn}>
+          {t('purchase.backToPurchase')}
+        </Link>
+      )}
 
       <section className="card credit-balance">
         <span style={{ color: 'var(--muted)' }}>{t('credits.balance')}</span>

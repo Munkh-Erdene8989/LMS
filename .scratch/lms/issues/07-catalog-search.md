@@ -34,7 +34,7 @@ Web: `/courses`, `/courses/[id]`, `/courses/[id]/lessons/[lessonId]`, `/teachers
 
 ## Үлдсэн
 
-- [ ] Ticket 09: `LessonAccessPolicy.canViewContent()`-д entitlement; `GET /catalog/lessons/:id`, `/catalog/courses/:id`-д optional auth (viewerId); `PublicCatalogService.pricing()`-д тухайн курст зарцуулсан кредитийг хасах (`payableCredits`); курсийн хуудасны "Худалдаж авах" товч.
+- [x] Ticket 09 (хийгдсэн): `LessonAccessPolicy.canViewContent()`-д entitlement; `GET /catalog/lessons/:id`, `/catalog/courses/:id`-д optional auth (viewerId); `PublicCatalogService.pricing()`-д тухайн курст зарцуулсан кредитийг хасах (`payableCredits`); курсийн хуудасны "Худалдаж авах" товч.
 - [ ] Ticket 18: `ratings.ts`-ийг review aggregate-аар солих; курсийн хуудсанд review жагсаалт.
 - [ ] Каталог томрох үед: OR-оор холбосон хайлт GIN index-ийг бүрэн ашиглахгүй (одоогийн хэмжээнд seq scan хангалттай). Шаардлагатай бол курст денормчилсон `search_text` багана.
 - [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх (pg_trgm extension DB-д аль хэдийн `extensions` schema-д суусан).

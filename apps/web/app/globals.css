@@ -668,3 +668,65 @@ body {
   align-items: center;
   gap: 6px;
 }
+
+/* Худалдан авалт (ticket 09) */
+.btn-small {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.pill-owned {
+  background: var(--ok);
+  color: var(--bg);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.modal {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.purchase-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.purchase-summary dt {
+  color: var(--muted);
+}
+
+.purchase-summary dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+
+.purchase-warning {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--err);
+  border-radius: 6px;
+}

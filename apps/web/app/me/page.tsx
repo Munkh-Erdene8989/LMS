@@ -119,6 +119,11 @@ export default function MePage() {
             {t('course.myCourses')}
           </a>
         )}
+        {user.roles.includes('TEACHER') && (
+          <a className="btn btn-ghost" href="/teacher/earnings">
+            {t('earnings.title')}
+          </a>
+        )}
         {!user.roles.includes('TEACHER') && (
           <a className="btn btn-ghost" href="/teacher/apply">
             {t('teacher.title')}
