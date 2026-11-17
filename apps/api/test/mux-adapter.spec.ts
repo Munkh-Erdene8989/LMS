@@ -56,6 +56,25 @@ beforeAll(async () => {
         },
       });
     }
+    if (req.method === 'GET' && req.url!.startsWith('/data/v1/metrics/views/breakdown?')) {
+      const page = new URL(req.url!, 'http://x').searchParams.get('page');
+      if (page === '1') {
+        const rows = Array.from({ length: 100 }, (_, i) => ({
+          field: `lesson-${i}`,
+          views: 1,
+          total_watch_time: 1000,
+          total_playing_time: 900,
+        }));
+        return json(200, { data: rows, total_row_count: 102 });
+      }
+      return json(200, {
+        data: [
+          { field: 'lesson-last', views: 3, total_watch_time: 61_000, total_playing_time: 60_000, value: 3 },
+          { field: '', views: 7 },
+        ],
+        total_row_count: 102,
+      });
+    }
     if (req.method === 'DELETE' && req.url === '/video/v1/assets/gone') return json(404, { error: { type: 'not_found' } });
     if (req.method === 'DELETE') {
       res.writeHead(204);
@@ -133,6 +152,24 @@ describe('HttpMuxAdapter', () => {
       MuxSignatureError,
     );
     expect(() => mux.parseWebhook(body, undefined, now)).toThrow(MuxSignatureError);
+  });
+});
+
+describe('HttpMuxAdapter: Mux Data', () => {
+  it('views breakdown: video_id-аар задлах, sub_property_id шүүлт, unix timeframe, хуудаслалт', async () => {
+    const from = new Date('2026-11-08T16:00:00Z');
+    const to = new Date('2026-11-10T16:00:00Z');
+    const rows = await adapter().videoEngagement({ subPropertyId: 'course-1', from, to });
+    expect(rows).toHaveLength(101);
+    expect(rows[0]).toEqual({ videoId: 'lesson-0', views: 1, watchTimeMs: 1000, playingTimeMs: 900 });
+    expect(rows[100]).toEqual({ videoId: 'lesson-last', views: 3, watchTimeMs: 61_000, playingTimeMs: 60_000 });
+    expect(seen).toHaveLength(2);
+    const q = new URL(seen[0]!.path, 'http://x').searchParams;
+    expect(seen[0]!.auth).toBe(`Basic ${Buffer.from('tid:tsecret').toString('base64')}`);
+    expect(q.get('group_by')).toBe('video_id');
+    expect(q.getAll('filters[]')).toEqual(['sub_property_id:course-1']);
+    expect(q.getAll('timeframe[]')).toEqual([String(from.getTime() / 1000), String(to.getTime() / 1000)]);
+    expect(new URL(seen[1]!.path, 'http://x').searchParams.get('page')).toBe('2');
   });
 });
 

@@ -79,6 +79,9 @@ export default function TeacherReferralPage() {
           <strong>
             {t('referral.salesValue', { referral: formatNumber(s.referralSales), platform: formatNumber(s.platformSales) })}
           </strong>
+          <a href="/teacher/analytics" style={{ fontSize: 13 }}>
+            {t('referral.analyticsLink')}
+          </a>
         </section>
       </div>
       <p className="muted" style={{ margin: 0 }}>
