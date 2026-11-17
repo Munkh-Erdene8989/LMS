@@ -15,3 +15,4 @@ export * from './live';
 export * from './media';
 export * from './certificates';
 export * from './payouts';
+export * from './analytics';

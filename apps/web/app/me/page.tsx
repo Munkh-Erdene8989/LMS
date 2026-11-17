@@ -120,6 +120,11 @@ export default function MePage() {
           </a>
         )}
         {user.roles.includes('TEACHER') && (
+          <a className="btn btn-ghost" href="/teacher/analytics">
+            {t('analytics.nav')}
+          </a>
+        )}
+        {user.roles.includes('TEACHER') && (
           <a className="btn btn-ghost" href="/teacher/earnings">
             {t('earnings.title')}
           </a>

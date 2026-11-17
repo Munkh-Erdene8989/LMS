@@ -5,6 +5,9 @@
   --ok: #15803d;
   --err: #b91c1c;
   --border: #e5e7eb;
+  /* Графикийн өнгө (dataviz validator-оор шалгасан: гэрэл/бараан горимд) */
+  --chart-1: #2563eb;
+  --chart-2: #ea580c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +18,8 @@
     --ok: #4ade80;
     --err: #f87171;
     --border: #1f2937;
+    --chart-1: #3b82f6;
+    --chart-2: #ea580c;
   }
 }
 
@@ -834,4 +839,80 @@ body {
   font-weight: 600;
   white-space: nowrap;
   transition: top 1.5s ease-in-out, left 1.5s ease-in-out;
+}
+
+/* --- Багшийн аналитик (ticket 21) --- */
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.stat-tile {
+  display: grid;
+  gap: 2px;
+}
+
+.stat-tile strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.filter-row label {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.filter-row .input {
+  width: auto;
+  padding: 6px 8px;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-svg text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart-tooltip {
+  font-size: 13px;
+  min-height: 1.5em;
+}
+
+.attr-bar {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
 }

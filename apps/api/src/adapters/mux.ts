@@ -5,6 +5,8 @@ import { createHmac, createSign, timingSafeEqual } from 'node:crypto';
  * - Direct upload (`POST /video/v1/uploads`) — browser файлыг шууд Mux руу `PUT` хийнэ, API-аар дамжихгүй.
  * - Webhook — `mux-signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>`.
  * - Signed playback — RS256 JWT (`sub` = playback id, `aud` = v/t/s, `exp`, `kid` = signing key id).
+ * - Mux Data (`GET /data/v1/metrics/views/breakdown`) — видео бүрийн үзэлт, үзсэн хугацаа (багшийн аналитик).
+ *   Тоглуулагч `video_id` = lesson id, `sub_property_id` = курсийн id metadata илгээдэг (`PlaybackService`).
  * Модулиуд `MUX` token-оор энэ interface-ийг авна. Тест `FakeMux`.
  */
 export type MuxTokenAudience = 'v' | 't' | 's';
@@ -35,6 +37,16 @@ export interface MuxAssetState {
   uploadId: string | null;
 }
 
+/** Mux Data: нэг видеоны (`video_id`) хугацааны хүрээн дэх үзэлт */
+export interface MuxVideoEngagement {
+  videoId: string;
+  views: number;
+  /** Нийт үзсэн хугацаа (мс; buffering орно) */
+  watchTimeMs: number;
+  /** Бодит тоглосон хугацаа (мс) */
+  playingTimeMs: number;
+}
+
 export interface MuxWebhookEvent {
   id: string;
   type: string;
@@ -51,6 +63,8 @@ export interface MuxAdapter {
   signPlaybackToken(playbackId: string, audience: MuxTokenAudience, ttlSeconds: number, now?: Date): string;
   /** Гарын үсэг + хугацааг шалгаад event буцаана; буруу бол `MuxSignatureError`. */
   parseWebhook(rawBody: Buffer | string, signatureHeader: string | undefined, now?: Date): MuxWebhookEvent;
+  /** Mux Data: `sub_property_id`-аар шүүж `video_id`-аар задалсан үзэлт [from, to) хүрээнд. */
+  videoEngagement(input: { subPropertyId: string; from: Date; to: Date }): Promise<MuxVideoEngagement[]>;
 }
 
 export const MUX = Symbol('MUX');
@@ -131,6 +145,22 @@ export function assetStateFrom(data: Record<string, unknown>): MuxAssetState {
   };
 }
 
+/** Mux Data breakdown мөр → engagement */
+export function engagementFrom(row: Record<string, unknown>): MuxVideoEngagement | null {
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  if (typeof row.field !== 'string' || row.field === '') return null;
+  return {
+    videoId: row.field,
+    views: num(row.views),
+    watchTimeMs: num(row.total_watch_time),
+    playingTimeMs: num(row.total_playing_time),
+  };
+}
+
+/** Breakdown-ийн нэг хуудасны хэмжээ, хамгийн их хуудас (курсийн lesson тоо үүнээс бага) */
+const DATA_PAGE_LIMIT = 100;
+const DATA_MAX_PAGES = 5;
+
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
 }
@@ -210,6 +240,31 @@ export class HttpMuxAdapter implements MuxAdapter {
     return verifyMuxWebhook(rawBody, signatureHeader, this.config.webhookSecret, now);
   }
 
+  async videoEngagement(input: { subPropertyId: string; from: Date; to: Date }): Promise<MuxVideoEngagement[]> {
+    const out: MuxVideoEngagement[] = [];
+    for (let page = 1; page <= DATA_MAX_PAGES; page++) {
+      const q = new URLSearchParams();
+      q.append('group_by', 'video_id');
+      q.append('filters[]', `sub_property_id:${input.subPropertyId}`);
+      q.append('timeframe[]', String(Math.floor(input.from.getTime() / 1000)));
+      q.append('timeframe[]', String(Math.floor(input.to.getTime() / 1000)));
+      q.append('limit', String(DATA_PAGE_LIMIT));
+      q.append('page', String(page));
+      const body = (await this.request('GET', `/data/v1/metrics/views/breakdown?${q.toString()}`)) as {
+        data?: Record<string, unknown>[];
+        total_row_count?: number;
+      };
+      const rows = Array.isArray(body.data) ? body.data : [];
+      for (const r of rows) {
+        const e = engagementFrom(r);
+        if (e) out.push(e);
+      }
+      const total = typeof body.total_row_count === 'number' ? body.total_row_count : rows.length;
+      if (rows.length < DATA_PAGE_LIMIT || page * DATA_PAGE_LIMIT >= total) break;
+    }
+    return out;
+  }
+
   private async request(method: string, path: string, json?: unknown, okStatuses: number[] = []): Promise<unknown> {
     const auth = Buffer.from(`${this.config.tokenId}:${this.config.tokenSecret}`).toString('base64');
     const res = await fetch(`${this.baseUrl}${path}`, {
@@ -251,6 +306,9 @@ export class DisabledMuxAdapter implements MuxAdapter {
   parseWebhook(): MuxWebhookEvent {
     throw new MuxNotConfiguredError();
   }
+  videoEngagement(): Promise<MuxVideoEngagement[]> {
+    return Promise.reject(new MuxNotConfiguredError());
+  }
 }
 
 // ---- тестийн fake ----------------------------------------------------------------------
@@ -267,6 +325,11 @@ export class FakeMux implements MuxAdapter {
   readonly deletedAssets: string[] = [];
   private readonly uploadStates = new Map<string, MuxUploadState>();
   private readonly assetStates = new Map<string, MuxAssetState>();
+  private readonly engagement = new Map<string, MuxVideoEngagement[]>();
+  /** `videoEngagement` дуудлагууд (тест шалгана) */
+  readonly engagementCalls: { subPropertyId: string; from: Date; to: Date }[] = [];
+  /** true бол Mux Data алдаа шиднэ (Mux түр унасан мэт) */
+  dataFailing = false;
   private seq = 0;
 
   async createDirectUpload(input: { passthrough: string; corsOrigin: string }): Promise<MuxDirectUpload> {
@@ -306,7 +369,19 @@ export class FakeMux implements MuxAdapter {
     return verifyMuxWebhook(rawBody, signatureHeader, FAKE_MUX_WEBHOOK_SECRET, now);
   }
 
+  async videoEngagement(input: { subPropertyId: string; from: Date; to: Date }): Promise<MuxVideoEngagement[]> {
+    this.assertEnabled();
+    this.engagementCalls.push(input);
+    if (this.dataFailing) throw new MuxError('fake: Mux Data HTTP 503');
+    return this.engagement.get(input.subPropertyId) ?? [];
+  }
+
   // ---- тестийн удирдлага ----
+
+  /** Mux Data-ийн хариу (курс = `sub_property_id`) */
+  setEngagement(subPropertyId: string, rows: MuxVideoEngagement[]): void {
+    this.engagement.set(subPropertyId, rows);
+  }
 
   setUpload(uploadId: string, state: MuxUploadState): void {
     this.uploadStates.set(uploadId, state);
@@ -329,6 +404,9 @@ export class FakeMux implements MuxAdapter {
     this.deletedAssets.length = 0;
     this.uploadStates.clear();
     this.assetStates.clear();
+    this.engagement.clear();
+    this.engagementCalls.length = 0;
+    this.dataFailing = false;
   }
 
   private assertEnabled(): void {
