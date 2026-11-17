@@ -32,5 +32,5 @@ Web: `/learning/[courseId]` — сертификатын карт (нөхцөл�
 ## Үлдсэн
 
 - [x] Ticket 13: ASSIGNMENT нөхцөлд орохгүй (ticket 13-ын шаардлага) — allowlist VIDEO/TEXT/PDF/QUIZ хэвээр.
-- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
+- [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.
 - [ ] Production build-д `apps/api/assets/` (фонт) хамт deploy хийгдэж буйг шалгах (`dist/../assets`-аас уншина).

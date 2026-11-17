@@ -34,6 +34,6 @@ Web: `/learning` (явцын мөр, "Үргэлжлүүлэх"), `/learning/[co
 ## Үлдсэн
 
 - [x] Ticket 10: Mux player үзсэн хувийг `POST /learning/lessons/:id/progress { watchedPercent }` руу үе үе илгээх (VIDEO төрлийг `AVAILABLE_LESSON_TYPES`-д нэмэх).
-- [ ] Ticket 15: сертификатын нөхцөлд `lesson_progress.completed_at` (бүх идэвхтэй lesson) ба `best_score_percent`-ийн дундаж (≥70%) — архивласан lesson-ыг тооцох эсэхийг тэнд шийдэх.
+- [x] Ticket 15: сертификатын нөхцөлд `lesson_progress.completed_at` (бүх идэвхтэй lesson) ба `best_score_percent`-ийн дундаж (≥70%) — архивласан lesson-ыг тооцох эсэхийг тэнд шийдэх.
 - [x] Quiz оролдлогын хурдны хязгаар (суралцагчид; багш/админд үгүй): хэрэглэгч × lesson-д 30 секундын cooldown + гулсах 24 цагт 10 оролдлого, хэтэрвэл 429 `QUIZ_RATE_LIMITED` (монгол мессеж, дараагийн цаг Улаанбаатараар). Шалгах + бичих нь `pg_advisory_xact_lock`-оор атомар (зэрэг хүсэлт давахгүй). `QuizState.nextAttemptAt` → UI товч идэвхгүй + хүлээх хугацаа. Тест `quiz-rate-limit.spec.ts` (4); `learning.spec.ts` өмнөх оролдлогыг хуучруулдаг.
 - [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.

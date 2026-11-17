@@ -21,4 +21,4 @@
 
 ## Үлдсэн
 - [x] Веб админ UI: `apps/web/app/admin/{users,users/[id],payments,reports}` — хайлт, дэлгэрэнгүй, хаах/нээх, кредит ба орлого засах (idempotencyKey client-д), төлбөрийн тохирол (баталгаажуулалттай), тайлан (test тусдаа).
-- [ ] `public` (dev) schema-д migration хэрэгжүүлэх (`pnpm db:deploy`) — гараар.
+- [x] `public` (dev) schema-д migration хэрэгжүүлэх (`pnpm db:deploy`) — гараар.

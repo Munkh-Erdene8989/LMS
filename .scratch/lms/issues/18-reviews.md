@@ -18,4 +18,4 @@
 ## Үлдсэн
 
 - [x] Ticket 07-ийн "ratings.ts-ийг review aggregate-аар солих; курсийн хуудсанд review жагсаалт" биелсэн.
-- [ ] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх (merge-ийн дараа).
+- [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх (merge-ийн дараа).
