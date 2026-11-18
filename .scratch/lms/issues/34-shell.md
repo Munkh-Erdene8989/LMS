@@ -12,6 +12,8 @@
 - [ ] Mobile (<768): nav → цэс товч (44px) → sheet (Dialog ашиглаж болно), `env(safe-area-inset-*)`.
 - [ ] Auth төлөв ачаалах үед баруун хэсэгт Skeleton (pop-in байхгүй). Unread мэдэгдэл polling-ийг auth мэдэгдсэний дараа, focus дээр throttle.
 - [ ] Footer: legal линкүүд + брэнд мөр, тайван `--bg-alt`.
+- [ ] Theme toggle (footer эсвэл avatar цэс): Систем / Гэрэл / Харанхуй → `localStorage.theme` бичих + `<html data-theme>` (32-ийн init script `theme` түлхүүрийг уншдаг; «Систем» үед түлхүүр устгаж `data-theme` арилгана).
+- [ ] 32-оор `.page` 720→1120px болсон: нарийн хуудсуудад (`/me`, `/login`, `/legal`, form-ууд) `.page-narrow` (≈720px) primitive-ийг globals.css-ийн төгсгөлд нэмэх.
 - [ ] CSS: `app/site-header.module.css`.
 
 ## Шалгах
