@@ -1150,5 +1150,31 @@
     "ratingCount": "{count} үнэлгээ",
     "coursePage": "Курсийн мэдээлэл",
     "purchaseResult": "Худалдан авалтын үр дүн"
+  },
+  "teacherUi": {
+    "navLabel": "Багшийн самбар",
+    "navProfile": "Профайл ба данс",
+    "colCourse": "Курс",
+    "colStatus": "Төлөв",
+    "colLessons": "Хичээл",
+    "colUpdated": "Шинэчлэгдсэн",
+    "save": "Хадгалах",
+    "saving": "Хадгалж байна…",
+    "saved": "Хадгалагдлаа",
+    "unsaved": "Хадгалаагүй өөрчлөлт байна",
+    "linkCopied": "Линк хуулагдлаа",
+    "copyFailed": "Хуулж чадсангүй. Линкийг сонгоод гараар хуулна уу.",
+    "payoutConfirmTitle": "Payout хүсэлт илгээх үү?",
+    "payoutConfirmLabel": "Хүсэлт илгээх",
+    "payoutRequested": "Payout хүсэлт илгээгдлээ",
+    "removeMemberTitle": "Гишүүнийг хасах уу?",
+    "removeSectionTitle": "Бүлгийг устгах уу?",
+    "removeLessonTitle": "Хичээлийг устгах уу?",
+    "convertTitle": "Бичлэг болгох уу?",
+    "lessonType": "Хичээлийн төрөл",
+    "moveToSection": "Бүлэг рүү зөөх",
+    "preview": "Урьдчилан харах",
+    "chartRole": "график",
+    "chartKeyboardHint": "← → товчоор баганыг сонгоно"
   }
 }

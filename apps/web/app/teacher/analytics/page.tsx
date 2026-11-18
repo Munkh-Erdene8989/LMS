@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState, type KeyboardEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
   AnalyticsGranularity,
@@ -10,8 +11,11 @@ import type {
   TeacherAnalyticsView,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatNumber } from '@/lib/format';
+import { formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { Skeleton } from '../../ui/skeleton';
+import s from '../teacher.module.css';
 
 type Metric = 'credits' | 'earningMnt' | 'sales';
 const METRIC_LABEL: Record<Metric, MessageKey> = {
@@ -20,15 +24,15 @@ const METRIC_LABEL: Record<Metric, MessageKey> = {
   sales: 'analytics.metricSales',
 };
 
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
+const mnt = formatMnt;
 
 /** Секунд → `м:сс` (цаг бол `ц:мм:сс`) */
 function duration(sec: number | null): string {
   if (sec === null) return '—';
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  const s = String(Math.floor(sec % 60)).padStart(2, '0');
-  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+  const sc = String(Math.floor(sec % 60)).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sc}` : `${m}:${sc}`;
 }
 
 /**
@@ -74,32 +78,41 @@ export default function TeacherAnalyticsPage() {
 
   if (!view) {
     return (
-      <main className="page">
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className={s.page}>
+        <h1 className={s.title}>{t('analytics.title')}</h1>
+        {error ? (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={s.stack} aria-busy="true" aria-label={t('ui.loading')}>
+            <Skeleton height={88} radius={22} />
+            <Skeleton height={260} radius={22} />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 20 }}>
-      <div style={{ display: 'grid', gap: 4 }}>
-        <h1 style={{ margin: 0 }}>{t('analytics.title')}</h1>
-        <p className="muted" style={{ margin: 0 }}>
-          {t('analytics.intro')}
-        </p>
+    <div className={s.page}>
+      <div className={s.stack}>
+        <h1 className={s.title}>{t('analytics.title')}</h1>
+        <p className={s.lead}>{t('analytics.intro')}</p>
       </div>
 
       <form
-        className="filter-row"
+        className={s.filters}
         onSubmit={(e) => {
           e.preventDefault();
           load({ granularity, from, to });
         }}
       >
-        <label>
+        <label className={s.field}>
           {t('analytics.granularity')}
           <select
             className="input"
+            name="granularity"
             value={granularity}
             onChange={(e) => {
               const g = e.target.value as AnalyticsGranularity;
@@ -111,35 +124,35 @@ export default function TeacherAnalyticsPage() {
             <option value="month">{t('analytics.month')}</option>
           </select>
         </label>
-        <label>
+        <label className={s.field}>
           {t('analytics.from')}
-          <input className="input" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+          <input className="input" name="from" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
         </label>
-        <label>
+        <label className={s.field}>
           {t('analytics.to')}
-          <input className="input" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+          <input className="input" name="to" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <button type="submit" className="btn">
-          {t('analytics.apply')}
-        </button>
-        {error && <span style={{ color: 'var(--err)' }}>{error}</span>}
+        <Button type="submit">{t('analytics.apply')}</Button>
+        {error && (
+          <span role="alert" className={s.error}>
+            {error}
+          </span>
+        )}
       </form>
 
-      <div className="stat-tiles">
+      <div className={s.stats}>
         <Tile label={t('analytics.sales')} value={formatNumber(view.totals.sales)} />
         <Tile label={t('analytics.credits')} value={formatNumber(view.totals.credits)} />
         <Tile label={t('analytics.gross')} value={mnt(view.totals.grossMnt)} />
         <Tile label={t('analytics.earning')} value={mnt(view.totals.earningMnt)} />
-        <section className="card stat-tile">
-          <span className="muted">{t('analytics.balance')}</span>
-          <strong>{mnt(view.balanceMnt)}</strong>
-          <a href="/teacher/earnings" style={{ fontSize: 13 }}>
-            {t('analytics.earningsLink')}
-          </a>
+        <section className={`card ${s.stat}`}>
+          <span className={s.statLabel}>{t('analytics.balance')}</span>
+          <strong className={s.statValue}>{mnt(view.balanceMnt)}</strong>
+          <Link href="/teacher/earnings">{t('analytics.earningsLink')}</Link>
         </section>
       </div>
       {view.testSales.sales > 0 && (
-        <p className="muted" style={{ margin: 0 }}>
+        <p className={s.hint}>
           {t('analytics.testSales', { sales: formatNumber(view.testSales.sales), credits: formatNumber(view.testSales.credits) })}
         </p>
       )}
@@ -149,23 +162,27 @@ export default function TeacherAnalyticsPage() {
       <Courses view={view} />
       <Lessons view={view} />
       <VideoSection view={view} />
-    </main>
+    </div>
   );
 }
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <section className="card stat-tile">
-      <span className="muted">{label}</span>
-      <strong>{value}</strong>
+    <section className={`card ${s.stat}`}>
+      <span className={s.statLabel}>{label}</span>
+      <strong className={s.statValue}>{value}</strong>
     </section>
   );
 }
 
 const fmtMetric = (m: Metric, v: number) => (m === 'earningMnt' ? mnt(v) : formatNumber(v));
 
-/** Нэг цуваа баганан график (plain SVG). Hover/focus → tooltip; хүснэгтээр харах боломжтой. */
+/**
+ * Нэг цуваа баганан график (plain SVG). Hover эсвэл keyboard (фокус → ←/→/Home/End, Esc) → tooltip
+ * (`aria-live`); бүх өгөгдөл хүснэгтээр бас байна.
+ */
 function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric: Metric; onMetric: (m: Metric) => void }) {
+  const tipId = useId();
   const [hover, setHover] = useState<number | null>(null);
   const W = 720;
   const H = 220;
@@ -180,36 +197,58 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
   // X тэнхлэгт ~8 шошго
   const every = Math.max(1, Math.ceil(series.length / 8));
   const active = hover !== null ? series[hover] : null;
+  const label = t('analytics.chartTitle', { metric: t(METRIC_LABEL[metric]) });
+
+  function onKeyDown(e: KeyboardEvent<SVGSVGElement>) {
+    const last = series.length - 1;
+    if (last < 0) return;
+    let next: number | null = null;
+    if (e.key === 'ArrowRight') next = hover === null ? 0 : Math.min(last, hover + 1);
+    else if (e.key === 'ArrowLeft') next = hover === null ? last : Math.max(0, hover - 1);
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    else if (e.key === 'Escape') {
+      setHover(null);
+      return;
+    } else return;
+    e.preventDefault();
+    setHover(next);
+  }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <strong>{t('analytics.chartTitle', { metric: t(METRIC_LABEL[metric]) })}</strong>
-        <div style={{ display: 'flex', gap: 4 }} role="group" aria-label={t('analytics.metric')}>
+    <section className={`card ${s.card}`}>
+      <div className={s.rowBetween}>
+        <h2 className={s.sectionTitle}>{label}</h2>
+        <div className={s.row} role="group" aria-label={t('analytics.metric')}>
           {(Object.keys(METRIC_LABEL) as Metric[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={m === metric ? 'btn btn-small' : 'btn btn-ghost btn-small'}
-              aria-pressed={m === metric}
-              onClick={() => onMetric(m)}
-            >
+            <Button key={m} size="sm" variant={m === metric ? 'primary' : 'secondary'} aria-pressed={m === metric} onClick={() => onMetric(m)}>
               {t(METRIC_LABEL[m])}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
-      <div className="chart-tooltip">
+      <div id={tipId} className={s.tooltip} aria-live="polite">
         {active ? (
           <span>
             <strong>{active.period}</strong> · {t('analytics.sales')}: {formatNumber(active.sales)} · {t('analytics.credits')}:{' '}
             {formatNumber(active.credits)} · {t('analytics.earning')}: {mnt(active.earningMnt)}
           </span>
         ) : (
-          <span className="muted">{max === 0 ? t('analytics.chartEmpty') : `max ${fmtMetric(metric, max)}`}</span>
+          <span className="muted">{max === 0 ? t('analytics.chartEmpty') : `max ${fmtMetric(metric, max)} · ${t('teacherUi.chartKeyboardHint')}`}</span>
         )}
       </div>
-      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('analytics.chartTitle', { metric: t(METRIC_LABEL[metric]) })} onMouseLeave={() => setHover(null)}>
+      <svg
+        className={s.chart}
+        viewBox={`0 0 ${W} ${H}`}
+        role="group"
+        aria-roledescription={t('teacherUi.chartRole')}
+        aria-label={label}
+        aria-describedby={tipId}
+        tabIndex={series.length ? 0 : -1}
+        onKeyDown={onKeyDown}
+        onBlur={() => setHover(null)}
+        onMouseLeave={() => setHover(null)}
+      >
         <line x1={PAD.l} x2={W - PAD.r} y1={PAD.t + plotH} y2={PAD.t + plotH} stroke="var(--border)" />
         <line x1={PAD.l} x2={W - PAD.r} y1={PAD.t} y2={PAD.t} stroke="var(--border)" strokeDasharray="2 4" />
         {series.map((p, i) => {
@@ -218,7 +257,7 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
           const r = Math.min(4, barW / 2, h);
           const base = PAD.t + plotH;
           return (
-            <g key={p.period} onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} tabIndex={0}>
+            <g key={p.period} onMouseEnter={() => setHover(i)}>
               {/* Hit target — баганаас том */}
               <rect x={PAD.l + i * slot} y={PAD.t} width={slot} height={plotH} fill="transparent" />
               {h > 0 && (
@@ -237,17 +276,25 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
           );
         })}
       </svg>
-      <details>
-        <summary className="muted">{t('analytics.showTable')}</summary>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+      <details className={s.details}>
+        <summary>{t('analytics.showTable')}</summary>
+        <div className={s.tableWrap}>
+          <table className={s.table}>
             <thead>
               <tr>
-                <th>{t('analytics.period')}</th>
-                <th className="num">{t('analytics.sales')}</th>
-                <th className="num">{t('analytics.credits')}</th>
-                <th className="num">{t('analytics.gross')}</th>
-                <th className="num">{t('analytics.earning')}</th>
+                <th scope="col">{t('analytics.period')}</th>
+                <th scope="col" className="num">
+                  {t('analytics.sales')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.credits')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.gross')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.earning')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -270,36 +317,42 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
 
 function Attribution({ view }: { view: TeacherAnalyticsView }) {
   const parts = [
-    { key: 'REFERRAL' as const, color: 'var(--chart-1)', v: view.attribution.REFERRAL },
-    { key: 'PLATFORM' as const, color: 'var(--chart-2)', v: view.attribution.PLATFORM },
+    { key: 'REFERRAL' as const, color: 'var(--chart-1)', dot: s.dot1, v: view.attribution.REFERRAL },
+    { key: 'PLATFORM' as const, color: 'var(--chart-2)', dot: s.dot2, v: view.attribution.PLATFORM },
   ];
-  const total = parts.reduce((s, p) => s + p.v.sales, 0);
+  const total = parts.reduce((sum, p) => sum + p.v.sales, 0);
+  let offset = 0;
   return (
-    <section className="card" style={{ display: 'grid', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <strong>{t('analytics.attribution')}</strong>
-        <a href="/teacher/referral" style={{ fontSize: 13 }}>
-          {t('analytics.referralLink')}
-        </a>
+    <section className={`card ${s.card}`}>
+      <div className={s.rowBetween}>
+        <h2 className={s.sectionTitle}>{t('analytics.attribution')}</h2>
+        <Link href="/teacher/referral">{t('analytics.referralLink')}</Link>
       </div>
       {total === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>
-          {t('analytics.attrEmpty')}
-        </p>
+        <p className={s.hint}>{t('analytics.attrEmpty')}</p>
       ) : (
         <>
-          <div className="attr-bar" role="img" aria-label={parts.map((p) => `${t(`analytics.attr${p.key}`)} ${Math.round((p.v.sales * 100) / total)}%`).join(', ')}>
-            {parts.map((p) =>
-              p.v.sales ? <span key={p.key} style={{ flex: p.v.sales, background: p.color }} title={`${t(`analytics.attr${p.key}`)}: ${p.v.sales}`} /> : null,
-            )}
-          </div>
-          <div style={{ display: 'grid', gap: 4 }}>
+          <svg
+            className={s.attrBar}
+            viewBox="0 0 100 4"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label={parts.map((p) => `${t(`analytics.attr${p.key}`)} ${Math.round((p.v.sales * 100) / total)}%`).join(', ')}
+          >
+            {parts.map((p) => {
+              const w = (p.v.sales * 100) / total;
+              const rect = p.v.sales ? <rect key={p.key} x={offset} width={Math.max(0, w - 0.5)} height={4} fill={p.color} /> : null;
+              offset += w;
+              return rect;
+            })}
+          </svg>
+          <div className={s.stack}>
             {parts.map((p) => (
-              <div key={p.key} style={{ fontSize: 14 }}>
-                <span className="legend-dot" style={{ background: p.color }} />
+              <div key={p.key} className={s.legend}>
+                <span className={`${s.dot} ${p.dot}`} aria-hidden="true" />
                 <strong>
                   {t(`analytics.attr${p.key}`)} {Math.round((p.v.sales * 100) / total)}%
-                </strong>{' '}
+                </strong>
                 <span className="muted">
                   {t('analytics.attrValue', {
                     sales: formatNumber(p.v.sales),
@@ -318,21 +371,31 @@ function Attribution({ view }: { view: TeacherAnalyticsView }) {
 
 function Courses({ view }: { view: TeacherAnalyticsView }) {
   return (
-    <section style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{t('analytics.courses')}</h2>
+    <section className={`card ${s.card}`}>
+      <h2 className={s.sectionTitle}>{t('analytics.courses')}</h2>
       {view.courses.length === 0 ? (
-        <p style={{ margin: 0 }}>{t('analytics.noCourses')}</p>
+        <p className={s.hint}>{t('analytics.noCourses')}</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+        <div className={s.tableWrap}>
+          <table className={s.table}>
             <thead>
               <tr>
-                <th>{t('analytics.course')}</th>
-                <th className="num">{t('analytics.courseSales')}</th>
-                <th className="num">{t('analytics.lessonSales')}</th>
-                <th className="num">{t('analytics.credits')}</th>
-                <th className="num">{t('analytics.earning')}</th>
-                <th className="num">{t('analytics.completion')}</th>
+                <th scope="col">{t('analytics.course')}</th>
+                <th scope="col" className="num">
+                  {t('analytics.courseSales')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.lessonSales')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.credits')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.earning')}
+                </th>
+                <th scope="col" className="num">
+                  {t('analytics.completion')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -367,17 +430,23 @@ function Lessons({ view }: { view: TeacherAnalyticsView }) {
   const titles = new Map(view.courses.map((c) => [c.courseId, c.title]));
   if (view.lessons.length === 0) return null;
   return (
-    <section style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{t('analytics.lessons')}</h2>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="table">
+    <section className={`card ${s.card}`}>
+      <h2 className={s.sectionTitle}>{t('analytics.lessons')}</h2>
+      <div className={s.tableWrap}>
+        <table className={s.table}>
           <thead>
             <tr>
-              <th>{t('analytics.lesson')}</th>
-              <th>{t('analytics.course')}</th>
-              <th className="num">{t('analytics.sales')}</th>
-              <th className="num">{t('analytics.credits')}</th>
-              <th className="num">{t('analytics.earning')}</th>
+              <th scope="col">{t('analytics.lesson')}</th>
+              <th scope="col">{t('analytics.course')}</th>
+              <th scope="col" className="num">
+                {t('analytics.sales')}
+              </th>
+              <th scope="col" className="num">
+                {t('analytics.credits')}
+              </th>
+              <th scope="col" className="num">
+                {t('analytics.earning')}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -425,12 +494,12 @@ function VideoSection({ view }: { view: TeacherAnalyticsView }) {
 
   if (view.courses.length === 0) return null;
   return (
-    <section style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{t('analytics.video')}</h2>
-      <div className="filter-row">
-        <label>
+    <section className={`card ${s.card}`}>
+      <h2 className={s.sectionTitle}>{t('analytics.video')}</h2>
+      <div className={s.filters}>
+        <label className={s.field}>
           {t('analytics.videoCourse')}
-          <select className="input" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+          <select className="input" name="videoCourse" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
             {view.courses.map((c) => (
               <option key={c.courseId} value={c.courseId}>
                 {c.title}
@@ -439,27 +508,43 @@ function VideoSection({ view }: { view: TeacherAnalyticsView }) {
           </select>
         </label>
       </div>
-      {error && <p style={{ color: 'var(--err)', margin: 0 }}>{error}</p>}
-      {loading && <p className="muted" style={{ margin: 0 }}>{t('me.loading')}</p>}
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p className={s.hint} role="status">
+          {t('me.loading')}
+        </p>
+      )}
       {data && !loading && (
         <>
-          <small className="muted">
-            {data.mux === 'OK' ? t('analytics.muxHint') : t(`analytics.mux${data.mux}` as MessageKey)}
-          </small>
+          <small className="muted">{data.mux === 'OK' ? t('analytics.muxHint') : t(`analytics.mux${data.mux}` as MessageKey)}</small>
           {data.lessons.length === 0 ? (
-            <p style={{ margin: 0 }}>{t('analytics.videoNone')}</p>
+            <p className={s.hint}>{t('analytics.videoNone')}</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
+            <div className={s.tableWrap}>
+              <table className={s.table}>
                 <thead>
                   <tr>
-                    <th>{t('analytics.lesson')}</th>
-                    <th className="num">{t('analytics.duration')}</th>
-                    <th className="num">{t('analytics.views')}</th>
-                    <th className="num">{t('analytics.watchTime')}</th>
-                    <th className="num">{t('analytics.avgWatch')}</th>
-                    <th className="num">{t('analytics.learners')}</th>
-                    <th>{t('analytics.dropOff')}</th>
+                    <th scope="col">{t('analytics.lesson')}</th>
+                    <th scope="col" className="num">
+                      {t('analytics.duration')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.views')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.watchTime')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.avgWatch')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.learners')}
+                    </th>
+                    <th scope="col">{t('analytics.dropOff')}</th>
                   </tr>
                 </thead>
                 <tbody>
