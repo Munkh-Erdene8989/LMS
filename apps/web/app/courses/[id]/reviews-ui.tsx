@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 import {
   REVIEW_BODY_MAX,
@@ -11,17 +11,19 @@ import {
   type ReviewViewerState,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatRating } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { withNext } from '@/lib/next-path';
+import { Button } from '../../ui/button';
+import styles from './reviews.module.css';
 
 const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 export function Stars({ rating }: { rating: number }) {
   return (
-    <span aria-label={t('review.stars', { rating })} title={t('review.stars', { rating })} style={{ color: '#d97706', letterSpacing: 1 }}>
+    <span className={styles.stars} role="img" aria-label={t('review.stars', { rating })} title={t('review.stars', { rating })}>
       {'★'.repeat(rating)}
-      <span style={{ color: 'var(--border, #d1d5db)' }}>{'★'.repeat(5 - rating)}</span>
+      <span className={styles.starsOff}>{'★'.repeat(5 - rating)}</span>
     </span>
   );
 }
@@ -67,12 +69,18 @@ export function CourseReviews({ courseId, initial }: { courseId: string; initial
   const viewer = page.viewer;
 
   return (
-    <section id="reviews" style={{ display: 'grid', gap: 12 }}>
-      <h2 style={{ margin: 0 }}>{t('review.title')}</h2>
+    <section id="reviews" className={styles.root} aria-labelledby="reviews-title">
+      <h2 id="reviews-title" className={styles.title}>
+        {t('review.title')}
+      </h2>
       <Summary rating={page.rating} />
       <ViewerBox courseId={courseId} viewer={viewer} requiredPercent={page.requiredPercent} onSaved={() => void reload()} />
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {page.items.length === 0 && <p className="muted" style={{ margin: 0 }}>{t('review.none')}</p>}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+      {page.items.length === 0 && <p className="muted">{t('review.none')}</p>}
       {page.items.map((r) => (
         <ReviewCard
           key={r.id}
@@ -82,9 +90,11 @@ export function CourseReviews({ courseId, initial }: { courseId: string; initial
         />
       ))}
       {page.nextCursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
-          {t('review.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" onClick={() => void more()}>
+            {t('review.loadMore')}
+          </Button>
+        </div>
       )}
     </section>
   );
@@ -93,8 +103,12 @@ export function CourseReviews({ courseId, initial }: { courseId: string; initial
 function Summary({ rating }: { rating: CourseRating }) {
   if (rating.average === null) return null;
   return (
-    <p style={{ margin: 0, fontSize: 18 }}>
-      <strong>{t('review.summary', { rating: rating.average.toFixed(1), count: rating.count })}</strong>
+    <p className={styles.summary}>
+      <span className={styles.summaryNumber}>{formatRating(rating.average)}</span>
+      <span className={styles.stars} aria-hidden="true">
+        ★
+      </span>
+      <span className="muted">{t('review.summary', { rating: formatRating(rating.average), count: rating.count })}</span>
     </p>
   );
 }
@@ -112,24 +126,21 @@ function ViewerBox({
 }) {
   if (!viewer) {
     return (
-      <p className="muted" style={{ margin: 0 }}>
+      <p className="muted">
         {t('review.guestHint', { required: requiredPercent })}{' '}
         <Link href={withNext('/login', `/courses/${courseId}#reviews`)}>{t('review.login')}</Link>
       </p>
     );
   }
-  if (viewer.isTeacher) return <p className="muted" style={{ margin: 0 }}>{t('review.teacherHint')}</p>;
+  if (viewer.isTeacher) return <p className="muted">{t('review.teacherHint')}</p>;
   if (!viewer.review && !viewer.eligible) {
-    return (
-      <p className="muted" style={{ margin: 0 }}>
-        {t('review.notEligible', { required: viewer.requiredPercent, owned: viewer.ownedPercent })}
-      </p>
-    );
+    return <p className="muted">{t('review.notEligible', { required: viewer.requiredPercent, owned: viewer.ownedPercent })}</p>;
   }
   return <ReviewForm courseId={courseId} own={viewer.review} onSaved={onSaved} />;
 }
 
 function ReviewForm({ courseId, own, onSaved }: { courseId: string; own: ReviewView | null; onSaved: () => void }) {
+  const bodyId = useId();
   const [rating, setRating] = useState(own?.rating ?? 0);
   const [body, setBody] = useState(own?.body ?? '');
   const [busy, setBusy] = useState(false);
@@ -157,12 +168,10 @@ function ReviewForm({ courseId, own, onSaved }: { courseId: string; own: ReviewV
   }
 
   return (
-    <form className="card" onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
+    <form className={`card ${styles.form}`} onSubmit={submit}>
       <strong>{own ? t('review.yours') : t('review.write')}</strong>
-      {own?.hidden && (
-        <p style={{ margin: 0, color: 'var(--err)' }}>{t('review.hiddenNotice', { reason: own.hiddenReason ?? '' })}</p>
-      )}
-      <div role="radiogroup" aria-label={t('review.starsLabel')} style={{ display: 'flex', gap: 4 }}>
+      {own?.hidden && <p className={styles.error}>{t('review.hiddenNotice', { reason: own.hiddenReason ?? '' })}</p>}
+      <div role="radiogroup" aria-label={t('review.starsLabel')} className={styles.starPicker}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
@@ -170,15 +179,18 @@ function ReviewForm({ courseId, own, onSaved }: { courseId: string; own: ReviewV
             role="radio"
             aria-checked={rating === n}
             aria-label={t('review.stars', { rating: n })}
-            className="btn-icon"
+            className={`${styles.starBtn} ${n <= rating ? styles.starOn : ''}`}
             onClick={() => setRating(n)}
-            style={{ fontSize: 26, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer', color: n <= rating ? '#d97706' : '#d1d5db' }}
           >
             ★
           </button>
         ))}
       </div>
+      <label className={styles.label} htmlFor={bodyId}>
+        {t('courses.reviewBodyLabel')}
+      </label>
       <textarea
+        id={bodyId}
         className="input"
         rows={4}
         maxLength={REVIEW_BODY_MAX}
@@ -186,12 +198,12 @@ function ReviewForm({ courseId, own, onSaved }: { courseId: string; own: ReviewV
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button type="submit" className="btn" disabled={busy}>
+      <div className={styles.actions}>
+        <Button type="submit" loading={busy}>
           {own ? t('review.update') : t('review.save')}
-        </button>
+        </Button>
         {msg && (
-          <small role={msg.ok ? 'status' : 'alert'} style={{ color: msg.ok ? undefined : 'var(--err)' }}>
+          <small role={msg.ok ? 'status' : 'alert'} className={msg.ok ? undefined : styles.errorText}>
             {msg.text}
           </small>
         )}
@@ -201,6 +213,7 @@ function ReviewForm({ courseId, own, onSaved }: { courseId: string; own: ReviewV
 }
 
 function ReviewCard({ review: r, canReply, onChange }: { review: ReviewView; canReply: boolean; onChange: (r: ReviewView) => void }) {
+  const replyId = useId();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -223,8 +236,8 @@ function ReviewCard({ review: r, canReply, onChange }: { review: ReviewView; can
   }
 
   return (
-    <article id={`review-${r.id}`} className="card" style={{ display: 'grid', gap: 6 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <article id={`review-${r.id}`} className={`card ${styles.review}`}>
+      <div className={styles.reviewHead}>
         <Stars rating={r.rating} />
         <strong>{r.author.name}</strong>
         <small className="muted">
@@ -232,49 +245,56 @@ function ReviewCard({ review: r, canReply, onChange }: { review: ReviewView; can
           {r.editedAt && ` · ${t('review.edited')}`}
         </small>
       </div>
-      {r.body && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{r.body}</p>}
+      {r.body && <p className={styles.body}>{r.body}</p>}
       {r.replies.length > 0 && (
-        <div style={{ display: 'grid', gap: 6, borderLeft: '3px solid var(--border, #e5e7eb)', paddingLeft: 12, marginTop: 4 }}>
+        <div className={styles.replies}>
           {r.replies.map((x) => (
             <div key={x.id}>
               <small>
                 <strong>{x.author.name}</strong>
-                {x.byTeacher && <span className="pill" style={{ marginLeft: 6 }}>{t('review.teacherBadge')}</span>}
+                {x.byTeacher && <span className={styles.badge}>{t('review.teacherBadge')}</span>}
                 <span className="muted"> · {formatDate(x.createdAt)}</span>
               </small>
-              <p style={{ margin: '2px 0 0', whiteSpace: 'pre-wrap' }}>{x.body}</p>
+              <p className={styles.body}>{x.body}</p>
             </div>
           ))}
         </div>
       )}
       {canReply &&
         (open ? (
-          <form onSubmit={send} style={{ display: 'grid', gap: 6 }}>
+          <form onSubmit={send} className={styles.form}>
+            <label className={styles.srOnly} htmlFor={replyId}>
+              {t('review.replyPlaceholder')}
+            </label>
             <textarea
+              id={replyId}
               className="input"
               rows={3}
               required
               maxLength={REVIEW_REPLY_MAX}
               placeholder={t('review.replyPlaceholder')}
-              aria-label={t('review.replyPlaceholder')}
               value={body}
               onChange={(e) => setBody(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" className="btn btn-small" disabled={busy || !body.trim()}>
+            <div className={styles.actions}>
+              <Button type="submit" size="sm" loading={busy} disabled={!body.trim()}>
                 {t('review.send')}
-              </button>
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => setOpen(false)}>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
                 {t('review.cancel')}
-              </button>
+              </Button>
             </div>
-            {error && <small role="alert" style={{ color: 'var(--err)' }}>{error}</small>}
+            {error && (
+              <small role="alert" className={styles.errorText}>
+                {error}
+              </small>
+            )}
           </form>
         ) : (
           <div>
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setOpen(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
               {t('review.reply')}
-            </button>
+            </Button>
           </div>
         ))}
     </article>
