@@ -39,6 +39,7 @@ const COMMENT_PAGE_MAX = 100;
 const UPCOMING_LIVE_MAX = 20;
 /** Нэг сэтгэгдлээр хамгийн ихдээ хэдэн оролцогчид мэдэгдэл очих */
 const COMMENT_NOTIFY_MAX = 50;
+type HiddenTarget = { authorId: string; teacherId: string; postId: string };
 const EXCERPT_LENGTH = 80;
 
 const authorSelect = { select: teacherSelect } as const;
@@ -355,9 +356,10 @@ export class CommunityService {
   }
 
   async addComment(viewer: CurrentUserInfo, postId: string, text: string): Promise<CommunityCommentView> {
-    const post = await this.prisma.communityPost.findUnique({ where: { id: postId }, select: { id: true, teacherId: true, authorId: true, body: true } });
+    const post = await this.prisma.communityPost.findUnique({ where: { id: postId }, select: { id: true, teacherId: true, authorId: true, body: true, hiddenAt: true } });
     if (!post) throw E.postNotFound();
     const role = await this.role(viewer, post.teacherId);
+    if (post.hiddenAt) throw E.postHidden();
     const body = text.trim();
     if (!body) throw E.emptyComment();
     const row = await this.prisma.communityComment.create({ data: { postId, authorId: viewer.id, body }, include: commentInclude });
@@ -369,11 +371,12 @@ export class CommunityService {
   async editComment(viewer: CurrentUserInfo, commentId: string, text: string): Promise<CommunityCommentView> {
     const comment = await this.prisma.communityComment.findUnique({
       where: { id: commentId },
-      include: { ...commentInclude, post: { select: { teacherId: true } } },
+      include: { ...commentInclude, post: { select: { teacherId: true, hiddenAt: true } } },
     });
     if (!comment) throw E.commentNotFound();
     const role = await this.role(viewer, comment.post.teacherId);
     if (comment.authorId !== viewer.id || comment.hiddenAt) throw E.forbidden();
+    if (comment.post.hiddenAt) throw E.postHidden();
     const body = text.trim();
     if (!body) throw E.emptyComment();
     const row = await this.prisma.communityComment.update({
@@ -514,15 +517,25 @@ export class CommunityService {
   }
 
   /** Нуух (шалтгаантай, audit-тай). Аль хэдийн нуусан бол 409. */
-  adminHide(kind: 'post' | 'comment', id: string, adminId: string, reason: string, ip?: string): Promise<AdminCommunityItem> {
-    return this.adminSetHidden(kind, id, adminId, reason, ip);
+  async adminHide(kind: 'post' | 'comment', id: string, adminId: string, reason: string, ip?: string): Promise<AdminCommunityItem> {
+    const found: HiddenTarget = { authorId: '', teacherId: '', postId: '' };
+    const item = await this.adminSetHidden(kind, id, adminId, reason, ip, found);
+    await this.notifyHidden(kind, found, adminId, reason);
+    return item;
   }
 
   adminUnhide(kind: 'post' | 'comment', id: string, adminId: string, ip?: string): Promise<AdminCommunityItem> {
     return this.adminSetHidden(kind, id, adminId, null, ip);
   }
 
-  private adminSetHidden(kind: 'post' | 'comment', id: string, adminId: string, reason: string | null, ip?: string): Promise<AdminCommunityItem> {
+  private adminSetHidden(
+    kind: 'post' | 'comment',
+    id: string,
+    adminId: string,
+    reason: string | null,
+    ip?: string,
+    found?: HiddenTarget,
+  ): Promise<AdminCommunityItem> {
     const hiding = reason !== null;
     const data = hiding ? { hiddenAt: new Date(), hiddenById: adminId, hiddenReason: reason } : { hiddenAt: null, hiddenById: null, hiddenReason: null };
     const action = `community.${kind}.${hiding ? 'hide' : 'unhide'}`;
@@ -531,6 +544,7 @@ export class CommunityService {
         const before = await tx.communityPost.findUnique({ where: { id } });
         if (!before) throw E.postNotFound();
         if (hiding === !!before.hiddenAt) throw hiding ? E.alreadyHidden() : E.notHidden();
+        if (found) Object.assign(found, { authorId: before.authorId, teacherId: before.teacherId, postId: before.id });
         const row = await tx.communityPost.update({ where: { id }, data, include: adminPostInclude });
         await this.audit.record(tx, {
           actorId: adminId,
@@ -546,6 +560,10 @@ export class CommunityService {
       const before = await tx.communityComment.findUnique({ where: { id } });
       if (!before) throw E.commentNotFound();
       if (hiding === !!before.hiddenAt) throw hiding ? E.alreadyHidden() : E.notHidden();
+      if (found) {
+        const parent = await tx.communityPost.findUnique({ where: { id: before.postId }, select: { teacherId: true } });
+        Object.assign(found, { authorId: before.authorId, teacherId: parent?.teacherId ?? '', postId: before.postId });
+      }
       const row = await tx.communityComment.update({ where: { id }, data, include: adminCommentInclude });
       await this.audit.record(tx, {
         actorId: adminId,
@@ -617,6 +635,21 @@ export class CommunityService {
       hidden: p.hiddenAt !== null,
       hiddenReason: p.hiddenAt !== null ? p.hiddenReason : null,
     };
+  }
+
+  /** Агуулгыг нуухад зохиогчид мэдэгдэл (өөрийнхийг нуувал үгүй). Алдаа үйлдлийг унагахгүй. */
+  private async notifyHidden(kind: 'post' | 'comment', item: HiddenTarget, moderatorId: string, reason: string): Promise<void> {
+    if (!item.authorId || item.authorId === moderatorId) return;
+    try {
+      await this.notifications.notify({
+        userId: item.authorId,
+        type: 'COMMUNITY_CONTENT_HIDDEN',
+        params: { what: kind === 'post' ? 'нийтлэл' : 'сэтгэгдэл', reason },
+        link: `/communities/${item.teacherId}?post=${item.postId}`,
+      });
+    } catch (err) {
+      this.log.error(`Community нуултын мэдэгдэл илгээж чадсангүй (${item.authorId}): ${(err as Error).message}`);
+    }
   }
 
   /** Хасагдсан / сэргээгдсэн гишүүнд мэдэгдэл. Алдаа үйлдлийг унагахгүй. */

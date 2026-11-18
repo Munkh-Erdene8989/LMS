@@ -905,6 +905,7 @@
     "cancel": "Болих",
     "edited": "засварласан {date}",
     "hiddenNotice": "Админ энэ агуулгыг нуусан. Шалтгаан: {reason}",
+    "commentsLocked": "Нуусан нийтлэлд сэтгэгдэл бичих боломжгүй.",
     "hiddenNoticeStaff": "Нуусан (гишүүдэд харагдахгүй). Шалтгаан: {reason}",
     "membersPrev": "← Өмнөх",
     "membersNext": "Дараах →",

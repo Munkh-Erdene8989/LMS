@@ -774,6 +774,66 @@ describe('Community — админ moderation', () => {
     expect(audit[0]!.after).toEqual({ reason: 'Доромжлол' });
   });
 
+  it('нуухад зохиогчид мэдэгдэл (in-app + имэйл, тохиргоогоор унтрахгүй); өөрийнхийг нуувал үгүй; сэргээхэд мэдэгдэхгүй', async () => {
+    const { m, teacherId } = await setup();
+    const adm = await admin();
+    const p = (await post(m.agent, teacherId, { body: 'Зохисгүй' }).expect(201)).body;
+    const cm = (await comment(m.agent, p.id, 'Зохисгүй сэтгэгдэл').expect(201)).body;
+    const hiddenNotes = () => t.prisma.notification.findMany({ where: { type: 'COMMUNITY_CONTENT_HIDDEN' }, orderBy: { createdAt: 'asc' } });
+    const mailsToMember = () => t.email.sent.filter((e) => e.to === 'member@example.mn' && /нуугдлаа/.test(e.subject)).length;
+
+    // Имэйлийн ангиллыг унтраах боломжгүй: ангилалд ороогүй төрөл үргэлж явна
+    for (const category of ['COMMUNITY_COMMENT', 'TEACHER_SALES']) {
+      await m.agent.put(`/notifications/preferences/${category}`).send({ emailEnabled: false }).expect(200);
+    }
+
+    await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: 'Доромжлол' }).expect(200);
+    await adm.agent.post(`/admin/community/comments/${cm.id}/hide`).send({ reason: 'Спам' }).expect(200);
+    const notes = await hiddenNotes();
+    expect(notes.map((n) => [n.userId, n.link])).toEqual([
+      [m.user.id, `/communities/${teacherId}?post=${p.id}`],
+      [m.user.id, `/communities/${teacherId}?post=${p.id}`],
+    ]);
+    expect(notes.every((n) => n.emailStatus !== 'NONE')).toBe(true);
+    const inbox = (await m.agent.get('/notifications').expect(200)).body.items;
+    expect(inbox.find((n: { body: string }) => n.body.includes('Шалтгаан: Доромжлол'))?.title).toContain('нийтлэл');
+    expect(inbox.find((n: { body: string }) => n.body.includes('Шалтгаан: Спам'))?.title).toContain('сэтгэгдэл');
+    await t.queue.drain();
+    expect(mailsToMember()).toBe(2);
+
+    // Давхар нуух (409) шинэ мэдэгдэл үүсгэхгүй; сэргээх мэдэгдэхгүй
+    await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: 'дахин' }).expect(409);
+    await adm.agent.post(`/admin/community/posts/${p.id}/unhide`).expect(200);
+    expect(await hiddenNotes()).toHaveLength(2);
+
+    // Модератор өөрийнхийг нуувал мэдэгдэхгүй
+    const own = (await post(adm.agent, teacherId, { body: 'Админы нийтлэл' }).expect(201)).body;
+    await adm.agent.post(`/admin/community/posts/${own.id}/hide`).send({ reason: 'өөрөө' }).expect(200);
+    expect(await hiddenNotes()).toHaveLength(2);
+    expect(await t.prisma.notification.count({ where: { userId: adm.user.id, type: 'COMMUNITY_CONTENT_HIDDEN' } })).toBe(0);
+  });
+
+  it('нуусан нийтлэлд шинэ сэтгэгдэл 409 POST_HIDDEN, одоо байгаа сэтгэгдлийг засах 409; сэргээсний дараа дахин боломжтой', async () => {
+    const { tch, m, teacherId } = await setup();
+    const adm = await admin();
+    const p = (await post(m.agent, teacherId, { body: 'Нийтлэл' }).expect(201)).body;
+    const cm = (await comment(m.agent, p.id, 'Анхны').expect(201)).body;
+
+    await adm.agent.post(`/admin/community/posts/${p.id}/hide`).send({ reason: 'Спам' }).expect(200);
+    for (const who of [m, tch, adm]) {
+      const res = await comment(who.agent, p.id, 'Шинэ').expect(409);
+      expect(res.body.code).toBe('POST_HIDDEN');
+      expect(res.body.message).toContain('Нуусан нийтлэлд');
+    }
+    expect((await m.agent.patch(`/community/comments/${cm.id}`).send({ body: 'Засав' }).expect(409)).body.code).toBe('POST_HIDDEN');
+    expect(await t.prisma.communityComment.count({ where: { postId: p.id } })).toBe(1);
+    expect((await t.prisma.communityComment.findUniqueOrThrow({ where: { id: cm.id } })).body).toBe('Анхны');
+
+    await adm.agent.post(`/admin/community/posts/${p.id}/unhide`).expect(200);
+    await comment(m.agent, p.id, 'Шинэ').expect(201);
+    await m.agent.patch(`/community/comments/${cm.id}`).send({ body: 'Засав' }).expect(200);
+  });
+
   it('устгах: шалтгаан заавал, зураг storage-оос устна, audit-д агуулга + шалтгаан', async () => {
     const { m, teacherId } = await setup();
     const adm = await admin();
