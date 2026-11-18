@@ -6,33 +6,65 @@ import type { ReviewQueueItem } from '@lms/shared';
 import { api } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, LoadingRows, Pill, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 export default function CourseReviewQueuePage() {
   const [items, setItems] = useState<ReviewQueueItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void api<ReviewQueueItem[]>('/admin/course-reviews').then((r) => setItems(r.data));
+    api<ReviewQueueItem[]>('/admin/course-reviews')
+      .then((r) => setItems(r.data))
+      .catch((err: unknown) => setError(errorText(err)));
   }, []);
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('course.reviewQueue')}</h1>
-      {!items && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('course.queueEmpty')}</p>}
-      {items?.map((i) => (
-        <Link key={i.course.id} href={`/admin/courses/${i.course.id}`} className="card course-row">
-          {i.course.coverUrl ? <img src={i.course.coverUrl} alt="" /> : <div className="cover-placeholder" />}
-          <div style={{ display: 'grid', gap: 4 }}>
-            <strong>{i.course.title}</strong>
-            <span style={{ color: 'var(--muted)', fontSize: 14 }}>
-              <span className="badge-status s-IN_REVIEW">{t(`course.kind${i.kind}` as MessageKey)}</span> · {t('course.teacher')}:{' '}
-              {i.teacher.name ?? i.teacher.id.slice(0, 8)} ·{' '}
-              {i.kind === 'LESSONS' ? t('course.pending', { count: i.course.pendingLessonCount }) : t('course.lessons', { count: i.course.lessonCount })}
-              {i.submittedAt && ` · ${formatDate(i.submittedAt)}`}
-            </span>
-          </div>
-        </Link>
-      ))}
-    </main>
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('course.reviewQueue')}</h1>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('course.queueEmpty')} />}
+      {!!items?.length && (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <caption>{t('course.reviewQueue')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('adminOps.colCourse')}</th>
+                <th scope="col">{t('adminUi.colKind')}</th>
+                <th scope="col">{t('course.teacher')}</th>
+                <th scope="col">{t('adminUi.colLessons')}</th>
+                <th scope="col">{t('adminUi.colSubmitted')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((i) => (
+                <tr key={i.course.id}>
+                  <th scope="row" className={styles.wrap}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {i.course.coverUrl && <img className={styles.thumb} src={i.course.coverUrl} alt="" width={56} height={36} loading="lazy" />}{' '}
+                    <Link className={styles.anchor} href={`/admin/courses/${i.course.id}`}>
+                      {i.course.title}
+                    </Link>
+                  </th>
+                  <td>
+                    <Pill tone="warn">{t(`course.kind${i.kind}` as MessageKey)}</Pill>
+                  </td>
+                  <td>{i.teacher.name ?? i.teacher.id.slice(0, 8)}</td>
+                  <td>
+                    {i.kind === 'LESSONS'
+                      ? t('course.pending', { count: i.course.pendingLessonCount })
+                      : t('course.lessons', { count: i.course.lessonCount })}
+                  </td>
+                  <td className={styles.nowrap}>{i.submittedAt ? formatDate(i.submittedAt) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

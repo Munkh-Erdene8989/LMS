@@ -2,15 +2,23 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import type { CategoryNode } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { useConfirm } from '../../ui/confirm';
+import { ErrorLine, LoadingRows, ReasonDialog, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 export default function AdminCategoriesPage() {
+  const confirm = useConfirm();
   const [tree, setTree] = useState<CategoryNode[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<CategoryNode | null>(null);
 
   useEffect(() => {
-    void api<CategoryNode[]>('/categories').then((r) => setTree(r.data));
+    api<CategoryNode[]>('/categories')
+      .then((r) => setTree(r.data))
+      .catch((err: unknown) => setError(errorText(err)));
   }, []);
 
   async function run(fn: () => Promise<{ data: CategoryNode[] }>) {
@@ -19,53 +27,28 @@ export default function AdminCategoriesPage() {
       setTree((await fn()).data);
       return true;
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
       return false;
     }
   }
 
-  const rename = (c: CategoryNode) => {
-    const name = window.prompt(t('course.rename'), c.name);
-    if (name?.trim()) void run(() => api(`/admin/categories/${c.id}`, { method: 'PATCH', body: { name } }));
-  };
-  const remove = (c: CategoryNode) => {
-    if (window.confirm(t('course.removeConfirm'))) void run(() => api(`/admin/categories/${c.id}`, { method: 'DELETE' }));
+  const remove = async (c: CategoryNode) => {
+    const ok = await confirm({ title: t('course.removeConfirm'), body: c.name, confirmLabel: t('course.remove'), danger: true });
+    if (ok) await run(() => api(`/admin/categories/${c.id}`, { method: 'DELETE' }));
   };
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('course.categories')}</h1>
-      {error && <p style={{ color: 'var(--err)', margin: 0 }}>{error}</p>}
-      {!tree && <p>{t('me.loading')}</p>}
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('course.categories')}</h1>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!tree && !error && <LoadingRows />}
       {tree?.map((c) => (
-        <section key={c.id} className="card" style={{ display: 'grid', gap: 8 }}>
-          <div className="lesson-row" style={{ fontWeight: 700 }}>
-            <span>
-              {c.name} <small style={{ color: 'var(--muted)', fontWeight: 400 }}>/{c.slug}</small>
-            </span>
-            <span style={{ display: 'flex', gap: 4 }}>
-              <button className="btn-icon" onClick={() => rename(c)}>
-                {t('course.rename')}
-              </button>
-              <button className="btn-icon" onClick={() => remove(c)}>
-                {t('course.remove')}
-              </button>
-            </span>
-          </div>
-          <ul className="lesson-list">
+        <section key={c.id} className={styles.item} aria-label={c.name}>
+          <CategoryRow node={c} strong onRename={setRenaming} onRemove={remove} />
+          <ul className={styles.stack}>
             {c.children.map((ch) => (
-              <li key={ch.id} className="lesson-row">
-                <span>
-                  {ch.name} <small style={{ color: 'var(--muted)' }}>/{ch.slug}</small>
-                </span>
-                <span style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn-icon" onClick={() => rename(ch)}>
-                    {t('course.rename')}
-                  </button>
-                  <button className="btn-icon" onClick={() => remove(ch)}>
-                    {t('course.remove')}
-                  </button>
-                </span>
+              <li key={ch.id}>
+                <CategoryRow node={ch} onRename={setRenaming} onRemove={remove} />
               </li>
             ))}
           </ul>
@@ -73,7 +56,48 @@ export default function AdminCategoriesPage() {
         </section>
       ))}
       {tree && <AddCategory parentId={null} placeholder={t('course.newRoot')} run={run} />}
-    </main>
+      <ReasonDialog
+        open={renaming !== null}
+        onClose={() => setRenaming(null)}
+        title={t('course.rename')}
+        label={t('course.rename')}
+        confirmLabel={t('admin.save')}
+        initialValue={renaming?.name ?? ''}
+        maxLength={100}
+        multiline={false}
+        onSubmit={async (name) => {
+          if (renaming) await run(() => api(`/admin/categories/${renaming.id}`, { method: 'PATCH', body: { name } }));
+        }}
+      />
+    </div>
+  );
+}
+
+function CategoryRow({
+  node,
+  strong,
+  onRename,
+  onRemove,
+}: {
+  node: CategoryNode;
+  strong?: boolean;
+  onRename: (c: CategoryNode) => void;
+  onRemove: (c: CategoryNode) => void;
+}) {
+  return (
+    <div className={styles.itemHead}>
+      <span>
+        {strong ? <strong>{node.name}</strong> : node.name} <small className={styles.muted}>/{node.slug}</small>
+      </span>
+      <span className={styles.rowActions}>
+        <Button variant="ghost" size="sm" onClick={() => onRename(node)}>
+          {t('course.rename')}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => onRemove(node)}>
+          {t('course.remove')}
+        </Button>
+      </span>
+    </div>
   );
 }
 
@@ -92,18 +116,20 @@ function AddCategory({
     if (await run(() => api('/admin/categories', { method: 'POST', body: { name, parentId } }))) setName('');
   }
   return (
-    <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <form onSubmit={submit} className={styles.formRow}>
       <input
-        className="input"
-        style={{ flex: '1 1 200px' }}
+        className={`input ${styles.grow}`}
         required
         maxLength={100}
         placeholder={placeholder}
         aria-label={placeholder}
+        autoComplete="off"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
-      <button className="btn btn-ghost">{t('course.add')}</button>
+      <Button type="submit" variant="secondary">
+        {t('course.add')}
+      </Button>
     </form>
   );
 }

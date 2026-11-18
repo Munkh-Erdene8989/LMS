@@ -510,7 +510,6 @@
     "muxNOT_CONFIGURED": "Mux Data тохируулаагүй тул үзэлт, үзсэн хугацаа харагдахгүй. Зогсдог цэг манай өгөгдлөөс.",
     "muxUNAVAILABLE": "Mux Data-аас өгөгдөл авч чадсангүй. Дараа дахин оролдоно уу.",
     "muxHint": "Үзэлт, хугацаа Mux Data-аас (сонгосон хугацаанд)."
-
   },
   "referral": {
     "title": "Referral линк",
@@ -1089,5 +1088,21 @@
     "colExpired": "Дууссан",
     "colExpiresAt": "Дууссан огноо",
     "noExpired": "Энэ хугацаанд дууссан кредит алга."
+  },
+  "adminUi": {
+    "navLabel": "Админ цэс",
+    "groupUsers": "Хэрэглэгч",
+    "groupContent": "Контент",
+    "groupMoney": "Мөнгө",
+    "groupSystem": "Систем",
+    "colUser": "Хэрэглэгч",
+    "colKind": "Төрөл",
+    "colActions": "Үйлдэл",
+    "colBank": "Банкны данс",
+    "colSubmitted": "Илгээсэн",
+    "colLessons": "Хичээл",
+    "colRoles": "Эрх",
+    "colAmount": "Дүн",
+    "tableOf": "Хүснэгт: {title}"
   }
 }

@@ -2,19 +2,30 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminTeacherApplicationView, TeacherApplicationStatus } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { useToast } from '../../ui/toast';
+import { ErrorLine, FilterTabs, LoadingRows, ReasonDialog, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 const STATUSES: TeacherApplicationStatus[] = ['SUBMITTED', 'REJECTED', 'APPROVED'];
 
 export default function AdminTeacherApplicationsPage() {
   const [status, setStatus] = useState<TeacherApplicationStatus>('SUBMITTED');
   const [items, setItems] = useState<AdminTeacherApplicationView[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setItems(null);
-    setItems((await api<AdminTeacherApplicationView[]>(`/admin/teacher-applications?status=${status}`)).data);
+    setError(null);
+    try {
+      setItems((await api<AdminTeacherApplicationView[]>(`/admin/teacher-applications?status=${status}`)).data);
+    } catch (err) {
+      setError(errorText(err));
+    }
   }, [status]);
 
   useEffect(() => {
@@ -22,27 +33,27 @@ export default function AdminTeacherApplicationsPage() {
   }, [load]);
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('teacher.adminTitle')}</h1>
-      <div role="tablist" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {STATUSES.map((s) => (
-          <button key={s} role="tab" aria-selected={s === status} className={s === status ? 'btn' : 'btn btn-ghost'} onClick={() => setStatus(s)}>
-            {t(`teacher.tab${s}` as MessageKey)}
-          </button>
-        ))}
-      </div>
-      {!items && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('teacher.adminEmpty')}</p>}
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('teacher.adminTitle')}</h1>
+      <FilterTabs
+        label={t('teacher.adminTitle')}
+        value={status}
+        onChange={setStatus}
+        items={STATUSES.map((s) => ({ key: s, label: t(`teacher.tab${s}` as MessageKey) }))}
+      />
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('teacher.adminEmpty')} />}
       {items?.map((a) => <ApplicationCard key={a.id} app={a} onDone={load} />)}
-    </main>
+    </div>
   );
 }
 
 function ApplicationCard({ app, onDone }: { app: AdminTeacherApplicationView; onDone: () => void }) {
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState(false);
 
-  async function act(path: 'approve' | 'reject') {
+  async function act(path: 'approve' | 'reject', reason?: string) {
     setError(null);
     try {
       await api(`/admin/teacher-applications/${app.id}/${path}`, {
@@ -51,99 +62,98 @@ function ApplicationCard({ app, onDone }: { app: AdminTeacherApplicationView; on
       });
       onDone();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     }
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+    <section className={styles.item} aria-label={app.displayName}>
+      <div className={styles.itemHead}>
         <strong>{app.displayName}</strong>
-        <span style={{ color: 'var(--muted)', fontSize: 14 }}>{t('teacher.submittedAt', { date: formatDate(app.submittedAt) })}</span>
+        <span className={`${styles.muted} ${styles.small}`}>{t('teacher.submittedAt', { date: formatDate(app.submittedAt) })}</span>
       </div>
-      <p style={{ margin: 0 }}>
+      <p className={styles.line}>
         <strong>{t('teacher.contact')}:</strong> {[app.user.phone, app.user.email].filter(Boolean).join(' · ')}
       </p>
-      <p style={{ margin: 0 }}>
+      <p className={styles.line}>
         <strong>{t('teacher.expertise')}:</strong> {app.expertise}
       </p>
-      <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{app.bio}</p>
-      <p style={{ margin: 0 }}>
-        <a href={app.sampleUrl} target="_blank" rel="noreferrer noopener">
+      <p className={`${styles.line} ${styles.pre}`}>{app.bio}</p>
+      <p className={styles.line}>
+        <a className={styles.anchor} href={app.sampleUrl} target="_blank" rel="noreferrer noopener">
           {app.sampleUrl}
         </a>
       </p>
       {app.bankAccount && (
-        <p style={{ margin: 0 }}>
+        <p className={styles.line}>
           <strong>{t('teacher.bank')}:</strong> {t(`banks.${app.bankAccount.bank}` as MessageKey)} · {app.bankAccount.accountNumber} ·{' '}
           {app.bankAccount.holderName}
         </p>
       )}
-      <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>
+      <p className={`${styles.line} ${styles.muted} ${styles.small}`}>
         {t('teacher.agreementAccepted', { version: app.agreementVersion, date: formatDate(app.agreementAcceptedAt) })}
       </p>
       {app.reviewNote && (
-        <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+        <p className={`${styles.line} ${styles.pre}`}>
           <strong>{t('teacher.reason')}:</strong> {app.reviewNote}
         </p>
       )}
       {app.status === 'SUBMITTED' && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <textarea
-            className="input"
-            rows={2}
-            placeholder={t('teacher.rejectReason')}
-            aria-label={t('teacher.rejectReason')}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={() => act('approve')}>
-              {t('teacher.approve')}
-            </button>
-            <button className="btn btn-ghost" disabled={!reason.trim()} onClick={() => act('reject')}>
-              {t('teacher.reject')}
-            </button>
-          </div>
+        <div className={styles.rowActions}>
+          <Button onClick={() => void act('approve')}>{t('teacher.approve')}</Button>
+          <Button variant="secondary" onClick={() => setRejecting(true)}>
+            {t('teacher.reject')}
+          </Button>
         </div>
       )}
       {app.status === 'APPROVED' && <PayoutHoldForm teacherId={app.user.id} />}
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      <ReasonDialog
+        open={rejecting}
+        onClose={() => setRejecting(false)}
+        title={t('teacher.reject')}
+        label={t('teacher.rejectReason')}
+        confirmLabel={t('teacher.reject')}
+        danger
+        onSubmit={(reason) => act('reject', reason)}
+      />
     </section>
   );
 }
 
 /** Нээлттэй payout хүсэлтгүй багшийг ч hold хийх боломж (ticket 20). Цуцлах — `/admin/payouts`. */
 function PayoutHoldForm({ teacherId }: { teacherId: string }) {
-  const [reason, setReason] = useState('');
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function hold() {
+  async function hold(reason: string) {
     setError(null);
     try {
-      await api(`/admin/payouts/holds/${teacherId}`, { method: 'PUT', body: { reason: reason.trim() } });
+      await api(`/admin/payouts/holds/${teacherId}`, { method: 'PUT', body: { reason } });
       setDone(true);
+      toast.toast(t('payout.held'));
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     }
   }
 
-  if (done) return <p style={{ margin: 0 }}>{t('payout.held')}</p>;
+  if (done) return <p className={styles.line}>{t('payout.held')}</p>;
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      <input
-        className="input"
-        style={{ flex: '1 1 200px' }}
-        placeholder={t('payout.holdReason')}
-        aria-label={t('payout.holdReason')}
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-      />
-      <button type="button" className="btn btn-ghost" disabled={!reason.trim()} onClick={() => void hold()}>
+    <div className={styles.rowActions}>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         {t('payout.hold')}
-      </button>
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
+      </Button>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      <ReasonDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('payout.hold')}
+        label={t('payout.holdReason')}
+        confirmLabel={t('payout.hold')}
+        onSubmit={hold}
+      />
     </div>
   );
 }

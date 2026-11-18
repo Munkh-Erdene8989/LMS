@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AdminReviewPage, AdminReviewView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Stars } from '../../courses/[id]/reviews-ui';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, FilterTabs, LoadingRows, Pill, ReasonDialog, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 type Status = 'ALL' | 'VISIBLE' | 'HIDDEN';
 const STATUSES: Status[] = ['ALL', 'VISIBLE', 'HIDDEN'];
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Үнэлгээний moderation: зохисгүй үнэлгээ/хариултыг шалтгаантай нуух, сэргээх (audit-тай). */
 export default function AdminReviewsPage() {
@@ -49,32 +52,35 @@ export default function AdminReviewsPage() {
   const replace = (r: AdminReviewView) => setItems((prev) => prev?.map((x) => (x.id === r.id ? r : x)) ?? null);
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('review.adminTitle')}</h1>
-      <p className="muted" style={{ margin: 0 }}>{t('review.adminHint')}</p>
-      <div role="tablist" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {STATUSES.map((s) => (
-          <button key={s} role="tab" aria-selected={s === status} className={s === status ? 'btn' : 'btn btn-ghost'} onClick={() => setStatus(s)}>
-            {t(`review.tab${s}` as MessageKey)}
-          </button>
-        ))}
-      </div>
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {!items && !error && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('review.adminEmpty')}</p>}
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('review.adminTitle')}</h1>
+      <p className={styles.hint}>{t('review.adminHint')}</p>
+      <FilterTabs
+        label={t('review.adminTitle')}
+        value={status}
+        onChange={setStatus}
+        items={STATUSES.map((s) => ({ key: s, label: t(`review.tab${s}` as MessageKey) }))}
+      />
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('review.adminEmpty')} />}
       {items?.map((r) => <ReviewModeration key={r.id} review={r} onChange={replace} />)}
       {cursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
-          {t('admin.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" onClick={() => void more()}>
+            {t('admin.loadMore')}
+          </Button>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 
 function ReviewModeration({ review: r, onChange }: { review: AdminReviewView; onChange: (r: AdminReviewView) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Нуух гэж буй зам (review эсвэл reply). */
+  const [hiding, setHiding] = useState<{ path: string; isReview: boolean } | null>(null);
 
   async function act(path: string, body?: unknown) {
     setBusy(true);
@@ -88,30 +94,26 @@ function ReviewModeration({ review: r, onChange }: { review: AdminReviewView; on
     }
   }
 
-  const hide = (path: string, confirmText?: string) => {
-    const reason = window.prompt(t('review.hideReason'))?.trim();
-    if (!reason) return;
-    if (confirmText && !window.confirm(confirmText)) return;
-    void act(path, { reason });
-  };
-
   return (
-    <section className="card" style={{ display: 'grid', gap: 6, opacity: r.hidden ? 0.8 : 1 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <section className={`${styles.item} ${r.hidden ? styles.itemDim : ''}`}>
+      <div className={styles.toolbar}>
         <Stars rating={r.rating} />
         <strong>{r.author.name}</strong>
-        <small className="muted">
+        <small className={styles.muted}>
           {formatDate(r.createdAt)}
           {r.editedAt && ` · ${t('review.edited')}`}
         </small>
-        {r.hidden && <span className="pill" style={{ color: 'var(--err)' }}>{t('review.hiddenBadge')}</span>}
+        {r.hidden && <Pill tone="err">{t('review.hiddenBadge')}</Pill>}
       </div>
       <small>
-        {t('review.course')}: <Link href={`/courses/${r.course.id}#review-${r.id}`}>{r.course.title}</Link>
+        {t('review.course')}:{' '}
+        <Link className={styles.anchor} href={`/courses/${r.course.id}#review-${r.id}`}>
+          {r.course.title}
+        </Link>
       </small>
-      {r.body && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{r.body}</p>}
+      {r.body && <p className={`${styles.line} ${styles.pre}`}>{r.body}</p>}
       {r.hidden && (
-        <small className="muted">
+        <small className={styles.muted}>
           {t('review.hiddenBy', {
             name: r.hiddenBy?.name ?? t('admin.someone'),
             date: r.hiddenAt ? formatDate(r.hiddenAt) : '',
@@ -121,55 +123,68 @@ function ReviewModeration({ review: r, onChange }: { review: AdminReviewView; on
       )}
       <div>
         {r.hidden ? (
-          <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={() => void act(`/admin/reviews/${r.id}/unhide`)}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void act(`/admin/reviews/${r.id}/unhide`)}>
             {t('review.unhide')}
-          </button>
+          </Button>
         ) : (
-          <button
-            type="button"
-            className="btn btn-ghost btn-small"
-            disabled={busy}
-            onClick={() => hide(`/admin/reviews/${r.id}/hide`, t('review.hideConfirm'))}
-          >
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => setHiding({ path: `/admin/reviews/${r.id}/hide`, isReview: true })}>
             {t('review.hide')}
-          </button>
+          </Button>
         )}
       </div>
       {r.replies.length > 0 && (
-        <div style={{ display: 'grid', gap: 6, borderLeft: '3px solid var(--border, #e5e7eb)', paddingLeft: 12 }}>
+        <div className={styles.replies}>
           {r.replies.map((x) => (
-            <div key={x.id} style={{ opacity: x.hidden ? 0.7 : 1 }}>
+            <div key={x.id} className={x.hidden ? styles.itemDim : undefined}>
               <small>
                 <strong>{x.author.name}</strong>
-                {x.byTeacher && <span className="pill" style={{ marginLeft: 6 }}>{t('review.teacherBadge')}</span>}
-                <span className="muted"> · {formatDate(x.createdAt)}</span>
+                {x.byTeacher && (
+                  <span className={styles.pills}>
+                    <Pill>{t('review.teacherBadge')}</Pill>
+                  </span>
+                )}
+                <span className={styles.muted}> · {formatDate(x.createdAt)}</span>
                 {x.hidden && (
-                  <span className="pill" style={{ marginLeft: 6, color: 'var(--err)' }}>
-                    {t('review.hiddenBadge')}
-                    {x.hiddenReason && ` · ${x.hiddenReason}`}
+                  <span className={styles.pills}>
+                    <Pill tone="err">
+                      {t('review.hiddenBadge')}
+                      {x.hiddenReason && ` · ${x.hiddenReason}`}
+                    </Pill>
                   </span>
                 )}
               </small>
-              <p style={{ margin: '2px 0', whiteSpace: 'pre-wrap' }}>{x.body}</p>
+              <p className={`${styles.line} ${styles.pre}`}>{x.body}</p>
               {x.hidden ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  disabled={busy}
-                  onClick={() => void act(`/admin/reviews/replies/${x.id}/unhide`)}
-                >
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void act(`/admin/reviews/replies/${x.id}/unhide`)}>
                   {t('review.unhide')}
-                </button>
+                </Button>
               ) : (
-                <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={() => hide(`/admin/reviews/replies/${x.id}/hide`)}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setHiding({ path: `/admin/reviews/replies/${x.id}/hide`, isReview: false })}
+                >
                   {t('review.hide')}
-                </button>
+                </Button>
               )}
             </div>
           ))}
         </div>
       )}
-      {error && <small role="alert" style={{ color: 'var(--err)' }}>{error}</small>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      <ReasonDialog
+        open={hiding !== null}
+        onClose={() => setHiding(null)}
+        title={t('review.hide')}
+        description={hiding?.isReview ? t('review.hideConfirm') : undefined}
+        label={t('review.hideReason')}
+        confirmLabel={t('review.hide')}
+        danger
+        onSubmit={async (reason) => {
+          if (hiding) await act(hiding.path, { reason });
+        }}
+      />
     </section>
   );
 }

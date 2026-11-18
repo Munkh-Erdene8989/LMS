@@ -2,26 +2,27 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import type { CreditAdjustResult, CreditPackageView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { useConfirm } from '../../ui/confirm';
+import { ErrorLine, LoadingRows, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 type Draft = Omit<CreditPackageView, 'id'>;
 
 const EMPTY: Draft = { name: '', credits: 10, priceMnt: 10_000, active: true, isTest: false, position: 0 };
 
-function message(err: unknown): string {
-  return err instanceof ApiRequestError ? err.message : t('auth.genericError');
-}
-
 export default function AdminCreditPackagesPage() {
+  const confirm = useConfirm();
   const [items, setItems] = useState<CreditPackageView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () =>
     api<CreditPackageView[]>('/admin/credit-packages')
       .then((r) => setItems(r.data))
-      .catch((err: unknown) => setError(message(err)));
+      .catch((err: unknown) => setError(errorText(err)));
 
   useEffect(() => {
     void load();
@@ -34,26 +35,25 @@ export default function AdminCreditPackagesPage() {
       await load();
       return true;
     } catch (err) {
-      setError(message(err));
+      setError(errorText(err));
       return false;
     }
   }
 
   return (
-    <main style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('credits.adminTitle')}</h1>
-      {error && <p style={{ color: 'var(--err)', margin: 0 }}>{error}</p>}
-      {!items && <p>{t('me.loading')}</p>}
+    <div className={styles.stackLg}>
+      <h1 className={styles.title}>{t('credits.adminTitle')}</h1>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
       {items?.map((p) => (
         <PackageForm
           key={p.id}
           initial={p}
           submitLabel={t('credits.save')}
           onSubmit={(d) => run(() => api(`/admin/credit-packages/${p.id}`, { method: 'PATCH', body: d }))}
-          onRemove={() => {
-            if (window.confirm(t('credits.removeConfirm'))) {
-              void run(() => api(`/admin/credit-packages/${p.id}`, { method: 'DELETE' }));
-            }
+          onRemove={async () => {
+            const ok = await confirm({ title: t('credits.removeConfirm'), body: p.name, confirmLabel: t('credits.remove'), danger: true });
+            if (ok) await run(() => api(`/admin/credit-packages/${p.id}`, { method: 'DELETE' }));
           }}
         />
       ))}
@@ -66,7 +66,7 @@ export default function AdminCreditPackagesPage() {
         />
       )}
       <AdjustForm />
-    </main>
+    </div>
   );
 }
 
@@ -84,69 +84,55 @@ function PackageForm({
   resetOnSuccess?: boolean;
 }) {
   const [d, setD] = useState<Draft>(initial);
+  const [saving, setSaving] = useState(false);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((prev) => ({ ...prev, [k]: v }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     const { name, credits, priceMnt, active, isTest, position } = d;
-    if ((await onSubmit({ name, credits, priceMnt, active, isTest, position })) && resetOnSuccess) setD(initial);
+    setSaving(true);
+    const ok = await onSubmit({ name, credits, priceMnt, active, isTest, position });
+    setSaving(false);
+    if (ok && resetOnSuccess) setD(initial);
   }
 
   return (
-    <form className="card package-form" onSubmit={submit}>
-      <label>
+    <form className={`${styles.item} ${styles.fieldGrid}`} onSubmit={submit}>
+      <label className={styles.field}>
         {t('credits.name')}
         <input className="input" required maxLength={100} value={d.name} onChange={(e) => set('name', e.target.value)} />
       </label>
-      <label>
+      <label className={styles.field}>
         {t('credits.credits')}
-        <input
-          className="input"
-          type="number"
-          min={1}
-          required
-          value={d.credits}
-          onChange={(e) => set('credits', Number(e.target.value))}
-        />
+        <input className="input" type="number" inputMode="numeric" min={1} required value={d.credits} onChange={(e) => set('credits', Number(e.target.value))} />
       </label>
-      <label>
+      <label className={styles.field}>
         {t('credits.priceMnt')}
-        <input
-          className="input"
-          type="number"
-          min={1}
-          required
-          value={d.priceMnt}
-          onChange={(e) => set('priceMnt', Number(e.target.value))}
-        />
+        <input className="input" type="number" inputMode="numeric" min={1} required value={d.priceMnt} onChange={(e) => set('priceMnt', Number(e.target.value))} />
       </label>
-      <label>
+      <label className={styles.field}>
         {t('credits.position')}
-        <input
-          className="input"
-          type="number"
-          min={0}
-          value={d.position}
-          onChange={(e) => set('position', Number(e.target.value))}
-        />
+        <input className="input" type="number" inputMode="numeric" min={0} value={d.position} onChange={(e) => set('position', Number(e.target.value))} />
       </label>
-      <label className="check">
+      <label className={styles.checkRow}>
         <input type="checkbox" checked={d.active} onChange={(e) => set('active', e.target.checked)} />
         {t('credits.active')}
       </label>
-      <label className="check">
+      <label className={styles.checkRow}>
         <input type="checkbox" checked={d.isTest} onChange={(e) => set('isTest', e.target.checked)} />
         {t('credits.isTest')}
       </label>
-      <small style={{ color: 'var(--muted)' }}>
+      <small className={styles.muted}>
         {d.credits > 0 && t('credits.perCredit', { price: formatNumber(Math.round(d.priceMnt / d.credits)) })}
       </small>
-      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn">{submitLabel}</button>
+      <span className={styles.rowActions}>
+        <Button type="submit" loading={saving}>
+          {submitLabel}
+        </Button>
         {onRemove && (
-          <button type="button" className="btn btn-ghost" onClick={onRemove}>
+          <Button variant="ghost" onClick={onRemove}>
             {t('credits.remove')}
-          </button>
+          </Button>
         )}
       </span>
     </form>
@@ -158,39 +144,39 @@ function AdjustForm() {
   const [user, setUser] = useState('');
   const [delta, setDelta] = useState('');
   const [reason, setReason] = useState('');
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
+    setBusy(true);
     try {
       const r = await api<CreditAdjustResult>('/admin/credits/adjust', {
         method: 'POST',
         body: { user, delta: Number(delta), reason },
       });
-      setStatus(t('credits.adjustDone', { balance: formatNumber(r.data.balance) }));
+      setStatus({ ok: true, text: t('credits.adjustDone', { balance: formatNumber(r.data.balance) }) });
       setDelta('');
       setReason('');
     } catch (err) {
-      setStatus(message(err));
+      setStatus({ ok: false, text: errorText(err) });
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{t('credits.adjustTitle')}</h2>
-      <form onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
-        <input
-          className="input"
-          required
-          placeholder={t('credits.adjustUser')}
-          aria-label={t('credits.adjustUser')}
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-        />
+    <section className={styles.item} aria-labelledby="credits-adjust-title">
+      <h2 id="credits-adjust-title" className={styles.subtitle}>
+        {t('credits.adjustTitle')}
+      </h2>
+      <form onSubmit={submit} className={styles.stack}>
+        <input className="input" required autoComplete="off" placeholder={t('credits.adjustUser')} aria-label={t('credits.adjustUser')} value={user} onChange={(e) => setUser(e.target.value)} />
         <input
           className="input"
           type="number"
+          inputMode="numeric"
           required
           step={1}
           placeholder={t('credits.adjustDelta')}
@@ -203,13 +189,18 @@ function AdjustForm() {
           required
           minLength={3}
           maxLength={500}
+          autoComplete="off"
           placeholder={t('credits.adjustReason')}
           aria-label={t('credits.adjustReason')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
-        <button className="btn">{t('credits.adjustSubmit')}</button>
-        {status && <p style={{ margin: 0 }}>{status}</p>}
+        <div>
+          <Button type="submit" loading={busy}>
+            {t('credits.adjustSubmit')}
+          </Button>
+        </div>
+        {status && (status.ok ? <p className={styles.info} role="status">{status.text}</p> : <ErrorLine>{status.text}</ErrorLine>)}
       </form>
     </section>
   );
