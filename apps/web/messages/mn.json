@@ -1089,5 +1089,30 @@
     "colExpired": "Дууссан",
     "colExpiresAt": "Дууссан огноо",
     "noExpired": "Энэ хугацаанд дууссан кредит алга."
+  },
+  "shell": {
+    "skip": "Үндсэн агуулга руу очих",
+    "navLabel": "Үндсэн цэс",
+    "mobileNavLabel": "Гар утасны цэс",
+    "menu": "Цэс",
+    "menuOpen": "Цэс нээх",
+    "courses": "Курсууд",
+    "community": "Community",
+    "myLearning": "Миний сургалт",
+    "login": "Нэвтрэх",
+    "account": "Хэрэглэгчийн цэс",
+    "profile": "Профайл",
+    "credits": "Кредит",
+    "becomeTeacher": "Багш болох",
+    "teacherDashboard": "Багшийн самбар",
+    "admin": "Админ",
+    "logout": "Гарах",
+    "notifications": "Мэдэгдэл",
+    "footerLegal": "Хууль эрх зүй",
+    "footerBrand": "© {year} {brand}",
+    "themeLabel": "Дэлгэцийн загвар",
+    "themeSystem": "Систем",
+    "themeLight": "Гэрэл",
+    "themeDark": "Харанхуй"
   }
 }
