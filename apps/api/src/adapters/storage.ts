@@ -58,7 +58,9 @@ export class SupabaseStorage implements StorageAdapter {
         id,
         name: id,
         public: isPublic,
-        file_size_limit: 60 * 1024 * 1024,
+        // Аппын дээд хязгаар 50MB (PDF/даалгавар). Supabase Free-ийн global limit 50MB тул түүнээс их
+        // утга өгвөл bucket үүсгэх 413 EntityTooLarge буцааж, API эхэлж чадахгүй.
+        file_size_limit: 50 * 1024 * 1024,
       });
       if (!created.ok && created.status !== 409) {
         throw new StorageError(`Bucket ${id} үүсгэж чадсангүй: ${created.status} ${await created.text()}`);
