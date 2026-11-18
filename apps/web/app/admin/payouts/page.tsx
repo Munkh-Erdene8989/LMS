@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminPayoutPage, AdminPayoutView, PayoutHoldView, PayoutStatus } from '@lms/shared';
 import { api, apiDownload, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 
 const STATUSES: PayoutStatus[] = ['REQUESTED', 'PAID', 'REJECTED'];
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
 const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Payout дараалал: CSV export → банкаар гараар шилжүүлэх → "төлсөн"; татгалзах; багшийн hold. */
@@ -164,7 +163,7 @@ function PayoutCard({ payout: p, onDone }: { payout: AdminPayoutView; onDone: ()
   return (
     <section className="card" style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <strong>{mnt(p.amountMnt)}</strong>
+        <strong>{formatMnt(p.amountMnt)}</strong>
         <span className="muted" style={{ fontSize: 14 }}>
           {t('payout.requestedOn', { date: formatDate(p.requestedAt) })}
         </span>

@@ -1,4 +1,13 @@
 {
+  "ui": {
+    "close": "Хаах",
+    "cancel": "Болих",
+    "confirm": "Батлах",
+    "loading": "Ачаалж байна…",
+    "free": "Үнэгүй",
+    "credits": "{count} кредит",
+    "creditBalance": "Кредитийн үлдэгдэл: {count}"
+  },
   "meta": {
     "description": "Онлайн сургалтын платформ"
   },

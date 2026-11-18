@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AdminReportSummary, ExpiredCreditsReport, ReportSection } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
 const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Тайлан: орлого, кредит, борлуулалт, шилдэг курс/багш; test гүйлгээ тусад нь; дууссан кредит. */
@@ -158,9 +157,9 @@ function SectionView({ s }: { s: ReportSection }) {
       <Stats
         title={t('adminOps.revenueTitle')}
         rows={[
-          [t('adminOps.revenueTotal'), mnt(s.revenue.totalMnt)],
-          [t('adminOps.revenueTopup'), mnt(s.revenue.topupMnt)],
-          [t('adminOps.revenueSubscription'), mnt(s.revenue.subscriptionMnt)],
+          [t('adminOps.revenueTotal'), formatMnt(s.revenue.totalMnt)],
+          [t('adminOps.revenueTopup'), formatMnt(s.revenue.topupMnt)],
+          [t('adminOps.revenueSubscription'), formatMnt(s.revenue.subscriptionMnt)],
           [t('adminOps.revenuePayments'), n(s.revenue.payments)],
         ]}
       />
@@ -180,9 +179,9 @@ function SectionView({ s }: { s: ReportSection }) {
         rows={[
           [t('adminOps.salesPurchases'), n(s.sales.purchases)],
           [t('adminOps.salesCredits'), n(s.sales.credits)],
-          [t('adminOps.salesGross'), mnt(s.sales.grossMnt)],
-          [t('adminOps.salesTeacher'), mnt(s.sales.teacherEarningsMnt)],
-          [t('adminOps.salesPlatform'), mnt(s.sales.platformMnt)],
+          [t('adminOps.salesGross'), formatMnt(s.sales.grossMnt)],
+          [t('adminOps.salesTeacher'), formatMnt(s.sales.teacherEarningsMnt)],
+          [t('adminOps.salesPlatform'), formatMnt(s.sales.platformMnt)],
         ]}
       />
     </div>

@@ -6,6 +6,8 @@ import { Inter } from 'next/font/google';
 import { BRAND, LEGAL_DOC_TYPES, LEGAL_SLUGS } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { SiteHeader } from './site-header';
+import { ConfirmProvider } from './ui/confirm';
+import { ToastProvider } from './ui/toast';
 import './globals.css';
 
 // next/font нь шрифтийг build-д татаж өөрийн домэйнээс (`/_next/static/media`) үйлчилнэ → CSP `font-src 'self'` зөрчигдөхгүй.
@@ -41,6 +43,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
       <body>
+        <ToastProvider>
+        <ConfirmProvider>
         <SiteHeader />
         {children}
         <footer className="site-footer">
@@ -50,6 +54,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </Link>
           ))}
         </footer>
+        </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );

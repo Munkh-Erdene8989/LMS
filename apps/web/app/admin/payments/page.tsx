@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { PAYMENT_ISSUE_KINDS } from '@lms/shared';
 import type { AdminPaymentRow, PaymentIssueKind, PaymentIssueView, PaymentIssuesView, ReconcileCanceledResult } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
 const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Асуудалтай төлбөр: дахин шалгах, олгох/хаах (мөнгөний үйлдэл, баталгаажуулалттай), цуцалсныг тулгах. */
@@ -119,7 +118,7 @@ function IssueCard({ issue: p, onDone }: { issue: PaymentIssueView; onDone: () =
     <section className="card" style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <strong>
-          <span className="pill">{t(`adminOps.kind${p.kind}` as MessageKey)}</span> {mnt(p.amountMnt)}
+          <span className="pill">{t(`adminOps.kind${p.kind}` as MessageKey)}</span> {formatMnt(p.amountMnt)}
           {p.isTest && <span className="pill" style={{ marginLeft: 6 }}>{t('adminOps.testPill')}</span>}
         </strong>
         <span className="muted" style={{ fontSize: 14 }}>{formatDate(p.createdAt)}</span>
