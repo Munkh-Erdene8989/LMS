@@ -1,18 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReferralLinkView } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { Skeleton } from '../../ui/skeleton';
+import { useToast } from '../../ui/toast';
+import s from '../teacher.module.css';
 
 /** Багшийн referral линк: хуулах товч, шимтгэлийн тайлбар, товч статистик. */
 export default function TeacherReferralPage() {
   const router = useRouter();
+  const { toast, error: toastError } = useToast();
   const [view, setView] = useState<ReferralLinkView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
 
   useEffect(() => {
@@ -27,9 +32,18 @@ export default function TeacherReferralPage() {
 
   if (!view) {
     return (
-      <main className="page">
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className={s.page}>
+        <h1 className={s.title}>{t('referral.title')}</h1>
+        {error ? (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        ) : (
+          <div aria-busy="true" aria-label={t('ui.loading')}>
+            <Skeleton height={120} radius={22} />
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -38,18 +52,17 @@ export default function TeacherReferralPage() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      toast(t('teacherUi.linkCopied'));
     } catch {
-      setCopied(false);
+      toastError(t('teacherUi.copyFailed'));
     }
   }
 
-  const s = view.stats;
+  const st = view.stats;
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('referral.title')}</h1>
-      <p className="muted" style={{ margin: 0 }}>
+    <div className={s.page}>
+      <h1 className={s.title}>{t('referral.title')}</h1>
+      <p className={s.lead}>
         {t('referral.intro', {
           days: view.windowDays,
           referral: view.commissionReferralPercent,
@@ -57,36 +70,40 @@ export default function TeacherReferralPage() {
         })}
       </p>
 
-      <section className="card" style={{ display: 'grid', gap: 8 }}>
-        <strong>{t('referral.yourLink')}</strong>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input className="input" readOnly value={url} style={{ flex: '1 1 240px' }} onFocus={(e) => e.currentTarget.select()} />
-          <button type="button" className="btn" onClick={() => void copy()}>
-            {copied ? t('referral.copied') : t('referral.copy')}
-          </button>
+      <section className={`card ${s.card}`}>
+        <label className={s.field} htmlFor="referral-link">
+          {t('referral.yourLink')}
+        </label>
+        <div className={s.copyRow}>
+          <input
+            id="referral-link"
+            name="referral-link"
+            className={`input ${s.grow}`}
+            readOnly
+            autoComplete="off"
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          <Button onClick={() => void copy()}>{t('referral.copy')}</Button>
         </div>
         <small className="muted">{t('referral.courseHint', { path: `${view.path}?next=/courses/…` })}</small>
       </section>
 
-      <div className="grid-2">
-        <section className="card credit-balance">
-          <span className="muted">{t('referral.activeLearners', { days: view.windowDays })}</span>
-          <strong>{formatNumber(s.activeLearners)}</strong>
-          <small className="muted">{t('referral.totalLearners', { count: formatNumber(s.learners) })}</small>
+      <div className={s.stats}>
+        <section className={`card ${s.stat}`}>
+          <span className={s.statLabel}>{t('referral.activeLearners', { days: view.windowDays })}</span>
+          <strong className={s.statValue}>{formatNumber(st.activeLearners)}</strong>
+          <small className="muted">{t('referral.totalLearners', { count: formatNumber(st.learners) })}</small>
         </section>
-        <section className="card credit-balance">
-          <span className="muted">{t('referral.sales')}</span>
-          <strong>
-            {t('referral.salesValue', { referral: formatNumber(s.referralSales), platform: formatNumber(s.platformSales) })}
+        <section className={`card ${s.stat}`}>
+          <span className={s.statLabel}>{t('referral.sales')}</span>
+          <strong className={s.statValue}>
+            {t('referral.salesValue', { referral: formatNumber(st.referralSales), platform: formatNumber(st.platformSales) })}
           </strong>
-          <a href="/teacher/analytics" style={{ fontSize: 13 }}>
-            {t('referral.analyticsLink')}
-          </a>
+          <Link href="/teacher/analytics">{t('referral.analyticsLink')}</Link>
         </section>
       </div>
-      <p className="muted" style={{ margin: 0 }}>
-        {t('referral.rules')}
-      </p>
-    </main>
+      <p className={s.hint}>{t('referral.rules')}</p>
+    </div>
   );
 }
