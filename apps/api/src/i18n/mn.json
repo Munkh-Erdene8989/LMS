@@ -180,6 +180,11 @@
       "body": "{teacher} багшийн community-д \"{post}\" нийтлэлд {name}: \"{comment}\"",
       "emailSubject": "{brand}: \"{post}\" нийтлэлд шинэ сэтгэгдэл"
     },
+    "COMMUNITY_CONTENT_HIDDEN": {
+      "title": "Таны {what} community-д нуугдлаа",
+      "body": "Таны {what}-г модератор платформын дүрэм зөрчсөн гэж үзэн нуулаа. Шалтгаан: {reason}.",
+      "emailSubject": "{brand}: таны {what} нуугдлаа"
+    },
     "COMMUNITY_MEMBER_REMOVED": {
       "title": "Та {teacher} багшийн community-гоос хасагдлаа",
       "body": "{teacher} багш таныг community-гоосоо хаслаа.{reasonText} Таны хичээлийн эрх хэвээр байна.",

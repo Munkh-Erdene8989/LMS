@@ -530,6 +530,9 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
           {t('community.loadMore')}
         </button>
       )}
+      {post.hidden ? (
+        <small>{t('community.commentsLocked')}</small>
+      ) : (
       <form onSubmit={send} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <textarea
           className="input"
@@ -545,6 +548,7 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
           {t('community.sendComment')}
         </button>
       </form>
+      )}
       {error && (
         <small role="alert" style={{ color: 'var(--err)' }}>
           {error}
