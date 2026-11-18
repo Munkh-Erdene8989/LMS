@@ -8,7 +8,7 @@ import { CREDIT_TX_OPTIONS, CreditsService } from '../credits/credits.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReferralsService } from '../referrals/referrals.service';
-import { TeacherEarningsService } from './earnings.service';
+import { TeacherEarningsService, saleEarning } from './earnings.service';
 import { courseOwnership, ownsFrom } from './entitlements';
 import { PurchaseErrors as E } from './errors';
 
@@ -185,6 +185,7 @@ export class PurchasesService {
     }
 
     await this.receipt(user.id, result.row, result.item, result.balance);
+    await this.teacherSaleNotice(result.row, result.item);
     return { purchase: toView(result.row), balance: result.balance };
   }
 
@@ -233,6 +234,31 @@ export class PurchasesService {
       credits: Math.max(0, course.priceCredits - owned.spentOnLessons),
       lessonIds: course.lessons.map((l) => l.id).filter((id) => !owned.lessonIds.has(id)),
     };
+  }
+
+  /**
+   * Багшид "зарагдлаа" мэдэгдэл (in-app + имэйл; `TEACHER_SALES` ангиллаар имэйлийг унтраана). Commit-ийн дараа;
+   * алдаа худалдан авалтыг буцаахгүй. Орлого 0₮ (үнэгүй / 100% шимтгэл) бол илгээхгүй. Худалдан авагчийн нэр
+   * ил гаргахгүй (нууцлал) — "нэг сурагч". Тест кредитийн борлуулалт орлогын ledger-тэй адил тэмдэглэгдэнэ.
+   */
+  private async teacherSaleNotice(row: PurchaseRow, item: Item): Promise<void> {
+    try {
+      const { amountMnt } = saleEarning(row.credits, row.creditPriceMnt, row.commissionPercent);
+      if (row.credits <= 0 || amountMnt <= 0) return;
+      await this.notifications.notify({
+        userId: item.teacherId,
+        type: 'TEACHER_SALE',
+        params: {
+          title: item.title,
+          course: item.courseTitle,
+          amount: amountMnt,
+          testNote: row.isTest ? ' (Тест кредит — орлогын үлдэгдэлд орохгүй.)' : '',
+        },
+        link: '/teacher/earnings',
+      });
+    } catch (err) {
+      this.log.error(`Teacher sale notice ${row.id} илгээгдсэнгүй: ${String(err)}`);
+    }
   }
 
   /** Баримтын мэдэгдэл (in-app + имэйл). Худалдан авалт commit болсон — мэдэгдлийн алдаа түүнийг буцаахгүй. */

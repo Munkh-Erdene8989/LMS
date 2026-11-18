@@ -49,5 +49,5 @@ Web: `/courses/[id]` (lesson бүрт "Авах"/"Үзэх", үнийн хайр
 - [x] Ticket 20: payout хүсэлт/төлөлтөд `TeacherEarningsService.balance()` ба `append(tx, { type: 'PAYOUT', amountMnt: −дүн, refType: 'payout', refId })`; давхар payout-оос сэргийлж багшийн мөрийг түгжих.
 - [x] Ticket 12 ("Миний сургалт"): эзэмшсэн архивласан lesson-ыг курсийн curriculum-д харуулах — `GET /learning/courses/:id`, `/learning/[courseId]` (одоо `/catalog/courses/:id` зөвхөн идэвхтэй lesson; архивласан lesson-ы контент endpoint эзэмшигчид ажилладаг).
 - [x] Ticket 22 (API): тайланд `purchases` (`teacher_id`, `attribution`, `is_test`) ба `teacher_earning_entries`-ийг ашиглах; админы орлогын гар засвар (`append` `ADMIN_ADJUST` + audit) UI.
-- [ ] Багшид "хичээл зарагдлаа" мэдэгдэл — шаардлагатай эсэхийг шийдэх (одоогоор зөвхөн худалдан авагчид баримт).
+- [x] Багшид "хичээл зарагдлаа" мэдэгдэл (ticket 28): commit-ийн дараа `PurchasesService.teacherSaleNotice` → `TEACHER_SALE` (in-app + имэйл; дүн = багшийн хувь, 0₮ орлогод илгээхгүй; худалдан авагчийн нэр нууцлагдаж "нэг сурагч"; тест кредитийн борлуулалтад тэмдэглэл; алдаа purchase-ийг буцаахгүй). Ангилал `TEACHER_SALES` — `/me`-д имэйлийг унтраана. Тест: `purchases.spec.ts` 3 шинэ тест.
 - [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх.

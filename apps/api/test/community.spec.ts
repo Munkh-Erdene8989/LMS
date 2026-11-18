@@ -636,7 +636,10 @@ describe('Community — сэтгэгдлийн имэйл тохиргоо', () 
     await buyLesson(m2.agent, c.lessonIds[0]!);
     const p = (await post(m.agent, teacherId, { body: 'Асуулт' }).expect(201)).body;
 
-    expect((await prefs(m.agent).expect(200)).body).toEqual([{ category: 'COMMUNITY_COMMENT', emailEnabled: true }]);
+    expect((await prefs(m.agent).expect(200)).body).toEqual([
+      { category: 'COMMUNITY_COMMENT', emailEnabled: true },
+      { category: 'TEACHER_SALES', emailEnabled: true },
+    ]);
     await t.agent().get('/notifications/preferences').expect(401);
 
     // Идэвхтэй: имэйл явна

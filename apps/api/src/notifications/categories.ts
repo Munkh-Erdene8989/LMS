@@ -8,6 +8,7 @@ import type { NotificationCategory } from '@lms/shared';
 export const NOTIFICATION_TYPE_CATEGORY: Readonly<Record<string, NotificationCategory>> = {
   COMMUNITY_POST_COMMENT: 'COMMUNITY_COMMENT',
   COMMUNITY_THREAD_COMMENT: 'COMMUNITY_COMMENT',
+  TEACHER_SALE: 'TEACHER_SALES',
 };
 
 export function categoryOf(type: string): NotificationCategory | null {

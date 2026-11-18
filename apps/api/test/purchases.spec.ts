@@ -404,6 +404,69 @@ describe('Шимтгэл, үнэ: худалдах мөчийнхөөр хадг
   });
 });
 
+describe('Багшид "зарагдлаа" мэдэгдэл (TEACHER_SALE)', () => {
+  const saleNotes = (userId: string) => t.prisma.notification.findMany({ where: { userId, type: 'TEACHER_SALE' } });
+
+  it('багшид in-app + имэйл (орлого, нэр нууцлагдсан); худалдан авагчид очихгүй; курсийн худалдаанд ч', async () => {
+    const tch = await teacher();
+    const c = await course({ teacherId: tch.user.id });
+    const u = await learner('learner@example.mn', 20);
+    await t.queue.drain();
+    t.email.sent.length = 0;
+
+    await buyLesson(u.agent, c.lessonIds[0]!, 5).expect(201);
+    const notes = await saleNotes(tch.user.id);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ link: '/teacher/earnings' });
+    expect(notes[0]!.params).toMatchObject({ amount: 3000, testNote: '' });
+    expect(await saleNotes(u.user.id)).toHaveLength(0);
+
+    await t.queue.drain();
+    const mail = t.email.last('teacher@example.mn');
+    expect(mail?.subject).toContain('+3000₮');
+    expect(mail?.text).toContain('Нэг сурагч');
+    expect(mail?.text).not.toContain('learner@example.mn');
+    expect(t.email.sent.filter((m) => m.subject.includes('зарагдлаа'))).toHaveLength(1);
+
+    const list = (await tch.agent.get('/notifications').expect(200)).body.items;
+    expect(list.find((n: { type: string }) => n.type === 'TEACHER_SALE').body).toContain('3000₮');
+
+    const c2 = await course({ teacherId: tch.user.id, price: 7 });
+    await grant(u.user.id, 7);
+    await buyCourse(u.agent, c2.id, 7).expect(201);
+    expect(await saleNotes(tch.user.id)).toHaveLength(2);
+  });
+
+  it('TEACHER_SALES имэйл унтарсан бол имэйл явахгүй, in-app хэвээр', async () => {
+    const tch = await teacher();
+    await tch.agent.put('/notifications/preferences/TEACHER_SALES').send({ emailEnabled: false }).expect(200);
+    const c = await course({ teacherId: tch.user.id });
+    const u = await learner('learner@example.mn', 5);
+    await t.queue.drain();
+    t.email.sent.length = 0;
+
+    await buyLesson(u.agent, c.lessonIds[0]!, 5).expect(201);
+    expect(await saleNotes(tch.user.id)).toHaveLength(1);
+    await t.queue.drain();
+    expect(t.email.sent.filter((m) => m.subject.includes('зарагдлаа'))).toHaveLength(0);
+  });
+
+  it('тест кредитээр авсан бол тэмдэглэгдэнэ; 0₮ орлого (100% шимтгэл) / үнэгүйд мэдэгдэл үүсэхгүй', async () => {
+    const tch = await teacher();
+    const c = await course({ teacherId: tch.user.id });
+    const u = await learner('learner@example.mn', 5, true);
+    await buyLesson(u.agent, c.lessonIds[0]!, 5).expect(201);
+    const [note] = await saleNotes(tch.user.id);
+    expect(note!.params).toMatchObject({ amount: 3000, testNote: expect.stringContaining('Тест') });
+
+    const a = await admin();
+    await a.agent.put('/admin/settings/commissionPlatformPercent').send({ value: 100 }).expect(200);
+    const u2 = await learner('l2@example.mn', 5);
+    await buyLesson(u2.agent, c.lessonIds[0]!, 5).expect(201);
+    expect(await saleNotes(tch.user.id)).toHaveLength(1);
+  });
+});
+
 describe('Эрхийн шалгалт (entitlement, role)', () => {
   it('зочин / эрхгүй 403, эзэмшигч, багш, админ 200; preview бүгдэд; эрхгүй бол контент огт гарахгүй', async () => {
     const tch = await teacher();

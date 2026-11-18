@@ -24,7 +24,7 @@ export interface UnreadCount {
  * Мэдэгдлийн ангилал (хэрэглэгч имэйлийг ангилалаар нь унтраана). Шинэ ангилал нэмэхдээ API талын
  * `notifications/categories.ts`-д төрлүүдийг нь холбоно.
  */
-export const NOTIFICATION_CATEGORIES = ['COMMUNITY_COMMENT'] as const;
+export const NOTIFICATION_CATEGORIES = ['COMMUNITY_COMMENT', 'TEACHER_SALES'] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 
 /** `GET /notifications/preferences` */
