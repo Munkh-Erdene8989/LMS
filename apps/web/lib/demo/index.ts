@@ -29,6 +29,9 @@ import {
   demoSalesPoint,
   demoTeacherProfile,
 } from './data';
+import { demoLearning, demoLesson } from './learning';
+
+export { demoLesson };
 
 export const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_DATA === '1';
 
@@ -199,6 +202,8 @@ export function demoFor(path: string): unknown | undefined {
   if (a === 'community' && b === 'posts' && c && d === 'comments') {
     return { items: DEMO_COMMENTS, nextCursor: null };
   }
+
+  if (a === 'learning') return demoLearning(seg.slice(1));
 
   if (a === 'teacher') {
     if (b === 'earnings') return DEMO_EARNINGS;

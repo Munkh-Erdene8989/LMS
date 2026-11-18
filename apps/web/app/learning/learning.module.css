@@ -1,0 +1,420 @@
+/* «Миний сургалт» ба курсийн явц (ticket 38). */
+
+.progress {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--p, 0));
+  transition: transform var(--d-slow) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill {
+    transition: none;
+  }
+}
+
+/* --- Хуудас --- */
+.page {
+  display: grid;
+  gap: var(--s-6);
+  padding-top: var(--s-6);
+  padding-bottom: var(--s-8);
+}
+
+.heading {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.h1 {
+  margin: 0;
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: calc(var(--s-2) * -1);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
+  border-radius: var(--r-pill);
+  color: var(--fg-2);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--fg);
+  background: var(--bg-alt);
+}
+
+/* --- Курсийн картууд --- */
+.grid {
+  display: grid;
+  gap: var(--s-5);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition:
+    transform var(--d-base) var(--ease-out),
+    box-shadow var(--d-base) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
+
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.coverFallback {
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--accent-fg) 85%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 85%, #000), color-mix(in srgb, var(--accent) 45%, var(--bg-alt)));
+}
+
+.coverFallback svg {
+  width: 32px;
+  height: 32px;
+}
+
+.body {
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.cardTitle a {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.cardTitle a:hover {
+  color: var(--accent);
+}
+
+.meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.progressText {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+.doneMark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.doneMark svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* --- Гэрчилгээнүүд --- */
+.panel {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 600;
+}
+
+.plainList {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.error {
+  margin: 0;
+  color: var(--err);
+  font-size: var(--fs-small);
+}
+
+/* --- Скелетон --- */
+.skeletonCard {
+  display: grid;
+  gap: var(--s-3);
+  padding-bottom: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.skeletonBody {
+  display: grid;
+  gap: var(--s-3);
+  padding: 0 var(--s-5);
+}
+
+/* --- Курсийн дотоод хуудас --- */
+.hero {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+.curriculum {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--s-1);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.rows li + li {
+  border-top: 1px solid var(--border);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 60px;
+  padding: var(--s-2) var(--s-5);
+  color: var(--fg);
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.rowBody {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  transition: transform var(--d-base) var(--ease-out);
+}
+
+@media (hover: hover) {
+  a.row:hover .rowBody {
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowBody {
+    transition: none;
+  }
+}
+
+a.row:focus-visible {
+  outline: none;
+  box-shadow: inset var(--ring);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-alt);
+  color: var(--muted);
+}
+
+.icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.iconOpen {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.iconDone {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+}
+
+.rowText {
+  display: grid;
+  min-width: 0;
+}
+
+.rowTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.rowMeta {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.rowEnd {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+/* --- Гэрчилгээ --- */
+.reqs {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.req {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.reqMark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+}
+
+.reqMark svg {
+  width: 12px;
+  height: 12px;
+}
+
+.reqOk {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--bg);
+}
+
+.certActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.card > a {
+  display: block;
+}

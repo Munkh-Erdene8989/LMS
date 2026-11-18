@@ -172,6 +172,9 @@ const REVIEW_BODIES = [
 
 const REVIEWERS = ['Билгүүн', 'Номин-Эрдэнэ', 'Энхжин', 'Түвшинбаяр', 'Мөнхцэцэг', 'Золбоо', 'Саруул', 'Дөлгөөн'];
 
+/** `learning.ts`-ийн ENROLLED-тэй ижил. */
+const ENROLLED_SEEDS = [1, 4];
+
 function buildCourse(seed: CourseSeed): DemoCourse {
   const id = `demo-course-${seed.n}`;
   const teacher = DEMO_TEACHERS[seed.teacher - 1]!;
@@ -241,7 +244,8 @@ function buildCourse(seed: CourseSeed): DemoCourse {
     teacher: { ...teacher.ref, bio: teacher.bio },
     pricing: { listCredits: price, lessonsTotalCredits: lessonsTotal, alreadySpentCredits: 0, payableCredits: price },
     sections,
-    viewer: null,
+    // Эзэмшсэн demo курс (`learning.ts`-ийн ENROLLED)
+    viewer: ENROLLED_SEEDS.includes(seed.n) ? { ownsCourse: true, ownedLessonIds: [], canViewAll: false, isTeacher: false } : null,
   };
   return { seed, id, sections, lessonsTotal, price, reviews, card, detail };
 }

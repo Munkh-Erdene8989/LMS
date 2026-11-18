@@ -80,14 +80,35 @@ export const fetchCourse = (id: string) =>
 export const fetchTeacher = (id: string) => getPublic<PublicTeacherProfile>(`/catalog/teachers/${encodeURIComponent(id)}`);
 /** Lesson контент (PDF signed URL богино хугацаатай) — кэшлэхгүй. 403 = эрхгүй. */
 export async function fetchLesson(id: string): Promise<PublicLessonContent | 'locked' | null> {
-  const res = await fetch(`${API_URL}/catalog/lessons/${encodeURIComponent(id)}`, {
-    cache: 'no-store',
-    headers: await viewerHeaders(),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/catalog/lessons/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+      headers: await viewerHeaders(),
+    });
+  } catch (err) {
+    const demo = await demoLesson(id);
+    if (demo !== undefined) return demo;
+    throw err;
+  }
+  if (!res.ok) {
+    // Түр demo (ticket 33b): `demo-` хичээл API-д байхгүй (404/400/403) үед fixture.
+    const demo = await demoLesson(id);
+    if (demo !== undefined) return demo;
+  }
   if (res.status === 403) return 'locked';
   if (res.status === 404 || res.status === 400) return null;
   if (!res.ok) throw new Error(`API ${res.status}: lesson`);
   return (await res.json()) as PublicLessonContent;
+}
+
+/** Түр demo (ticket 33b): `demoFallback`-тай ижил — флагийг шууд шалгаж, динамик import-ийг салбар дотор хийнэ. */
+async function demoLesson(id: string): Promise<PublicLessonContent | 'locked' | undefined> {
+  if (process.env.NEXT_PUBLIC_DEMO_DATA === '1') {
+    const { demoLesson: lesson } = await import('./demo');
+    return lesson(id);
+  }
+  return undefined;
 }
 
 /** `/courses` хуудасны query string (URL нь хайлтын төлөвийн цорын ганц эх үүсвэр — JS-гүй ажиллана). */
