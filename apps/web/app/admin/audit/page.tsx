@@ -5,43 +5,63 @@ import type { AuditEntry, AuditPage } from '@lms/shared';
 import { api } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, LoadingRows, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 export default function AdminAuditPage() {
   const [items, setItems] = useState<AuditEntry[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async (before?: string) => {
-    const r = await api<AuditPage>(`/admin/audit?limit=50${before ? `&before=${before}` : ''}`);
-    setItems((prev) => (before && prev ? [...prev, ...r.data.items] : r.data.items));
-    setCursor(r.data.nextCursor);
+    setError(null);
+    try {
+      const r = await api<AuditPage>(`/admin/audit?limit=50${before ? `&before=${before}` : ''}`);
+      setItems((prev) => (before && prev ? [...prev, ...r.data.items] : r.data.items));
+      setCursor(r.data.nextCursor);
+    } catch (err) {
+      setError(errorText(err));
+    }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  async function more() {
+    if (!cursor) return;
+    setLoadingMore(true);
+    await load(cursor);
+    setLoadingMore(false);
+  }
+
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('admin.auditTitle')}</h1>
-      {!items && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('admin.auditEmpty')}</p>}
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('admin.auditTitle')}</h1>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('admin.auditEmpty')} />}
       {!!items?.length && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <caption>{t('admin.auditTitle')}</caption>
             <thead>
               <tr>
-                <th>{t('admin.when')}</th>
-                <th>{t('admin.actor')}</th>
-                <th>{t('admin.action')}</th>
-                <th>{t('admin.target')}</th>
-                <th>{t('admin.before')}</th>
-                <th>{t('admin.after')}</th>
+                <th scope="col">{t('admin.when')}</th>
+                <th scope="col">{t('admin.actor')}</th>
+                <th scope="col">{t('admin.action')}</th>
+                <th scope="col">{t('admin.target')}</th>
+                <th scope="col">{t('admin.before')}</th>
+                <th scope="col">{t('admin.after')}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((a) => (
                 <tr key={a.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{formatDate(a.createdAt)}</td>
+                  <td className={styles.nowrap}>{formatDate(a.createdAt)}</td>
                   <td>{a.actor ? (a.actor.name ?? a.actor.id.slice(0, 8)) : t('admin.system')}</td>
                   <td>
                     <code>{a.action}</code>
@@ -49,10 +69,10 @@ export default function AdminAuditPage() {
                   <td>
                     {a.targetType}:{a.targetId.length > 20 ? `${a.targetId.slice(0, 8)}…` : a.targetId}
                   </td>
-                  <td>
+                  <td className={styles.wrap}>
                     <code>{json(a.before)}</code>
                   </td>
-                  <td>
+                  <td className={styles.wrap}>
                     <code>{json(a.after)}</code>
                   </td>
                 </tr>
@@ -62,11 +82,13 @@ export default function AdminAuditPage() {
         </div>
       )}
       {cursor && (
-        <button className="btn btn-ghost" onClick={() => load(cursor)}>
-          {t('admin.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" loading={loadingMore} onClick={() => void more()}>
+            {t('admin.loadMore')}
+          </Button>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 

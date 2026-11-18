@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AdminUserDetail, CreditAdjustResult, EarningsAdjustResult } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatDelta, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
-
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
-const signed = (n: number) => (n > 0 ? `+${formatNumber(n)}` : formatNumber(n));
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+import { Button } from '../../../ui/button';
+import { useConfirm } from '../../../ui/confirm';
+import { ErrorLine, LoadingRows, Pill, errorText } from '../../admin-ui';
+import styles from '../../admin.module.css';
 
 export default function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,29 +29,41 @@ export default function AdminUserDetailPage() {
     void load();
   }, [load]);
 
-  if (error && !u) return <main><p style={{ color: 'var(--err)' }}>{error}</p></main>;
-  if (!u) return <main><p>{t('me.loading')}</p></main>;
+  if (error && !u) return <ErrorLine>{error}</ErrorLine>;
+  if (!u) return <LoadingRows />;
 
-  const test = <span className="pill" style={{ marginLeft: 6 }}>{t('adminOps.testPill')}</span>;
+  const test = (
+    <span className={styles.pills}>
+      <Pill tone="neutral">{t('adminOps.testPill')}</Pill>
+    </span>
+  );
 
   return (
-    <main style={{ display: 'grid', gap: 16 }}>
-      <Link href="/admin/users">{t('adminOps.back')}</Link>
-      <section className="card" style={{ display: 'grid', gap: 6 }}>
-        <h1 style={{ margin: 0 }}>{u.name ?? t('admin.someone')}</h1>
-        <p style={{ margin: 0 }}>{[u.phone, u.email].filter(Boolean).join(' · ')}</p>
-        <p style={{ margin: 0 }}>
-          {u.roles.map((r) => <span key={r} className="pill" style={{ marginRight: 6 }}>{r}</span>)}
-          {u.blockedAt && <span className="pill" style={{ color: 'var(--err)' }}>{t('adminOps.blockedPill')}</span>}
+    <div className={styles.stackLg}>
+      <Link href="/admin/users" className={`${styles.back} ${styles.anchor}`}>
+        {t('adminOps.back')}
+      </Link>
+      <section className={styles.item}>
+        <h1 className={styles.title}>{u.name ?? t('admin.someone')}</h1>
+        <p className={styles.line}>{[u.phone, u.email].filter(Boolean).join(' · ')}</p>
+        <p className={styles.toolbar}>
+          {u.roles.map((r) => (
+            <Pill key={r} tone="neutral">
+              {r}
+            </Pill>
+          ))}
+          {u.blockedAt && <Pill tone="err">{t('adminOps.blockedPill')}</Pill>}
         </p>
-        <p style={{ margin: 0 }}><strong>{t('adminOps.creditBalance', { count: formatNumber(u.credits.balance) })}</strong></p>
+        <p className={styles.line}>
+          <strong>{t('adminOps.creditBalance', { count: formatNumber(u.credits.balance) })}</strong>
+        </p>
         {u.subscription && (
-          <p style={{ margin: 0 }}>
+          <p className={styles.line}>
             {t('adminOps.subscription', { plan: u.subscription.planName, status: t(`adminOps.sub${u.subscription.status}` as MessageKey) })}
           </p>
         )}
         {u.blockedAt && (
-          <p style={{ margin: 0, color: 'var(--err)' }}>
+          <p className={`${styles.line} ${styles.error}`}>
             {t('adminOps.blockedInfo', { date: formatDate(u.blockedAt), reason: u.blockedReason ?? '—' })}
           </p>
         )}
@@ -63,11 +75,15 @@ export default function AdminUserDetailPage() {
 
       <Section title={t('adminOps.ledger')}>
         <Table
-          head={[t('adminOps.colWhen'), t('adminOps.colType'), t('adminOps.colCredits'), t('adminOps.colReason')]}
+          title={t('adminOps.ledger')}
+          head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colType') }, { label: t('adminOps.colCredits'), num: true }, { label: t('adminOps.colReason') }]}
           rows={u.ledger.map((e) => [
             formatDate(e.createdAt),
-            <>{t(`adminOps.entry${e.type}` as MessageKey)}{e.isTest && test}</>,
-            signed(e.amount),
+            <>
+              {t(`adminOps.entry${e.type}` as MessageKey)}
+              {e.isTest && test}
+            </>,
+            formatDelta(e.amount),
             [e.reason, e.actor?.name].filter(Boolean).join(' · ') || '—',
           ])}
         />
@@ -75,10 +91,14 @@ export default function AdminUserDetailPage() {
 
       <Section title={t('adminOps.purchases')}>
         <Table
-          head={[t('adminOps.colWhen'), t('adminOps.colItem'), t('adminOps.colCredits')]}
+          title={t('adminOps.purchases')}
+          head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colItem') }, { label: t('adminOps.colCredits'), num: true }]}
           rows={u.purchases.map((p) => [
             formatDate(p.createdAt),
-            <>{p.lessonTitle ? t('adminOps.lessonOf', { lesson: p.lessonTitle, course: p.courseTitle }) : p.courseTitle}{p.isTest && test}</>,
+            <>
+              {p.lessonTitle ? t('adminOps.lessonOf', { lesson: p.lessonTitle, course: p.courseTitle }) : p.courseTitle}
+              {p.isTest && test}
+            </>,
             formatNumber(p.credits),
           ])}
         />
@@ -86,12 +106,24 @@ export default function AdminUserDetailPage() {
 
       <Section title={t('adminOps.payments')}>
         <Table
-          head={[t('adminOps.colWhen'), t('adminOps.colPurpose'), t('adminOps.colAmount'), t('adminOps.colStatus')]}
+          title={t('adminOps.payments')}
+          head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colPurpose') }, { label: t('adminOps.colAmount'), num: true }, { label: t('adminOps.colStatus') }]}
           rows={u.payments.map((p) => [
             formatDate(p.createdAt),
-            <>{t(`adminOps.purpose${p.purpose}` as MessageKey)} · {t(`adminOps.method${p.method}` as MessageKey)}{p.isTest && test}</>,
-            <>{mnt(p.amountMnt)}{p.paidAmountMnt !== null && p.paidAmountMnt !== p.amountMnt && <small className="muted"> ({t('adminOps.paidAmount', { amount: formatNumber(p.paidAmountMnt) })})</small>}</>,
-            <>{t(`adminOps.payStatus${p.status}` as MessageKey)}{p.failureReason && <small className="muted"> · {p.failureReason}</small>}</>,
+            <>
+              {t(`adminOps.purpose${p.purpose}` as MessageKey)} · {t(`adminOps.method${p.method}` as MessageKey)}
+              {p.isTest && test}
+            </>,
+            <>
+              {formatMnt(p.amountMnt)}
+              {p.paidAmountMnt !== null && p.paidAmountMnt !== p.amountMnt && (
+                <small className={styles.muted}> ({t('adminOps.paidAmount', { amount: formatNumber(p.paidAmountMnt) })})</small>
+              )}
+            </>,
+            <>
+              {t(`adminOps.payStatus${p.status}` as MessageKey)}
+              {p.failureReason && <small className={styles.muted}> · {p.failureReason}</small>}
+            </>,
           ])}
         />
       </Section>
@@ -99,37 +131,58 @@ export default function AdminUserDetailPage() {
       {u.earnings && (
         <Section title={t('adminOps.earningsRecent')}>
           <Table
-            head={[t('adminOps.colWhen'), t('adminOps.colType'), t('adminOps.colAmount'), t('adminOps.colReason')]}
+            title={t('adminOps.earningsRecent')}
+            head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colType') }, { label: t('adminOps.colAmount'), num: true }, { label: t('adminOps.colReason') }]}
             rows={u.earnings.recent.map((e) => [
               formatDate(e.createdAt),
-              <>{t(`adminOps.earn${e.type}` as MessageKey)}{e.isTest && test}</>,
-              `${e.amountMnt > 0 ? '+' : ''}${mnt(e.amountMnt)}`,
+              <>
+                {t(`adminOps.earn${e.type}` as MessageKey)}
+                {e.isTest && test}
+              </>,
+              `${e.amountMnt > 0 ? '+' : ''}${formatMnt(e.amountMnt)}`,
               e.reason ?? '—',
             ])}
           />
         </Section>
       )}
-    </main>
+    </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{title}</h2>
+    <section className={styles.stack}>
+      <h2 className={styles.subtitle}>{title}</h2>
       {children}
     </section>
   );
 }
 
-function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
-  if (rows.length === 0) return <p className="muted" style={{ margin: 0 }}>{t('adminOps.noRows')}</p>;
+function Table({ title, head, rows }: { title: string; head: { label: string; num?: boolean }[]; rows: ReactNode[][] }) {
+  if (rows.length === 0) return <p className={styles.hint}>{t('adminOps.noRows')}</p>;
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="table">
-        <thead><tr>{head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <caption>{title}</caption>
+        <thead>
+          <tr>
+            {head.map((h) => (
+              <th key={h.label} scope="col" className={h.num ? styles.num : undefined}>
+                {h.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
         <tbody>
-          {rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}
+          {rows.map((r, i) => (
+            <tr key={i}>
+              {r.map((c, j) => (
+                <td key={j} className={head[j]?.num ? styles.num : j === 0 ? styles.nowrap : styles.wrap}>
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -138,13 +191,20 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 
 /** Хаах/нээх: шалтгаан заавал. */
 function BlockForm({ user, onDone }: { user: AdminUserDetail; onDone: () => Promise<void> }) {
+  const confirm = useConfirm();
   const blocked = user.blockedAt !== null;
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
-    if (!window.confirm(t(blocked ? 'adminOps.unblockConfirm' : 'adminOps.blockConfirm'))) return;
+    const ok = await confirm({
+      title: t(blocked ? 'adminOps.unblock' : 'adminOps.block'),
+      body: t(blocked ? 'adminOps.unblockConfirm' : 'adminOps.blockConfirm'),
+      confirmLabel: t(blocked ? 'adminOps.unblock' : 'adminOps.block'),
+      danger: !blocked,
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -159,15 +219,24 @@ function BlockForm({ user, onDone }: { user: AdminUserDetail; onDone: () => Prom
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{t('adminOps.blockTitle')}</h2>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input className="input" style={{ flex: '1 1 260px' }} placeholder={t('adminOps.blockReason')} aria-label={t('adminOps.blockReason')} value={reason} onChange={(e) => setReason(e.target.value)} />
-        <button type="button" className={blocked ? 'btn' : 'btn btn-ghost'} disabled={busy || reason.trim().length < 3} onClick={() => void submit()}>
+    <section className={styles.item} aria-labelledby="block-title">
+      <h2 id="block-title" className={styles.subtitle}>
+        {t('adminOps.blockTitle')}
+      </h2>
+      <div className={styles.formRow}>
+        <input
+          className={`input ${styles.grow}`}
+          autoComplete="off"
+          placeholder={t('adminOps.blockReason')}
+          aria-label={t('adminOps.blockReason')}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <Button variant={blocked ? 'primary' : 'secondary'} disabled={reason.trim().length < 3} loading={busy} onClick={() => void submit()}>
           {t(blocked ? 'adminOps.unblock' : 'adminOps.block')}
-        </button>
+        </Button>
       </div>
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
+      {error && <ErrorLine>{error}</ErrorLine>}
     </section>
   );
 }
@@ -188,6 +257,7 @@ interface AdjustProps<R> {
  * илгээхэд давхар бичилт үүсэхгүй), амжилттай болсны дараа эсвэл түлхүүр зөрчилдвөл шинээр үүснэ.
  */
 function AdjustForm<R>({ title, deltaLabel, path, bodyKey, confirmText, doneText, onDone, extra }: AdjustProps<R>) {
+  const confirm = useConfirm();
   const [delta, setDelta] = useState('');
   const [reason, setReason] = useState('');
   const [key, setKey] = useState(() => crypto.randomUUID());
@@ -201,7 +271,9 @@ function AdjustForm<R>({ title, deltaLabel, path, bodyKey, confirmText, doneText
   const valid = delta.trim() !== '' && deltaValid && reason.trim().length >= 3;
 
   async function submit() {
-    if (!valid || !window.confirm(confirmText(n))) return;
+    if (!valid) return;
+    const yes = await confirm({ title, body: confirmText(n), confirmLabel: t('adminOps.apply'), danger: n < 0 });
+    if (!yes) return;
     setBusy(true);
     setError(null);
     setErrorCode(null);
@@ -225,23 +297,43 @@ function AdjustForm<R>({ title, deltaLabel, path, bodyKey, confirmText, doneText
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <h2 style={{ margin: 0 }}>{title}</h2>
+    <section className={styles.item}>
+      <h2 className={styles.subtitle}>{title}</h2>
       {extra}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input className="input" style={{ flex: '0 1 200px' }} type="number" step={1} inputMode="numeric" placeholder={deltaLabel} aria-label={deltaLabel} value={delta} onChange={(e) => setDelta(e.target.value)} />
-        <input className="input" style={{ flex: '1 1 260px' }} placeholder={t('adminOps.reason')} aria-label={t('adminOps.reason')} value={reason} onChange={(e) => setReason(e.target.value)} />
-        <button type="button" className="btn" disabled={busy || !valid} onClick={() => void submit()}>
+      <div className={styles.formRow}>
+        <input
+          className={`input ${styles.narrowField}`}
+          type="number"
+          step={1}
+          inputMode="numeric"
+          placeholder={deltaLabel}
+          aria-label={deltaLabel}
+          value={delta}
+          onChange={(e) => setDelta(e.target.value)}
+        />
+        <input
+          className={`input ${styles.grow}`}
+          autoComplete="off"
+          placeholder={t('adminOps.reason')}
+          aria-label={t('adminOps.reason')}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <Button disabled={!valid} loading={busy} onClick={() => void submit()}>
           {t('adminOps.apply')}
-        </button>
+        </Button>
       </div>
-      {delta.trim() !== '' && !deltaValid && <p className="muted" style={{ margin: 0 }}>{t('adminOps.invalidDelta')}</p>}
-      {ok && <p style={{ margin: 0 }}>{ok}</p>}
+      {delta.trim() !== '' && !deltaValid && <p className={styles.hint}>{t('adminOps.invalidDelta')}</p>}
+      {ok && (
+        <p className={styles.info} role="status">
+          {ok}
+        </p>
+      )}
       {error && (
-        <p role="alert" style={{ margin: 0, color: 'var(--err)' }}>
+        <ErrorLine>
           {errorCode === 'EARNINGS_BELOW_LOCKED' && <strong>{t('adminOps.openPayoutError')}. </strong>}
           {error}
-        </p>
+        </ErrorLine>
       )}
     </section>
   );
@@ -254,7 +346,7 @@ function CreditAdjustForm({ user, onDone }: { user: AdminUserDetail; onDone: () 
       deltaLabel={t('adminOps.creditDelta')}
       path={`/admin/users/${user.id}/credits/adjust`}
       bodyKey="delta"
-      confirmText={(n) => t('adminOps.creditConfirm', { delta: signed(n) })}
+      confirmText={(n) => t('adminOps.creditConfirm', { delta: formatDelta(n) })}
       doneText={(r) => t(r.replayed ? 'adminOps.adjustReplayed' : 'adminOps.adjustDone', { balance: formatNumber(r.balance) })}
       onDone={onDone}
     />
@@ -270,13 +362,17 @@ function EarningsAdjustForm({ user, onDone }: { user: AdminUserDetail; onDone: (
       deltaLabel={t('adminOps.earningsDelta')}
       path={`/admin/users/${user.id}/earnings/adjust`}
       bodyKey="amountMnt"
-      confirmText={(n) => t('adminOps.earningsConfirm', { amount: signed(n) })}
-      doneText={(r) => t(r.replayed ? 'adminOps.adjustReplayed' : 'adminOps.adjustDone', { balance: mnt(r.balanceMnt) })}
+      confirmText={(n) => t('adminOps.earningsConfirm', { amount: formatDelta(n) })}
+      doneText={(r) => t(r.replayed ? 'adminOps.adjustReplayed' : 'adminOps.adjustDone', { balance: formatMnt(r.balanceMnt) })}
       onDone={onDone}
       extra={
-        <p style={{ margin: 0 }}>
+        <p className={styles.line}>
           {t('adminOps.earningsSummary', { balance: formatNumber(e.balanceMnt), locked: formatNumber(e.lockedMnt), test: formatNumber(e.testBalanceMnt) })}
-          {e.onHold && <span className="pill" style={{ marginLeft: 8, color: 'var(--err)' }}>{t('adminOps.onHold')}</span>}
+          {e.onHold && (
+            <span className={styles.pills}>
+              <Pill tone="err">{t('adminOps.onHold')}</Pill>
+            </span>
+          )}
         </p>
       }
     />

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import type { AdminUserPage, AdminUserRow } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { formatDate, formatNumber } from '@/lib/format';
 import { t } from '@/lib/i18n';
-
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, LoadingRows, Pill, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 /** Хэрэглэгч хайх (утас, имэйл, нэр). */
 export default function AdminUsersPage() {
@@ -50,54 +52,55 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('adminOps.usersTitle')}</h1>
-      <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('adminOps.usersTitle')}</h1>
+      <form onSubmit={submit} className={styles.toolbar} role="search">
         <input
-          className="input"
-          style={{ flex: '1 1 260px' }}
+          className={`input ${styles.grow}`}
+          type="search"
+          name="q"
+          autoComplete="off"
           placeholder={t('adminOps.searchPlaceholder')}
           aria-label={t('adminOps.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button type="submit" className="btn">
-          {t('adminOps.search')}
-        </button>
+        <Button type="submit">{t('adminOps.search')}</Button>
       </form>
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {!items && !error && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('adminOps.noUsers')}</p>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('adminOps.noUsers')} />}
       {items && items.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <caption>{t('adminOps.usersTitle')}</caption>
             <thead>
               <tr>
-                <th>{t('payout.teacher')}</th>
-                <th>{t('adminOps.balanceCol')}</th>
-                <th>{t('adminOps.registered')}</th>
+                <th scope="col">{t('adminUi.colUser')}</th>
+                <th scope="col" className={styles.num}>
+                  {t('adminOps.balanceCol')}
+                </th>
+                <th scope="col">{t('adminOps.registered')}</th>
               </tr>
             </thead>
             <tbody>
               {items.map((u) => (
                 <tr key={u.id}>
-                  <td>
-                    <Link href={`/admin/users/${u.id}`}>
+                  <th scope="row" className={styles.wrap}>
+                    <Link className={styles.anchor} href={`/admin/users/${u.id}`}>
                       {[u.name ?? t('admin.someone'), u.phone, u.email].filter(Boolean).join(' · ')}
                     </Link>
-                    {u.roles.map((r) => (
-                      <span key={r} className="pill" style={{ marginLeft: 6 }}>
-                        {r}
-                      </span>
-                    ))}
-                    {u.blockedAt && (
-                      <span className="pill" style={{ marginLeft: 6, color: 'var(--err)' }}>
-                        {t('adminOps.blockedPill')}
-                      </span>
-                    )}
-                  </td>
-                  <td>{formatNumber(u.creditBalance)}</td>
-                  <td>{formatDate(u.createdAt)}</td>
+                    <span className={styles.pills}>
+                      {u.roles.map((r) => (
+                        <Pill key={r} tone="neutral">
+                          {r}
+                        </Pill>
+                      ))}
+                      {u.blockedAt && <Pill tone="err">{t('adminOps.blockedPill')}</Pill>}
+                    </span>
+                  </th>
+                  <td className={styles.num}>{formatNumber(u.creditBalance)}</td>
+                  <td className={styles.nowrap}>{formatDate(u.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -105,10 +108,12 @@ export default function AdminUsersPage() {
         </div>
       )}
       {cursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
-          {t('admin.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" onClick={() => void more()}>
+            {t('admin.loadMore')}
+          </Button>
+        </div>
       )}
-    </main>
+    </div>
   );
 }

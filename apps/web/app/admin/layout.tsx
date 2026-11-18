@@ -6,23 +6,55 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { AuthUser } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
+import { LoadingRows } from './admin-ui';
+import { EmptyState } from '../ui/empty-state';
+import styles from './admin.module.css';
 
-const NAV: [href: string, label: MessageKey][] = [
-  ['/admin', 'admin.navSettings'],
-  ['/admin/teacher-applications', 'teacher.navApplications'],
-  ['/admin/course-reviews', 'course.navReviews'],
-  ['/admin/categories', 'course.navCategories'],
-  ['/admin/credit-packages', 'credits.navAdmin'],
-  ['/admin/subscription-plans', 'subscription.navAdmin'],
-  ['/admin/payouts', 'payout.navAdmin'],
-  ['/admin/reviews', 'review.navAdmin'],
-  ['/admin/community', 'communityAdmin.nav'],
-  ['/admin/users', 'adminOps.navUsers'],
-  ['/admin/payments', 'adminOps.navPayments'],
-  ['/admin/reports', 'adminOps.navReports'],
-  ['/admin/audit', 'admin.navAudit'],
-  ['/admin/legal', 'admin.navLegal'],
+type NavItem = [href: string, label: MessageKey];
+
+const GROUPS: { title: MessageKey; items: NavItem[] }[] = [
+  {
+    title: 'adminUi.groupUsers',
+    items: [
+      ['/admin/users', 'adminOps.navUsers'],
+      ['/admin/teacher-applications', 'teacher.navApplications'],
+    ],
+  },
+  {
+    title: 'adminUi.groupContent',
+    items: [
+      ['/admin/course-reviews', 'course.navReviews'],
+      ['/admin/categories', 'course.navCategories'],
+      ['/admin/reviews', 'review.navAdmin'],
+      ['/admin/community', 'communityAdmin.nav'],
+    ],
+  },
+  {
+    title: 'adminUi.groupMoney',
+    items: [
+      ['/admin/payments', 'adminOps.navPayments'],
+      ['/admin/payouts', 'payout.navAdmin'],
+      ['/admin/credit-packages', 'credits.navAdmin'],
+      ['/admin/subscription-plans', 'subscription.navAdmin'],
+      ['/admin/reports', 'adminOps.navReports'],
+    ],
+  },
+  {
+    title: 'adminUi.groupSystem',
+    items: [
+      ['/admin', 'admin.navSettings'],
+      ['/admin/audit', 'admin.navAudit'],
+      ['/admin/legal', 'admin.navLegal'],
+    ],
+  },
 ];
+
+/** Курсийн дэлгэрэнгүй (`/admin/courses/[id]`) нь «Курсийн хяналт»-ын дэд хуудас. */
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/admin') return pathname === '/admin';
+  if (href === '/admin/course-reviews' && pathname.startsWith('/admin/courses/')) return true;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /** Web-ийн шалгалт зөвхөн UX-д; бодит эрхийн шалгалт API дээр (`@Auth('ADMIN')`). */
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -39,20 +71,43 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       });
   }, [router]);
 
-  if (state === 'loading') return <main className="page">{t('me.loading')}</main>;
-  if (state === 'forbidden') return <main className="page">{t('admin.forbidden')}</main>;
+  if (state === 'loading') {
+    return (
+      <div className={styles.shell}>
+        <LoadingRows rows={3} />
+      </div>
+    );
+  }
+  if (state === 'forbidden') {
+    return (
+      <div className={styles.shell}>
+        <EmptyState title={t('admin.forbidden')} />
+      </div>
+    );
+  }
 
   return (
-    <div className="page wide" style={{ display: 'grid', gap: 16 }}>
-      <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <strong style={{ marginRight: 8, alignSelf: 'center' }}>{t('admin.title')}</strong>
-        {NAV.map(([href, label]) => (
-          <Link key={href} href={href} className={pathname === href ? 'btn' : 'btn btn-ghost'}>
-            {t(label)}
-          </Link>
-        ))}
-      </nav>
-      {children}
+    <div className={styles.shell}>
+      <aside className={styles.sidebar}>
+        <p className={styles.brand}>{t('admin.title')}</p>
+        <nav className={styles.nav} aria-label={t('adminUi.navLabel')}>
+          {GROUPS.map((g) => (
+            <section key={g.title} aria-label={t(g.title)} className={styles.groupItem}>
+              <h2 className={styles.groupTitle}>{t(g.title)}</h2>
+              <ul className={styles.group}>
+                {g.items.map(([href, label]) => (
+                  <li key={href} className={styles.groupItem}>
+                    <Link href={href} className={styles.link} aria-current={isActive(pathname, href) ? 'page' : undefined}>
+                      {t(label)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </nav>
+      </aside>
+      <div className={styles.content}>{children}</div>
     </div>
   );
 }

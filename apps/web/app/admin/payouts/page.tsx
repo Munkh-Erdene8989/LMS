@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { AdminPayoutPage, AdminPayoutView, PayoutHoldView, PayoutStatus } from '@lms/shared';
-import { api, apiDownload, ApiRequestError } from '@/lib/client-api';
+import { api, apiDownload } from '@/lib/client-api';
 import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, FilterTabs, LoadingRows, Pill, ReasonDialog, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 const STATUSES: PayoutStatus[] = ['REQUESTED', 'PAID', 'REJECTED'];
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Payout дараалал: CSV export → банкаар гараар шилжүүлэх → "төлсөн"; татгалзах; багшийн hold. */
 export default function AdminPayoutsPage() {
@@ -69,69 +72,101 @@ export default function AdminPayoutsPage() {
   const total = items?.reduce((s, p) => s + p.amountMnt, 0) ?? 0;
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('payout.adminTitle')}</h1>
-      <div role="tablist" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {STATUSES.map((s) => (
-          <button key={s} role="tab" aria-selected={s === status} className={s === status ? 'btn' : 'btn btn-ghost'} onClick={() => setStatus(s)}>
-            {t(`payout.tab${s}` as MessageKey)}
-          </button>
-        ))}
-      </div>
-      {status === 'REQUESTED' && items && items.length > 0 && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" className="btn" onClick={() => void exportCsv()}>
-            {t('payout.exportCsv')}
-          </button>
-          <span className="muted">{t('payout.queueTotal', { count: items.length, amount: formatNumber(total) })}</span>
-        </div>
-      )}
-      {status === 'REQUESTED' && <p className="muted" style={{ margin: 0 }}>{t('payout.adminHint')}</p>}
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {!items && !error && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('payout.adminEmpty')}</p>}
-      {items?.map((p) => <PayoutCard key={p.id} payout={p} onDone={load} />)}
-      {cursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
-          {t('admin.loadMore')}
-        </button>
-      )}
-
-      <h2 style={{ margin: '16px 0 0' }}>{t('payout.holdsTitle')}</h2>
-      {holds.length === 0 ? (
-        <p style={{ margin: 0 }}>{t('payout.holdsEmpty')}</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('payout.teacher')}</th>
-                <th>{t('teacher.reason')}</th>
-                <th>{t('admin.when')}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {holds.map((h) => (
-                <tr key={h.teacher.id}>
-                  <td>{contactLine(h.teacher)}</td>
-                  <td style={{ whiteSpace: 'pre-wrap' }}>{h.reason}</td>
-                  <td>
-                    {formatDate(h.createdAt)}
-                    {h.createdBy && <small className="muted"> · {h.createdBy.name ?? t('admin.someone')}</small>}
-                  </td>
-                  <td>
-                    <button type="button" className="btn btn-ghost btn-small" onClick={() => void release(h.teacher.id)}>
-                      {t('payout.release')}
-                    </button>
-                  </td>
+    <div className={styles.stackLg}>
+      <div className={styles.stack}>
+        <h1 className={styles.title}>{t('payout.adminTitle')}</h1>
+        <FilterTabs
+          label={t('payout.adminTitle')}
+          value={status}
+          onChange={setStatus}
+          items={STATUSES.map((s) => ({ key: s, label: t(`payout.tab${s}` as MessageKey) }))}
+        />
+        {status === 'REQUESTED' && items && items.length > 0 && (
+          <div className={styles.toolbar}>
+            <Button onClick={() => void exportCsv()}>{t('payout.exportCsv')}</Button>
+            <span className={styles.muted}>{t('payout.queueTotal', { count: items.length, amount: formatNumber(total) })}</span>
+          </div>
+        )}
+        {status === 'REQUESTED' && <p className={styles.hint}>{t('payout.adminHint')}</p>}
+        {error && <ErrorLine>{error}</ErrorLine>}
+        {!items && !error && <LoadingRows />}
+        {items?.length === 0 && <EmptyState title={t('payout.adminEmpty')} />}
+        {!!items?.length && (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <caption>{t('payout.adminTitle')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className={styles.num}>
+                    {t('adminUi.colAmount')}
+                  </th>
+                  <th scope="col">{t('payout.teacher')}</th>
+                  <th scope="col">{t('adminUi.colBank')}</th>
+                  <th scope="col">{t('adminOps.colStatus')}</th>
+                  <th scope="col" className={styles.actions}>
+                    {t('adminUi.colActions')}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </main>
+              </thead>
+              <tbody>
+                {items.map((p) => (
+                  <PayoutRow key={p.id} payout={p} onDone={load} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {cursor && (
+          <div>
+            <Button variant="secondary" onClick={() => void more()}>
+              {t('admin.loadMore')}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <section className={styles.stack} aria-labelledby="payout-holds-title">
+        <h2 id="payout-holds-title" className={styles.subtitle}>
+          {t('payout.holdsTitle')}
+        </h2>
+        {holds.length === 0 ? (
+          <p className={styles.hint}>{t('payout.holdsEmpty')}</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <caption>{t('payout.holdsTitle')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('payout.teacher')}</th>
+                  <th scope="col">{t('teacher.reason')}</th>
+                  <th scope="col">{t('admin.when')}</th>
+                  <th scope="col" className={styles.actions}>
+                    {t('adminUi.colActions')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {holds.map((h) => (
+                  <tr key={h.teacher.id}>
+                    <td className={styles.wrap}>{contactLine(h.teacher)}</td>
+                    <td className={`${styles.wrap} ${styles.pre}`}>{h.reason}</td>
+                    <td>
+                      {formatDate(h.createdAt)}
+                      {h.createdBy && <small className={styles.muted}> · {h.createdBy.name ?? t('admin.someone')}</small>}
+                    </td>
+                    <td className={styles.actions}>
+                      <Button variant="secondary" size="sm" onClick={() => void release(h.teacher.id)}>
+                        {t('payout.release')}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -139,15 +174,12 @@ function contactLine(u: AdminPayoutView['teacher']): string {
   return [u.name ?? t('admin.someone'), u.phone, u.email].filter(Boolean).join(' · ');
 }
 
-function PayoutCard({ payout: p, onDone }: { payout: AdminPayoutView; onDone: () => Promise<void> }) {
-  const [transferRef, setTransferRef] = useState('');
-  const [reason, setReason] = useState('');
-  const [holdReason, setHoldReason] = useState('');
+function PayoutRow({ payout: p, onDone }: { payout: AdminPayoutView; onDone: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<'paid' | 'reject' | 'hold' | null>(null);
 
-  async function act(path: string, method: string, body?: unknown, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return;
+  async function act(path: string, method: string, body?: unknown) {
     setBusy(true);
     setError(null);
     try {
@@ -161,102 +193,85 @@ function PayoutCard({ payout: p, onDone }: { payout: AdminPayoutView; onDone: ()
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+    <tr>
+      <td className={styles.num}>
         <strong>{formatMnt(p.amountMnt)}</strong>
-        <span className="muted" style={{ fontSize: 14 }}>
-          {t('payout.requestedOn', { date: formatDate(p.requestedAt) })}
+        <div className={`${styles.muted} ${styles.small}`}>{t('payout.requestedOn', { date: formatDate(p.requestedAt) })}</div>
+      </td>
+      <td className={styles.wrap}>
+        {contactLine(p.teacher)}
+        {p.onHold && (
+          <span className={styles.pills}>
+            <Pill tone="err">{t('payout.onHold')}</Pill>
+          </span>
+        )}
+        <div className={`${styles.muted} ${styles.small}`}>{t('payout.teacherBalance', { amount: formatNumber(p.teacherBalanceMnt) })}</div>
+      </td>
+      <td className={styles.wrap}>
+        {t(`banks.${p.bank}` as MessageKey)} · <code>{p.accountNumber}</code> · {p.holderName}
+      </td>
+      <td className={styles.wrap}>
+        {p.status === 'REQUESTED' ? (
+          <Pill tone="warn">{t(`payout.status${p.status}` as MessageKey)}</Pill>
+        ) : (
+          <>
+            <Pill tone={p.status === 'PAID' ? 'ok' : 'err'}>{t(`payout.status${p.status}` as MessageKey)}</Pill>{' '}
+            {p.processedAt && formatDate(p.processedAt)}
+            {p.processedBy && ` · ${p.processedBy.name ?? t('admin.someone')}`}
+            {p.transferRef && ` · ${p.transferRef}`}
+            {p.rejectReason && ` · ${p.rejectReason}`}
+          </>
+        )}
+        {error && <ErrorLine>{error}</ErrorLine>}
+      </td>
+      <td className={styles.actions}>
+        <span className={styles.rowActions}>
+          {p.status === 'REQUESTED' && (
+            <>
+              <Button size="sm" disabled={busy || p.onHold} onClick={() => setDialog('paid')}>
+                {t('payout.markPaid')}
+              </Button>
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDialog('reject')}>
+                {t('payout.reject')}
+              </Button>
+            </>
+          )}
+          {!p.onHold && (
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDialog('hold')}>
+              {t('payout.hold')}
+            </Button>
+          )}
         </span>
-      </div>
-      <p style={{ margin: 0 }}>
-        <strong>{t('payout.teacher')}:</strong> {contactLine(p.teacher)}
-        {p.onHold && <span className="pill" style={{ marginLeft: 8, color: 'var(--err)' }}>{t('payout.onHold')}</span>}
-      </p>
-      <p style={{ margin: 0 }}>
-        <strong>{t('teacher.bank')}:</strong> {t(`banks.${p.bank}` as MessageKey)} · <code>{p.accountNumber}</code> · {p.holderName}
-      </p>
-      <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-        {t('payout.teacherBalance', { amount: formatNumber(p.teacherBalanceMnt) })}
-      </p>
-      {p.status !== 'REQUESTED' && (
-        <p style={{ margin: 0 }}>
-          <span className="pill">{t(`payout.status${p.status}` as MessageKey)}</span>{' '}
-          {p.processedAt && formatDate(p.processedAt)}
-          {p.processedBy && ` · ${p.processedBy.name ?? t('admin.someone')}`}
-          {p.transferRef && ` · ${p.transferRef}`}
-          {p.rejectReason && ` · ${p.rejectReason}`}
-        </p>
-      )}
-
-      {p.status === 'REQUESTED' && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input
-              className="input"
-              style={{ flex: '1 1 200px' }}
-              placeholder={t('payout.transferRef')}
-              aria-label={t('payout.transferRef')}
-              value={transferRef}
-              onChange={(e) => setTransferRef(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy || p.onHold}
-              onClick={() =>
-                void act(
-                  `/admin/payouts/${p.id}/paid`,
-                  'POST',
-                  transferRef.trim() ? { transferRef: transferRef.trim() } : {},
-                  t('payout.paidConfirm', { amount: formatNumber(p.amountMnt) }),
-                )
-              }
-            >
-              {t('payout.markPaid')}
-            </button>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <input
-              className="input"
-              style={{ flex: '1 1 200px' }}
-              placeholder={t('payout.rejectReason')}
-              aria-label={t('payout.rejectReason')}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={busy || !reason.trim()}
-              onClick={() => void act(`/admin/payouts/${p.id}/reject`, 'POST', { reason: reason.trim() })}
-            >
-              {t('payout.reject')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!p.onHold && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input
-            className="input"
-            style={{ flex: '1 1 200px' }}
-            placeholder={t('payout.holdReason')}
-            aria-label={t('payout.holdReason')}
-            value={holdReason}
-            onChange={(e) => setHoldReason(e.target.value)}
-          />
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={busy || !holdReason.trim()}
-            onClick={() => void act(`/admin/payouts/holds/${p.teacher.id}`, 'PUT', { reason: holdReason.trim() })}
-          >
-            {t('payout.hold')}
-          </button>
-        </div>
-      )}
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-    </section>
+        <ReasonDialog
+          open={dialog === 'paid'}
+          onClose={() => setDialog(null)}
+          title={t('payout.markPaid')}
+          description={t('payout.paidConfirm', { amount: formatNumber(p.amountMnt) })}
+          label={t('payout.transferRef')}
+          confirmLabel={t('payout.markPaid')}
+          danger
+          minLength={0}
+          multiline={false}
+          onSubmit={(ref) => act(`/admin/payouts/${p.id}/paid`, 'POST', ref ? { transferRef: ref } : {})}
+        />
+        <ReasonDialog
+          open={dialog === 'reject'}
+          onClose={() => setDialog(null)}
+          title={t('payout.reject')}
+          label={t('payout.rejectReason')}
+          confirmLabel={t('payout.reject')}
+          danger
+          onSubmit={(reason) => act(`/admin/payouts/${p.id}/reject`, 'POST', { reason })}
+        />
+        <ReasonDialog
+          open={dialog === 'hold'}
+          onClose={() => setDialog(null)}
+          title={t('payout.hold')}
+          label={t('payout.holdReason')}
+          confirmLabel={t('payout.hold')}
+          onSubmit={(reason) => act(`/admin/payouts/holds/${p.teacher.id}`, 'PUT', { reason })}
+        />
+      </td>
+    </tr>
   );
 }

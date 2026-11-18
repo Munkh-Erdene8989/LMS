@@ -1270,5 +1270,21 @@
     "ctaTitle": "Өнөөдөр эхэлж суралц",
     "ctaLead": "Бүртгэл үнэгүй. Кредитээ хэрэгтэй үедээ цэнэглэнэ.",
     "ctaButton": "Бүртгүүлэх"
+  },
+  "adminUi": {
+    "navLabel": "Админ цэс",
+    "groupUsers": "Хэрэглэгч",
+    "groupContent": "Контент",
+    "groupMoney": "Мөнгө",
+    "groupSystem": "Систем",
+    "colUser": "Хэрэглэгч",
+    "colKind": "Төрөл",
+    "colActions": "Үйлдэл",
+    "colBank": "Банкны данс",
+    "colSubmitted": "Илгээсэн",
+    "colLessons": "Хичээл",
+    "colRoles": "Эрх",
+    "colAmount": "Дүн",
+    "tableOf": "Хүснэгт: {title}"
   }
 }
