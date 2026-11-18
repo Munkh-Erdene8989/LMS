@@ -36,5 +36,7 @@ Web: `/courses`, `/courses/[id]`, `/courses/[id]/lessons/[lessonId]`, `/teachers
 
 - [x] Ticket 09 (хийгдсэн): `LessonAccessPolicy.canViewContent()`-д entitlement; `GET /catalog/lessons/:id`, `/catalog/courses/:id`-д optional auth (viewerId); `PublicCatalogService.pricing()`-д тухайн курст зарцуулсан кредитийг хасах (`payableCredits`); курсийн хуудасны "Худалдаж авах" товч.
 - [x] Ticket 18 (хийгдсэн): `ratings.ts`-ийг review aggregate-аар солих; курсийн хуудсанд review жагсаалт.
-- [ ] Каталог томрох үед: OR-оор холбосон хайлт GIN index-ийг бүрэн ашиглахгүй (одоогийн хэмжээнд seq scan хангалттай). Шаардлагатай бол курст денормчилсон `search_text` багана.
+- [x] Ticket 29 (хийгдсэн): курст денормчилсон `search_text` багана (`title 
+ description 
+ багшийн нийтийн нэр`) + нэг GIN trigram index `courses_search_text_trgm_idx` (migration 20261118110000_course_search_text; хуучин гурван trigram index-ийг орлосон). Хайлтын шүүлт зөвхөн `c.search_text`-ийг ашиглана; эрэмбийн score өмнөхөөр талбар тус бүрээр (үр дүн, эрэмбэ өөрчлөгдөөгүй). Синк нь DB trigger-ээр: `courses` (title/description/teacher_id), `users.name`, `teacher_applications` (display_name/status/user_id) — код зам мартаж чадахгүй. Migration-д backfill. Багана нь кодоос бичигдэхгүй. Ангилал/tag хайлтад ороогүй (өмнө нь ч байгаагүй, үр дүн хэвээр байлгах үүднээс). dev `public` schema-д `pnpm db:deploy`-оор хэрэгжүүлэх шаардлагатай.
 - [x] `public` (dev) schema-д migration-ийг `pnpm db:deploy`-оор хэрэгжүүлэх (pg_trgm extension DB-д аль хэдийн `extensions` schema-д суусан).

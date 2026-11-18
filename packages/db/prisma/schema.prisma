@@ -352,8 +352,6 @@ model TeacherApplication {
   agreementAcceptance LegalAcceptance @relation(fields: [agreementAcceptanceId], references: [id], onDelete: NoAction)
 
   @@index([status, submittedAt])
-  // Каталогийн хайлт: багшийн нийтийн нэр (ticket 07)
-  @@index([displayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "teacher_applications_display_name_trgm_idx")
   @@map("teacher_applications")
 }
 
@@ -428,6 +426,8 @@ model Course {
   publishedAt  DateTime?    @map("published_at")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
+  /// Хайлтын денормчилсон текст (title, description, багшийн нэр). DB trigger-ээр синк хийгдэнэ — кодоос бүү бич (20261118110000_course_search_text).
+  searchText   String       @default("") @map("search_text")
 
   teacher    User      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   reviewedBy User?     @relation("CourseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -450,8 +450,7 @@ model Course {
   // Каталог (ticket 07). Trigram index-ууд migration-д `extensions.gin_trgm_ops`-оор үүссэн; энд `raw("gin_trgm_ops")` нь
   // introspection-тэй таарч, `migrate diff` тэднийг дахин үүсгэхгүй байхад л хэрэгтэй (20261117600000_catalog_search).
   @@index([status, publishedAt(sort: Desc)])
-  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_title_trgm_idx")
-  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_description_trgm_idx")
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_search_text_trgm_idx")
   @@map("courses")
 }
 

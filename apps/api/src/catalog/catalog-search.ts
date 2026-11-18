@@ -67,12 +67,8 @@ export async function searchCatalog(prisma: PrismaService, f: CatalogFilter): Pr
   let score = Prisma.sql`0::float8`;
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-    where.push(Prisma.sql`(
-      ${q} OPERATOR(extensions.<%) c.title
-      OR ${q} OPERATOR(extensions.<%) c.description
-      OR ${q} OPERATOR(extensions.<%) ${teacherName}
-      OR c.title ILIKE ${like} OR c.description ILIKE ${like} OR ${teacherName} ILIKE ${like}
-    )`);
+    // Зөвхөн `c.search_text` (title + description + багшийн нэр, DB trigger-ээр синк) — нэг GIN trigram index.
+    where.push(Prisma.sql`(${q} OPERATOR(extensions.<%) c.search_text OR c.search_text ILIKE ${like})`);
     // Гарчигт таарвал илүү чухал, тайлбарт хамгийн бага.
     score = Prisma.sql`GREATEST(
       extensions.word_similarity(${q}, c.title) + CASE WHEN c.title ILIKE ${like} THEN 0.5 ELSE 0 END,
