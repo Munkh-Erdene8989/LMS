@@ -4,17 +4,17 @@
 
 **Blocked by:** 32, 33
 
-**Status:** todo
+**Status:** done (feat/34-shell)
 
 ## Хийх
-- [ ] `app/site-header.tsx`: `--header-h` 52px, `--glass` + `backdrop-filter: saturate(180%) blur(20px)`, scroll>8px үед 1px border. Зүүн wordmark «Суралц» (`BRAND.name`), nav (Курсууд, Community, Миний сургалт), баруун `CreditPill` + «Нэвтрэх» эсвэл avatar цэс (Профайл, Кредит, Багш болох / Багшийн самбар, Админ, Гарах).
-- [ ] `<nav aria-label>`, `aria-current="page"`, skip-to-content линк (`#main`), бүх хуудасны `<main id="main">` (layout-д wrapper).
-- [ ] Mobile (<768): nav → цэс товч (44px) → sheet (Dialog ашиглаж болно), `env(safe-area-inset-*)`.
-- [ ] Auth төлөв ачаалах үед баруун хэсэгт Skeleton (pop-in байхгүй). Unread мэдэгдэл polling-ийг auth мэдэгдсэний дараа, focus дээр throttle.
-- [ ] Footer: legal линкүүд + брэнд мөр, тайван `--bg-alt`.
-- [ ] Theme toggle (footer эсвэл avatar цэс): Систем / Гэрэл / Харанхуй → `localStorage.theme` бичих + `<html data-theme>` (32-ийн init script `theme` түлхүүрийг уншдаг; «Систем» үед түлхүүр устгаж `data-theme` арилгана).
-- [ ] 32-оор `.page` 720→1120px болсон: нарийн хуудсуудад (`/me`, `/login`, `/legal`, form-ууд) `.page-narrow` (≈720px) primitive-ийг globals.css-ийн төгсгөлд нэмэх.
-- [ ] CSS: `app/site-header.module.css`.
+- [x] `app/site-header.tsx`: `--header-h` 52px, `--glass` + `backdrop-filter: saturate(180%) blur(20px)`, scroll>8px үед 1px border. Зүүн wordmark «Суралц» (`BRAND.name`), nav (Курсууд, Community, Миний сургалт), баруун `CreditPill` + «Нэвтрэх» эсвэл avatar цэс (Профайл, Кредит, Багш болох / Багшийн самбар, Админ, Гарах).
+- [x] `<nav aria-label>`, `aria-current="page"`, skip-to-content линк (`#main`), бүх хуудасны `<main id="main">` (layout-д wrapper).
+- [x] Mobile (<768): nav → цэс товч (44px) → sheet (Dialog ашиглаж болно), `env(safe-area-inset-*)`.
+- [x] Auth төлөв ачаалах үед баруун хэсэгт Skeleton (pop-in байхгүй). Unread мэдэгдэл polling-ийг auth мэдэгдсэний дараа, focus дээр throttle.
+- [x] Footer: legal линкүүд + брэнд мөр, тайван `--bg-alt`.
+- [x] Theme toggle (footer эсвэл avatar цэс): Систем / Гэрэл / Харанхуй → `localStorage.theme` бичих + `<html data-theme>` (32-ийн init script `theme` түлхүүрийг уншдаг; «Систем» үед түлхүүр устгаж `data-theme` арилгана).
+- [x] 32-оор `.page` 720→1120px болсон: нарийн хуудсуудад (`/me`, `/login`, `/legal`, form-ууд) `.page-narrow` (≈720px) primitive-ийг globals.css-ийн төгсгөлд нэмэх.
+- [x] CSS: `app/site-header.module.css`.
 
 ## Шалгах
 - typecheck, build. Tab-аар бүх линк хүрнэ, focus ring харагдана, mobile цэс Esc-ээр хаагдана.

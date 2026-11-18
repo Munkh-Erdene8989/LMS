@@ -1277,3 +1277,10 @@ label,
     scroll-behavior: auto !important;
   }
 }
+
+/* --- Ticket 34: нарийн хуудас (/me, /login, /legal, form) — `.page` 1120px-ийн оронд ≈720px --- */
+.page-narrow {
+  margin: 0 auto;
+  padding: 48px 16px;
+  max-width: 720px;
+}
