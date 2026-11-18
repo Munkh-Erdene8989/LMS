@@ -12,36 +12,8 @@ const API_URL = process.env.API_URL ?? 'http://localhost:4000';
 if (process.env.VERCEL_ENV && !process.env.API_URL) {
   throw new Error('API_URL тохируулаагүй байна (Vercel → Settings → Environment Variables; жишээ: https://api.example.mn). Build-ийн өмнө заавал.');
 }
-const isProd = process.env.NODE_ENV === 'production';
 
-/**
- * Content-Security-Policy (ticket 23). Нийтлэг:
- * - Mux player: HLS `stream.mux.com` (MSE → blob:), poster `image.mux.com`, Mux Data `*.litix.io`; Mux direct upload (browser PUT) GCS руу.
- * - QPay: QR нь `data:` зураг, банкны лого `qpay.mn`; deeplink нь навигаци (CSP-д хамаарахгүй).
- * - Supabase Storage: signed upload (`connect-src`), зураг/PDF (`img-src`, `frame-src`).
- * - Sentry: `*.sentry.io` (зөвхөн DSN тохируулсан үед ашиглагдана).
- * Next.js өөрийн inline script бичдэг тул `script-src 'unsafe-inline'`; nonce-д шилжих нь (middleware) дараагийн алхам — docs/DEPLOY.md.
- */
-const MUX = 'https://*.mux.com';
-const LITIX = 'https://*.litix.io';
-const SUPABASE = 'https://*.supabase.co';
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${SUPABASE} ${MUX} https://qpay.mn https://*.qpay.mn`,
-  `media-src 'self' blob: ${MUX}`,
-  `connect-src 'self' ${SUPABASE} ${MUX} ${LITIX} https://storage.googleapis.com https://*.googleapis.com https://*.sentry.io${isProd ? '' : ' ws: http://localhost:*'}`,
-  `frame-src 'self' ${SUPABASE}`,
-  "font-src 'self' data:",
-  "worker-src 'self' blob:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  ...(isProd ? ['upgrade-insecure-requests'] : []),
-].join('; ');
-
+/** Content-Security-Policy нь nonce-тэй тул хүсэлт бүрт middleware.ts-д (lib/csp.ts) тавигдана. */
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -63,8 +35,8 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      // /api/* нь API-ийн (helmet) header-тэй; хуудсуудад CSP нэмнэ.
-      { source: '/((?!api/).*)', headers: [...securityHeaders, { key: 'Content-Security-Policy', value: csp }] },
+      // /api/* нь API-ийн (helmet) header-тэй; хуудсуудын CSP нь middleware-ээс.
+      { source: '/((?!api/).*)', headers: securityHeaders },
       { source: '/api/:path*', headers: securityHeaders },
     ];
   },

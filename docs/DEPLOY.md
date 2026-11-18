@@ -52,7 +52,7 @@ Web талд Vercel build-д `API_URL` байхгүй бол build унана (`
 | `JWT_SECRET` | ≥ 32 тэмдэгт санамсаргүй: `openssl rand -base64 48`. Орчин бүрт өөр. Соливол бүх нэвтрэлт хүчингүй болно | ✓ |
 | `WEB_ORIGIN` | Web-ийн нийтийн хаяг, жишээ `https://lms.example.mn` (CORS + cookie) | ✓ |
 | `PUBLIC_WEB_URL` | Имэйл дэх линкийн суурь; ихэвчлэн `WEB_ORIGIN`-тай ижил | ✓ |
-| `CORS_ORIGINS` | `WEB_ORIGIN`-оос гадна зөвшөөрөх origin (таслалаар). Staging preview: `https://lms-git-*-<team>.vercel.app`. Хоосон байж болно | — |
+| `CORS_ORIGINS` | `WEB_ORIGIN`-оос гадна зөвшөөрөх origin (таслалаар; CORS + CSRF Origin шалгалт хоёуланд). Staging preview: `https://lms-git-*-<team>.vercel.app`. Хоосон байж болно | — |
 | `COOKIE_PATH_PREFIX` | `/api` (web proxy-оор дууддаг тул) | ✓ |
 | `TRUST_PROXY` | Proxy hop-ын тоо — [4. TRUST_PROXY](#4-trust_proxy) | ✓ |
 | `RATE_LIMIT_ENABLED` | Үлдээ (анхдагч `true`). Prod-д `false` болгож болохгүй | — |
@@ -108,7 +108,7 @@ Web proxy-оор ирдэг browser хүсэлт ихэнх тул prod-д **2**
 1. **Supabase**: шинэ төсөл `lms-staging` (production-той ижил region). Connect → pooler string-үүдийг ав. Storage bucket-уудыг (`lms-public`, `lms-private`) API асахдаа өөрөө үүсгэнэ.
 2. **Railway**: төсөл дотор `staging` environment (production-ыг хуулж болно). Service → GitHub repo холбох, **Root Directory хоосон (repo root)**, Config as code = `railway.json`. `Redis` нэмж `REDIS_URL`-г reference-ээр холбо. Variables: дээрх 3.1 хүснэгт (staging түлхүүрүүдээр; `QPAY_BASE_URL` sandbox; `SENTRY_ENVIRONMENT=staging`). Service-д public domain үүсгэ (`lms-api-staging.up.railway.app`).
 3. **Vercel**: нэг Vercel project. Preview deployment бүр `API_URL`-ийн **Preview** утгыг (staging API) ашиглана; Production утга нь prod API. `main`-ээс бусад branch/PR → preview. Тогтмол staging хаяг хэрэгтэй бол `staging` branch-ийг Settings → Domains дээр `staging.example.mn`-д холбо.
-4. Staging API-д `WEB_ORIGIN` / `PUBLIC_WEB_URL` = staging web хаяг. Preview URL-ууд (`https://lms-git-*-<team>.vercel.app`) өөр болох тул `/api` proxy-оор дуудах үед CORS хамаарахгүй; харин `PUBLIC_WEB_URL` (имэйл линк, QPay callback) нь тогтмол staging домэйн байх ёстой.
+4. Staging API-д `WEB_ORIGIN` / `PUBLIC_WEB_URL` = staging web хаяг. Preview URL-ууд (`https://lms-git-*-<team>.vercel.app`) өөр болох тул `/api` proxy-оор дуудах үед CORS хамаарахгүй ч браузерын `Origin` (preview URL) нь API-ийн CSRF шалгалтад орно, тиймээс preview домэйн `CORS_ORIGINS`-д (`https://lms-git-*-<team>.vercel.app`) байх ёстой; харин `PUBLIC_WEB_URL` (имэйл линк, QPay callback) нь тогтмол staging домэйн байх ёстой.
 5. Migration автоматаар (pre-deploy) ажиллана. Эхний админийг [8](#8-эхний-админ)-ийн дагуу үүсгэ.
 6. Доорх [10](#10-гараар-шалгах-checklist)-ийг staging дээр (QPay sandbox-оор) эхлээд гүйцэтгэ, дараа нь production.
 
@@ -239,15 +239,17 @@ API асахад `Cron бүртгэв: <нэр> "<cron>" (Asia/Ulaanbaatar)` м�
 | — Бусад POST/PUT/PATCH/DELETE | глобал | IP тутамд 300/мин (GET хамаарахгүй — web-ийн SSR нэг IP-ээс олон хэрэглэгчийн GET хийдэг). Mux webhook чөлөөлөгдсөн (гарын үсэгтэй) |
 | — Quiz | ticket 12 | 30 сек cooldown + 24 цагт 10 |
 | API security header | `helmet` (`configure-app.ts`) | CSP `default-src 'none'`, HSTS 1 жил, `no-referrer`, `nosniff`, frame хориг |
-| Web security header + CSP | `apps/web/next.config.ts` | Mux (`*.mux.com`, `*.litix.io`, GCS upload), Supabase, QPay лого, Sentry-д зориулсан allowlist; `frame-ancestors 'none'`, `object-src 'none'` |
+| Web security header | `apps/web/next.config.ts` | `nosniff`, `X-Frame-Options`, HSTS, `Referrer-Policy`, `Permissions-Policy` |
+| Web CSP (nonce) | `apps/web/middleware.ts`, `apps/web/lib/csp.ts` | Хүсэлт бүрт шинэ nonce: `script-src 'self' 'nonce-…' 'strict-dynamic'` (`'unsafe-inline'` script-д алга). Mux (`*.mux.com`, `*.litix.io`, GCS upload), Supabase, QPay лого, Sentry-д зориулсан allowlist; `frame-ancestors 'none'`, `object-src 'none'` |
+| CSRF (Origin шалгалт) | `apps/api/src/csrf.ts` | POST/PUT/PATCH/DELETE-ийн `Origin` (эсвэл `Referer`) нь `WEB_ORIGIN` + `PUBLIC_WEB_URL` + `CORS_ORIGINS`-д байх ёстой, үгүй бол 403 `CSRF_ORIGIN`. Чөлөөлөлт: `/webhooks/*` (Mux), `/payments/qpay/*` (QPay callback) |
 | CORS | `WEB_ORIGIN` + `CORS_ORIGINS` allowlist | Бусад origin-д `Access-Control-Allow-Origin` өгөхгүй |
 | Cookie | `auth/cookies.ts`, `referrals/cookie.ts` | `HttpOnly`, `SameSite=Lax`, `Secure` (production), refresh cookie зөвхөн `…/auth` path |
 | Sentry PII | `packages/shared/src/sentry-scrub.ts` | Cookie, header, body, query, утас, имэйл, token арилгана; хэрэглэгчээс зөвхөн `id` |
 
 Мэдэгдэж буй хязгаарлалт / дараагийн алхам:
-- CSP-ийн `script-src` нь `'unsafe-inline'` (Next.js-ийн inline script). Nonce-д суурилсан CSP (middleware) нь бүх хуудсыг dynamic болгодог тул тусад нь, бодит browser дээр турших шаардлагатай — одоогоор хийгээгүй.
+- CSP: `script-src` nonce + `'strict-dynamic'`. Trade-off: nonce хүсэлт бүр өөр тул бүх хуудас dynamic render (статик prerender/CDN cache алга; `app/layout.tsx`-д `force-dynamic`). `style-src` нь `'unsafe-inline'` хэвээр (React `style=`, Mux player). Staging/prod-д бодит browser дээр console-д CSP violation байгаагүй эсэхийг (Mux player, QPay, upload) шалгана.
 - Rate limit-ийн Redis хэрэгжилт нь фиксэд цонх (fixed window). Хэрэв IP хоорондын CGNAT (Монголын ISP) асуудал үүсвэл `LIMITS`-ийг (`rate-limit.ts`) тохируул.
-- CSRF: cookie `SameSite=Lax` + JSON API; нэмэлт Origin шалгалт хийгээгүй.
+- CSRF: `SameSite=Lax` дээр нэмж API-д Origin/Referer шалгалт. Origin ба Referer хоёулаа байхгүй үед: auth cookie (`access_token`/`refresh_token`) БАЙХГҮЙ бол зөвшөөрнө (curl, server-to-server; cookie-гүй хүсэлт хохирогчийн эрхийг ашиглаж чадахгүй), cookie БАЙВАЛ 403 (хөтөч POST дээр Origin-ийг үргэлж илгээдэг). `Origin: null` татгалзана. Шинэ server-to-server callback нэмбэл `csrf.ts`-ийн `EXEMPT_PREFIXES`-д оруулна.
 
 ## 12. Хэрэгтэй команд
 

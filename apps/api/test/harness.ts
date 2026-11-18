@@ -37,6 +37,22 @@ export interface TestApp {
   close: () => Promise<void>;
 }
 
+/** Хөтөч POST/PUT/PATCH/DELETE дээр Origin илгээдэг; CSRF guard-д тохируулж тест бүрт дефолт Origin тавина (`.set('Origin', ...)`-ээр дарж болно). */
+export const TEST_ORIGIN = 'http://localhost:3000';
+const METHODS = new Set(['post', 'put', 'patch', 'delete']);
+function withOrigin(r: ReturnType<typeof request>): ReturnType<typeof request> {
+  return new Proxy(r, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof prop === 'string' && METHODS.has(prop) && typeof value === 'function') {
+        return (...args: unknown[]) =>
+          (value as (...a: unknown[]) => { set: (k: string, v: string) => unknown }).apply(target, args).set('Origin', TEST_ORIGIN);
+      }
+      return value;
+    },
+  });
+}
+
 type Builder = ReturnType<typeof Test.createTestingModule>;
 
 export interface TestAppOptions {
@@ -79,7 +95,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication({ logger: false, rawBody: true });
-  configureApp(app, { WEB_ORIGIN: 'http://localhost:3000', TRUST_PROXY: 1, CORS_ORIGINS: options.corsOrigins ?? [] });
+  configureApp(app, { WEB_ORIGIN: TEST_ORIGIN, PUBLIC_WEB_URL: TEST_ORIGIN, TRUST_PROXY: 1, CORS_ORIGINS: options.corsOrigins ?? [] });
   await app.init();
 
   const prisma = app.get(PrismaService);
@@ -87,8 +103,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   return {
     app,
-    http: () => request(server),
-    agent: () => request.agent(server),
+    http: () => withOrigin(request(server)),
+    agent: () => request.agent(server).set('Origin', TEST_ORIGIN),
     prisma,
     phone,
     email,

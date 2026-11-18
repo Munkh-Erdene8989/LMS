@@ -28,4 +28,6 @@
 - [ ] QPay production: 100₮ тест багцаар цэнэглэлт → худалдан авалт → багшийн орлого → payout (§10.1; payout-д `isTest` орлого орохгүйг анхаар)
 - [ ] Mux (upload/webhook/playback), verify.mn OTP, Resend domain баталгаажуулалт бодит түлхүүрээр (§10.2–10.4)
 - [ ] Production log-оос cron-уудыг, Sentry event-ийг (PII-гүй, source map-тай) шалгах (§10.5–10.6)
-- [ ] Хүсвэл: nonce-д суурилсан CSP (одоо `script-src 'unsafe-inline'`), CSRF-д Origin шалгалт
+- [x] nonce-д суурилсан CSP (`apps/web/middleware.ts`, `lib/csp.ts`; `script-src 'self' 'nonce-…' 'strict-dynamic'`) ба API-ийн CSRF Origin/Referer шалгалт (`apps/api/src/csrf.ts`) — ticket 27 (`feat/27-csp-csrf`).
+  - Trade-off: nonce хүсэлт бүр өөр тул бүх хуудас dynamic render (статик cache алга); `style-src` `'unsafe-inline'` хэвээр. `next build` + `next start`-аар `/login`-ы 17 script бүгд nonce-той байгааг шалгасан; бодит browser дээр (Mux player, QPay, upload) console-д CSP violation-гүй эсэхийг staging-д шалгах.
+  - CSRF: Mux webhook, QPay callback чөлөөлөгдсөн; Origin/Referer-гүй + auth cookie-гүй бол зөвшөөрнө, cookie-тэй бол 403. Preview домэйн `CORS_ORIGINS`-д орох ёстой.
