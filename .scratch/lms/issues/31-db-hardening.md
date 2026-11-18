@@ -18,6 +18,6 @@
 
 ## Үлдсэн
 
-- [ ] dev public schema-д `db:deploy` (merge-ийн дараа, гараар)
-- [ ] Deploy-н дараа Supabase advisor-оор `rls_disabled_in_public`, `unindexed_foreign_keys`, `function_search_path_mutable` арилсныг шалгах; anon key-ээр PostgREST (`/rest/v1/users`) хүсэлт хоосон/403 буцаахыг шалгах
+- [x] dev public schema-д `db:deploy` — 2026-11-18 хэрэгжсэн (3 migration).
+- [x] Advisor (2026-11-18): `rls_disabled_in_public` ERROR арилсан (үлдсэн нь хүлээгдэж буй INFO `rls_enabled_no_policy`), `public` функцүүдийн `function_search_path_mutable` арилсан (үлдсэн нь хуучин `lms_test_*` schema). Publishable key-ээр `/rest/v1/{users,sessions,otp_challenges,payments}` → 42501 permission denied.
 - [ ] Prod-д мөн Railway pre-deploy-оор хэрэгжинэ (`migrate:deploy:prod`); `anon`/`authenticated` эрх цуцлалт зөвхөн Supabase-д үйлчилнэ
