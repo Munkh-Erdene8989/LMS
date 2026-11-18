@@ -4,15 +4,15 @@
 
 **Blocked by:** 32, 33
 
-**Status:** todo
+**Status:** done (feat/35-auth-otp)
 
 ## Хийх
-- [ ] `app/login/page.tsx`: 440px төвлөрсөн карт, том гарчиг, утас/имэйл сонголт (segmented, `aria-pressed`).
-- [ ] `app/otp-flow.tsx`: харагдах `<label>`, зөв `type`/`name`/`autoComplete` (`tel`, `email`, `one-time-code`), `inputMode`, `enterKeyHint`; placeholder `000000` устгах.
-- [ ] Segmented OTP: 6 нүд харагдана, доор нь нэг input (`autoComplete="one-time-code"`, `inputMode="numeric"`, `maxLength=6`, `aria-label="Нэг удаагийн код"`), paste бүтэн код, 6 дахь цифрт автоматаар илгээх, focus-д нүд `scale(1.05)`.
-- [ ] Алдаа: `aria-invalid` + `aria-describedby`, `role=alert`; дахин илгээх countdown (secondsыг screen reader-т уншуулахгүй). `autoFocus` зөвхөн desktop.
-- [ ] Submit: request явж байхад л disable + «Илгээж байна…».
-- [ ] CSS: `app/login/login.module.css`.
+- [x] `app/login/page.tsx`: 440px төвлөрсөн карт, том гарчиг, утас/имэйл сонголт (segmented, `aria-pressed`).
+- [x] `app/otp-flow.tsx`: харагдах `<label>`, зөв `type`/`name`/`autoComplete` (`tel`, `email`, `one-time-code`), `inputMode`, `enterKeyHint`; placeholder `000000` устгах.
+- [x] Segmented OTP: 6 нүд харагдана, доор нь нэг input (`autoComplete="one-time-code"`, `inputMode="numeric"`, `maxLength=6`, `aria-label="Нэг удаагийн код"`), paste бүтэн код, 6 дахь цифрт автоматаар илгээх, focus-д нүд `scale(1.05)`.
+- [x] Алдаа: `aria-invalid` + `aria-describedby`, `role=alert`; дахин илгээх countdown (secondsыг screen reader-т уншуулахгүй). `autoFocus` зөвхөн desktop.
+- [x] Submit: request явж байхад л disable + «Илгээж байна…».
+- [x] CSS: `app/login/login.module.css`.
 
 ## Шалгах
 - typecheck, build. Утсан дээр SMS код автоматаар бөглөгдөх атрибутууд байна.
