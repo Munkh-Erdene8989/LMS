@@ -8,6 +8,7 @@ import { t } from '@/lib/i18n';
 import { SiteHeader } from './site-header';
 import { ConfirmProvider } from './ui/confirm';
 import { ToastProvider } from './ui/toast';
+import { DemoBadge } from './ui/demo-badge';
 import './globals.css';
 
 // next/font нь шрифтийг build-д татаж өөрийн домэйнээс (`/_next/static/media`) үйлчилнэ → CSP `font-src 'self'` зөрчигдөхгүй.
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </footer>
         </ConfirmProvider>
         </ToastProvider>
+        <DemoBadge />
       </body>
     </html>
   );

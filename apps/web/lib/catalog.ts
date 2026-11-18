@@ -28,10 +28,50 @@ async function viewerHeaders(): Promise<Record<string, string>> {
  */
 async function getPublic<T>(path: string, withViewer = false): Promise<T | null> {
   const headers = withViewer ? await viewerHeaders() : {};
-  const res = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers });
-  if (res.status === 404 || res.status === 400) return null;
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
-  return (await res.json()) as T;
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers });
+  } catch (err) {
+    // Түр demo (ticket 33b): сүлжээ унасан үед харуулах өгөгдөл.
+    const demo = await demoFallback<T>(path);
+    if (demo !== undefined) return demo;
+    throw err;
+  }
+  if (!res.ok) {
+    const demo = await demoFallback<T>(path);
+    if (demo !== undefined) return demo;
+    if (res.status === 404 || res.status === 400) return null;
+    throw new Error(`API ${res.status}: ${path}`);
+  }
+  const data = (await res.json()) as T;
+  if (isEmptyPayload(data)) {
+    const demo = await demoFallback<T>(path);
+    if (demo !== undefined) return demo;
+  }
+  return data;
+}
+
+/**
+ * Түр demo (ticket 33b). Флагийг ЭНД шууд `process.env.NEXT_PUBLIC_DEMO_DATA`-аар шалгана: bundler нь build үед
+ * `false` болгож, салбар доторх динамик import-ийг (demo модуль бүхэлдээ) bundle-аас хасна. Модулийн `DEMO_ENABLED`
+ * тогтмолыг import хийвэл модуль хоорондын тогтмол шингээлт хийгддэггүй тул dead-code болохгүй.
+ */
+async function demoFallback<T>(path: string): Promise<T | undefined> {
+  if (process.env.NEXT_PUBLIC_DEMO_DATA === '1') {
+    const { demoFor } = await import('./demo');
+    return demoFor(path) as T | undefined;
+  }
+  return undefined;
+}
+
+/** Demo-д ашиглах: хоосон жагсаалт / `items` нь хоосон хуудас. */
+function isEmptyPayload(data: unknown): boolean {
+  if (Array.isArray(data)) return data.length === 0;
+  if (data && typeof data === 'object' && 'items' in data) {
+    const items = (data as { items: unknown }).items;
+    return Array.isArray(items) && items.length === 0;
+  }
+  return false;
 }
 
 export const fetchCategories = () => getPublic<CategoryNode[]>('/categories');
@@ -103,9 +143,9 @@ export function catalogHref(params: CatalogParams, patch: Partial<CatalogParams>
 export async function fetchCatalog(params: CatalogParams): Promise<CatalogPage> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
-  const res = await fetch(`${API_URL}/catalog/courses?${qs}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`API ${res.status}: catalog`);
-  return (await res.json()) as CatalogPage;
+  const page = await getPublic<CatalogPage>(`/catalog/courses?${qs}`);
+  if (!page) throw new Error('API 4xx: catalog');
+  return page;
 }
 
 /** Курсийн үнэлгээний эхний хуудас (нэвтэрсэн бол өөрийн төлөвтэй). Алдаа гарвал null — хуудас үнэлгээгүйгээр ч ажиллана. */
