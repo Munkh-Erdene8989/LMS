@@ -19,7 +19,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL_TEST", "REDIS_URL_TEST"]
     }
   }
 }
