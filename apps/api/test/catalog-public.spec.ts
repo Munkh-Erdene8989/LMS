@@ -387,6 +387,67 @@ describe('Шүүлтүүр, ангилал, хайлт', () => {
   });
 });
 
+describe('Хайлтын denormalized search_text (DB trigger-ээр синк)', () => {
+  beforeAll(() => t.reset());
+
+  const hits = async (q: string) =>
+    ((await t.http().get('/catalog/courses').query({ q }).expect(200)).body.items as { title: string }[]).map((c) => c.title);
+  const searchText = async (id: string) => (await t.prisma.$queryRaw<{ s: string }[]>`SELECT search_text AS s FROM courses WHERE id = ${id}::uuid`)[0]!.s;
+
+  it('курсийн гарчиг, тайлбар өөрчлөгдөхөд хайлтын үр дүн шинэчлэгдэнэ', async () => {
+    const teacher = await teacherUser('Зоригтбаатар');
+    const c = await courseRow({ teacherId: teacher.id, title: 'Старый заголовок Алгоритм', description: 'Хуучин тайлбар' });
+    expect(await searchText(c.id)).toBe('Старый заголовок Алгоритм\nХуучин тайлбар\nЗоригтбаатар');
+    expect(await hits('Алгоритм')).toEqual(['Старый заголовок Алгоритм']);
+
+    await t.prisma.course.update({ where: { id: c.id }, data: { title: 'Мэдээллийн сан' } });
+    expect(await hits('Алгоритм')).toEqual([]);
+    expect(await hits('Мэдээллийн сан')).toEqual(['Мэдээллийн сан']);
+
+    await t.prisma.course.update({ where: { id: c.id }, data: { description: 'Шинэхэн тайлбар Пайплайн' } });
+    expect(await hits('Хуучин')).toEqual([]);
+    expect(await hits('Пайплайн')).toEqual(['Мэдээллийн сан']);
+  });
+
+  it('багшийн нэр (users.name) өөрчлөгдөхөд хайлт шинэчлэгдэнэ', async () => {
+    const teacher = await teacherUser('Гантулга');
+    await courseRow({ teacherId: teacher.id, title: 'Эдийн засгийн үндэс' });
+    expect(await hits('Гантулга')).toEqual(['Эдийн засгийн үндэс']);
+
+    await t.prisma.user.update({ where: { id: teacher.id }, data: { name: 'Отгонбаяр' } });
+    expect(await hits('Гантулга')).toEqual([]);
+    expect(await hits('Отгонбаяр')).toEqual(['Эдийн засгийн үндэс']);
+  });
+
+  it('багшийн нийтийн нэр (зөвшөөрөгдсөн өргөдлийн displayName) болон төлөв өөрчлөгдөхөд шинэчлэгдэнэ', async () => {
+    const teacher = await teacherUser('Эрдэнэбат', 'Номинзул');
+    await courseRow({ teacherId: teacher.id, title: 'Дүрслэх урлаг' });
+    expect(await hits('Номинзул')).toEqual(['Дүрслэх урлаг']);
+    expect(await hits('Эрдэнэбат')).toEqual([]); // нийтийн нэр нь displayName
+
+    await t.prisma.teacherApplication.update({ where: { userId: teacher.id }, data: { displayName: 'Цэцэгмаа' } });
+    expect(await hits('Номинзул')).toEqual([]);
+    expect(await hits('Цэцэгмаа')).toEqual(['Дүрслэх урлаг']);
+
+    // Өргөдөл APPROVED биш болбол users.name руу буцна
+    await t.prisma.teacherApplication.update({ where: { userId: teacher.id }, data: { status: 'REJECTED' } });
+    expect(await hits('Цэцэгмаа')).toEqual([]);
+    expect(await hits('Эрдэнэбат')).toEqual(['Дүрслэх урлаг']);
+  });
+
+  it('GIN index ашиглагдана (enable_seqscan=off үед courses_search_text_trgm_idx)', async () => {
+    const teacher = await teacherUser('Индекс');
+    await courseRow({ teacherId: teacher.id, title: 'Индексийн сорил' });
+    const [, , plan] = await t.prisma.$transaction([
+      t.prisma.$executeRaw`SET LOCAL enable_seqscan = off`,
+      t.prisma.$executeRaw`SELECT set_config('pg_trgm.word_similarity_threshold', '0.45', true)`,
+      t.prisma.$queryRaw<{ 'QUERY PLAN': string }[]>`EXPLAIN SELECT c.id FROM courses c WHERE 'Индекс' OPERATOR(extensions.<%) c.search_text OR c.search_text ILIKE '%Индекс%'`,
+    ]);
+    const text = plan.map((r) => r['QUERY PLAN']).join('\n');
+    expect(text).toContain('courses_search_text_trgm_idx');
+  });
+});
+
 describe('End-to-end: зохиох → шалгах → каталог', () => {
   beforeAll(() => t.reset());
 
