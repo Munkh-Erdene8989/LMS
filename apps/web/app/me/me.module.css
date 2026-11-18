@@ -1,0 +1,171 @@
+.stack {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-h1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.section {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.profileHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.avatar {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--accent-soft);
+}
+
+.initial {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.form {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.field {
+  display: grid;
+  gap: var(--s-1);
+  font-size: var(--fs-small);
+  font-weight: 500;
+}
+
+.status {
+  margin: 0;
+  color: var(--ok);
+  font-size: var(--fs-small);
+}
+
+.statusError {
+  color: var(--err);
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.identifiers {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.identifier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.identifierKind {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.identifierValue {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: var(--ok);
+  font-size: var(--fs-small);
+}
+
+.linkBox {
+  display: grid;
+  gap: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+}
+
+.prefs {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.prefs legend {
+  padding: 0;
+  margin-bottom: var(--s-2);
+  font-size: var(--fs-h3);
+  font-weight: 600;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.error {
+  margin: 0;
+  color: var(--err);
+  font-size: var(--fs-small);
+}
+
+.actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.skeletons {
+  display: grid;
+  gap: var(--s-3);
+}
