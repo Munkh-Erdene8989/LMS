@@ -2,35 +2,57 @@
 
 import { useEffect, useState } from 'react';
 import type { LegalDocType, LegalStatus } from '@lms/shared';
-import { api } from '@/lib/client-api';
+import { api, ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { Button } from '../../ui/button';
+import s from './legal.module.css';
 
 /** Нэвтэрсэн хэрэглэгчид: одоогийн хувилбарыг зөвшөөрөх товч эсвэл зөвшөөрсөн огноо. */
 export function AcceptLegal({ slug, type, version }: { slug: string; type: LegalDocType; version: number }) {
   const [status, setStatus] = useState<LegalStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api<LegalStatus[]>('/me/legal')
-      .then((r) => setStatus(r.data.find((s) => s.type === type) ?? null))
+      .then((r) => setStatus(r.data.find((x) => x.type === type) ?? null))
       .catch(() => setStatus(null)); // нэвтрээгүй — товч харуулахгүй
   }, [type]);
 
+  async function accept() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<LegalStatus>(`/legal/${slug}/accept`, { method: 'POST', body: { version } });
+      setStatus(r.data);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!status) return null;
   if (status.upToDate && status.acceptedAt) {
-    return <p style={{ color: 'var(--ok)' }}>{t('legal.accepted', { date: formatDate(status.acceptedAt) })}</p>;
+    return (
+      <div className={s.accept}>
+        <p role="status" className={s.accepted}>
+          {t('legal.accepted', { date: formatDate(status.acceptedAt) })}
+        </p>
+      </div>
+    );
   }
   return (
-    <p>
-      <button
-        className="btn"
-        onClick={async () => {
-          const r = await api<LegalStatus>(`/legal/${slug}/accept`, { method: 'POST', body: { version } });
-          setStatus(r.data);
-        }}
-      >
+    <div className={s.accept}>
+      <Button loading={busy} onClick={() => void accept()}>
         {t('legal.accept')}
-      </button>
-    </p>
+      </Button>
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

@@ -1,0 +1,55 @@
+.doc {
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-h1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.meta {
+  margin: 0 0 var(--s-6);
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.body {
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.accept {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  margin-top: var(--s-6);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-alt);
+}
+
+.accept p {
+  margin: 0;
+}
+
+.accepted {
+  color: var(--ok);
+}
+
+.error {
+  color: var(--err);
+  font-size: var(--fs-small);
+}

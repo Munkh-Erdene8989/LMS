@@ -1,20 +1,31 @@
 'use client';
 
 import * as Sentry from '@sentry/nextjs';
+import Link from 'next/link';
 import { useEffect } from 'react';
 import { t } from '@/lib/i18n';
+import s from './error-page.module.css';
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 16px' }}>
-      <h1>{t('errorPage.title')}</h1>
-      <p>{t('errorPage.body')}</p>
-      <button className="btn" onClick={reset}>
-        {t('errorPage.retry')}
-      </button>
-    </main>
+    <div className={s.root}>
+      <div className={s.box} role="alert">
+        <h1 className={s.title}>{t('errorPage.title')}</h1>
+        <p className={s.body}>{t('errorPage.body')}</p>
+        <p className={s.hint}>{t('miscUi.errorFix')}</p>
+        {error.digest && <p className={s.hint}>{t('miscUi.errorRef', { code: error.digest })}</p>}
+        <div className={s.actions}>
+          <button type="button" className={s.btn} onClick={reset}>
+            {t('errorPage.retry')}
+          </button>
+          <Link href="/" className={`${s.btn} ${s.btnSecondary}`}>
+            {t('miscUi.goHome')}
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

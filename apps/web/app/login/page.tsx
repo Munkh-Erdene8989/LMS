@@ -11,12 +11,12 @@ export default function LoginPage() {
   // `?next=/courses/…` — худалдан авах гэж байгаад нэвтрэх шаардлагатай болсон бол тэр хуудас руу буцна.
   const onVerified = () => router.push(safeNext(new URLSearchParams(window.location.search).get('next')) ?? '/me');
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <h1 className={styles.title}>{t('auth.title')}</h1>
       <p className={styles.subtitle}>{t('auth.subtitle')}</p>
       <section className={`card ${styles.card}`}>
         <OtpFlow basePath="/auth/otp" types={['PHONE', 'EMAIL']} onVerified={onVerified} />
       </section>
-    </main>
+    </div>
   );
 }

@@ -1,0 +1,128 @@
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-h1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.list {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  column-gap: var(--s-3);
+  row-gap: 2px;
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--d-fast) var(--ease);
+}
+
+.unread {
+  background: var(--accent-soft);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    background: var(--bg-alt);
+  }
+  .unread:hover {
+    background: var(--accent-soft);
+  }
+}
+
+.dot {
+  grid-row: 1 / span 3;
+  align-self: start;
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.unread .dot {
+  background: var(--accent);
+}
+
+.itemTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.tag {
+  padding: 0 var(--s-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-pill);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+
+.body {
+  grid-column: 2;
+  color: var(--fg-2);
+  overflow-wrap: anywhere;
+}
+
+.time {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.skeletonText {
+  display: grid;
+  gap: var(--s-2);
+  flex: 1;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--s-4);
+}
+
+.error {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  color: var(--err);
+}
+
+.error p {
+  margin: 0;
+}
