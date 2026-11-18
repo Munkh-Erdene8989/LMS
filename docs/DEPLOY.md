@@ -136,6 +136,7 @@ Web proxy-оор ирдэг browser хүсэлт ихэнх тул prod-д **2**
 5. **Dev/prod `public` schema руу гараар `pnpm db:deploy` хийхгүй** — зөвхөн dev DB-д (`.env`-ийн `lms-dev`) хийнэ. Production-ийн DB рүү зөвхөн Railway pre-deploy хүрнэ.
 6. Эвдэх migration (багана устгах/нэр солих): 2 алхамтай хий — эхлээд код хоёр хувилбарт тохирох болгож deploy, дараа нь устгах migration. Production migration-ийн өмнө Supabase backup/PITR идэвхтэй эсэхийг шалга.
 7. Буцаах: Prisma `down` migration байхгүй. Алдаатай migration-ийг засах шинэ migration бич; ноцтой бол Supabase PITR-ээр сэргээ (дараах хэсэг).
+8. **Шинэ хүснэгт бүр migration-даа `ALTER TABLE "<table>" ENABLE ROW LEVEL SECURITY;` агуулах ёстой.** Supabase `public`-ийг PostgREST-ээр anon/authenticated-д нээдэг (advisor `rls_disabled_in_public`). Апп PostgREST ашигладаггүй: API Prisma-аар `postgres` (эзэмшигч, RLS тойрно)-оор холбогдоно, тиймээс policy-гүй deny-all хангалттай; FORCE RLS хэрэглэхгүй. `apps/api/test/rls.spec.ts` RLS-гүй хүснэгтийг барина. Мөн FK багана шинээр нэмбэл хайлт/устгалд ашиглагддаг бол `@@index` тавь. Trigger функц бичихдээ `ALTER FUNCTION ... SET search_path FROM CURRENT` (`public`-ыг хатуу бичихгүй: тест schema-д эвдэнэ).
 
 ## 8. Эхний админ
 
