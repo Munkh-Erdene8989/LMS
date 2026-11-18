@@ -1,0 +1,342 @@
+{
+ "url": "http://127.0.0.1:5300/index.html",
+ "views": {
+  "desktop": {
+   "width": 1440,
+   "height": 900,
+   "navH": 72,
+   "scrollHeight": 8100,
+   "screens": 9,
+   "sections": [
+    {
+     "n": 1,
+     "tag": "section",
+     "id": "",
+     "cls": "hero hero--calm is-still is-entered",
+     "top": 0,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-01-a.jpg",
+       "scrollY": 0
+      }
+     ]
+    },
+    {
+     "n": 2,
+     "tag": "section",
+     "id": "credits",
+     "cls": "section ground-surface",
+     "top": 900,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-02-a.jpg",
+       "scrollY": 900
+      }
+     ]
+    },
+    {
+     "n": 3,
+     "tag": "section",
+     "id": "courses",
+     "cls": "section",
+     "top": 1800,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-03-a.jpg",
+       "scrollY": 1800
+      }
+     ]
+    },
+    {
+     "n": 4,
+     "tag": "section",
+     "id": "teachers",
+     "cls": "section ground-surface",
+     "top": 2700,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-04-a.jpg",
+       "scrollY": 2700
+      }
+     ]
+    },
+    {
+     "n": 5,
+     "tag": "section",
+     "id": "community",
+     "cls": "section",
+     "top": 3600,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-05-a.jpg",
+       "scrollY": 3600
+      }
+     ]
+    },
+    {
+     "n": 6,
+     "tag": "section",
+     "id": "why",
+     "cls": "section statement mo-wh",
+     "top": 4500,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-06-a.jpg",
+       "scrollY": 4500
+      }
+     ]
+    },
+    {
+     "n": 7,
+     "tag": "section",
+     "id": "pricing",
+     "cls": "section ground-surface",
+     "top": 5400,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-07-a.jpg",
+       "scrollY": 5400
+      }
+     ]
+    },
+    {
+     "n": 8,
+     "tag": "section",
+     "id": "faq",
+     "cls": "section",
+     "top": 6300,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-08-a.jpg",
+       "scrollY": 6300
+      }
+     ]
+    },
+    {
+     "n": 9,
+     "tag": "footer",
+     "id": "contact",
+     "cls": "footer closing",
+     "top": 7200,
+     "h": 900,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "desktop-sec-09-a.jpg",
+       "scrollY": 7200
+      }
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  "mobile": {
+   "width": 390,
+   "height": 844,
+   "navH": 56,
+   "scrollHeight": 10447,
+   "screens": 12.38,
+   "sections": [
+    {
+     "n": 1,
+     "tag": "section",
+     "id": "",
+     "cls": "hero hero--calm is-still is-entered",
+     "top": 0,
+     "h": 844,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "mobile-sec-01-a.jpg",
+       "scrollY": 0
+      }
+     ]
+    },
+    {
+     "n": 2,
+     "tag": "section",
+     "id": "credits",
+     "cls": "section ground-surface",
+     "top": 844,
+     "h": 1109,
+     "hScreens": 1.31,
+     "offGrid": 265,
+     "tiles": [
+      {
+       "file": "mobile-sec-02-a.jpg",
+       "scrollY": 844
+      },
+      {
+       "file": "mobile-sec-02-b.jpg",
+       "scrollY": 1109
+      }
+     ]
+    },
+    {
+     "n": 3,
+     "tag": "section",
+     "id": "courses",
+     "cls": "section",
+     "top": 1953,
+     "h": 1688,
+     "hScreens": 2,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "mobile-sec-03-a.jpg",
+       "scrollY": 1953
+      },
+      {
+       "file": "mobile-sec-03-b.jpg",
+       "scrollY": 2797
+      }
+     ]
+    },
+    {
+     "n": 4,
+     "tag": "section",
+     "id": "teachers",
+     "cls": "section ground-surface",
+     "top": 3641,
+     "h": 1067,
+     "hScreens": 1.26,
+     "offGrid": 223,
+     "tiles": [
+      {
+       "file": "mobile-sec-04-a.jpg",
+       "scrollY": 3641
+      },
+      {
+       "file": "mobile-sec-04-b.jpg",
+       "scrollY": 3864
+      }
+     ]
+    },
+    {
+     "n": 5,
+     "tag": "section",
+     "id": "community",
+     "cls": "section",
+     "top": 4708,
+     "h": 1191,
+     "hScreens": 1.41,
+     "offGrid": 347,
+     "tiles": [
+      {
+       "file": "mobile-sec-05-a.jpg",
+       "scrollY": 4708
+      },
+      {
+       "file": "mobile-sec-05-b.jpg",
+       "scrollY": 5055
+      }
+     ]
+    },
+    {
+     "n": 6,
+     "tag": "section",
+     "id": "why",
+     "cls": "section statement mo-wh",
+     "top": 5899,
+     "h": 844,
+     "hScreens": 1,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "mobile-sec-06-a.jpg",
+       "scrollY": 5899
+      }
+     ]
+    },
+    {
+     "n": 7,
+     "tag": "section",
+     "id": "pricing",
+     "cls": "section ground-surface",
+     "top": 6743,
+     "h": 1688,
+     "hScreens": 2,
+     "offGrid": 0,
+     "tiles": [
+      {
+       "file": "mobile-sec-07-a.jpg",
+       "scrollY": 6743
+      },
+      {
+       "file": "mobile-sec-07-b.jpg",
+       "scrollY": 7587
+      }
+     ]
+    },
+    {
+     "n": 8,
+     "tag": "section",
+     "id": "faq",
+     "cls": "section",
+     "top": 8431,
+     "h": 1103,
+     "hScreens": 1.31,
+     "offGrid": 259,
+     "tiles": [
+      {
+       "file": "mobile-sec-08-a.jpg",
+       "scrollY": 8431
+      },
+      {
+       "file": "mobile-sec-08-b.jpg",
+       "scrollY": 8690
+      }
+     ]
+    },
+    {
+     "n": 9,
+     "tag": "footer",
+     "id": "contact",
+     "cls": "footer closing",
+     "top": 9534,
+     "h": 912,
+     "hScreens": 1.08,
+     "offGrid": 68,
+     "tiles": [
+      {
+       "file": "mobile-sec-09-a.jpg",
+       "scrollY": 9534
+      },
+      {
+       "file": "mobile-sec-09-b.jpg",
+       "scrollY": 9602
+      }
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ },
+ "at": "2026-11-18T16:43:02.211Z"
+}
