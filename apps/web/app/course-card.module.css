@@ -1,0 +1,182 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  transition:
+    transform var(--d-slow) var(--spring),
+    box-shadow var(--d-base) var(--ease);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+.card:has(:focus-visible) {
+  box-shadow: var(--ring);
+}
+
+.cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.fallback {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--s-4);
+  overflow: hidden;
+  color: #fff;
+}
+
+.fallbackText {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.g0 { background: linear-gradient(135deg, #0a58ca, #6f42c1); }
+.g1 { background: linear-gradient(135deg, #0f766e, #1d4ed8); }
+.g2 { background: linear-gradient(135deg, #b4236c, #c2410c); }
+.g3 { background: linear-gradient(135deg, #4338ca, #be185d); }
+.g4 { background: linear-gradient(135deg, #15803d, #0e7490); }
+.g5 { background: linear-gradient(135deg, #b45309, #be123c); }
+.g6 { background: linear-gradient(135deg, #1e40af, #0f766e); }
+.g7 { background: linear-gradient(135deg, #6d28d9, #0369a1); }
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-5);
+}
+
+.title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Бүх картыг дарагдах болгоно; багшийн холбоос дээгүүр гарна */
+.titleLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.titleLink:focus-visible {
+  outline: none;
+}
+
+.teacher {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: flex-start;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  text-decoration: none;
+}
+
+.teacher span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .teacher:hover {
+    color: var(--fg);
+    text-decoration: underline;
+  }
+}
+
+.avatar {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--accent-soft);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: auto;
+  padding-top: var(--s-2);
+  font-size: var(--fs-small);
+}
+
+.meta {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.price {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.owned {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.preview {
+  align-self: flex-start;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: box-shadow var(--d-base) var(--ease);
+  }
+
+  .card:hover {
+    transform: none;
+  }
+}

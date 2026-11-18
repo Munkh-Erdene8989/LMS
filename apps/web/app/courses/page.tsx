@@ -3,7 +3,10 @@ import Link from 'next/link';
 import { BRAND, CATALOG_SORTS, COURSE_LEVELS, type CatalogPage, type CategoryNode } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
 import { catalogHref, fetchCatalog, fetchCategories, parseCatalogParams, type CatalogParams } from '@/lib/catalog';
+import { LinkButton } from '../ui/button';
+import { EmptyState } from '../ui/empty-state';
 import { CourseGrid, levelLabel } from './catalog-ui';
+import styles from './courses.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +20,12 @@ function findCategory(tree: CategoryNode[], slug: string | undefined): CategoryN
     if (child) return child;
   }
   return null;
+}
+
+/** Сонгосон ангиллын үндсэн (top-level) node: өөрөө эсвэл эцэг нь. */
+function findRoot(tree: CategoryNode[], slug: string | undefined): CategoryNode | null {
+  if (!slug) return null;
+  return tree.find((c) => c.slug === slug || c.children.some((x) => x.slug === slug)) ?? null;
 }
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
@@ -33,7 +42,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   };
 }
 
-/** Каталог: ангилал, шүүлтүүр, хайлт. Бүх төлөв URL-д (GET form) — JS-гүй ажиллана. */
+/** Каталог: ангилал, шүүлтүүр, хайлт. Бүх төлөв URL-д (GET form + chip холбоос) — JS-гүй ажиллана. */
 export default async function CoursesPage({ searchParams }: { searchParams: SearchParams }) {
   const params = parseCatalogParams(await searchParams);
   const [tree, result] = await Promise.all([
@@ -42,82 +51,122 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
   ]);
   const categories = tree ?? [];
   const active = findCategory(categories, params.category);
-  const filtersActive = !!(params.level || params.minPrice || params.maxPrice || params.minRating || params.freePreview);
+  const root = findRoot(categories, params.category);
+  const extraActive = !!(params.minPrice || params.maxPrice || params.minRating || params.freePreview);
+  const anyFilter = !!(params.q || params.category || params.level || extraActive);
+  const sort = params.sort ?? (params.q ? 'relevance' : 'newest');
 
   return (
-    <main className="page wide">
-      <form action="/courses" method="get" className="catalog-layout">
-        <div className="catalog-head">
-          <h1 style={{ margin: 0 }}>{active?.name ?? t('catalog.title')}</h1>
-          <div className="catalog-search" role="search">
+    <div className="page wide">
+      <form action="/courses" method="get">
+        <div className={styles.head}>
+          <h1 className={styles.title}>{active?.name ?? t('catalog.title')}</h1>
+          <div className={styles.search} role="search">
+            <label className={styles.srOnly} htmlFor="catalog-q">
+              {t('courses.searchLabel')}
+            </label>
             <input
-              className="input"
+              id="catalog-q"
+              className={`input ${styles.searchInput}`}
               type="search"
               name="q"
+              autoComplete="off"
+              enterKeyHint="search"
               defaultValue={params.q}
               maxLength={100}
               placeholder={t('catalog.searchPlaceholder')}
-              aria-label={t('catalog.searchPlaceholder')}
             />
-            <button className="btn">{t('catalog.search')}</button>
+            <button type="submit" className="btn">
+              {t('catalog.search')}
+            </button>
           </div>
-          {params.category && <input type="hidden" name="category" value={params.category} />}
         </div>
 
-        <aside className="catalog-side">
-          <nav aria-label={t('catalog.categories')}>
-            <h2 className="side-title">{t('catalog.categories')}</h2>
-            <ul className="category-tree">
-              <li>
-                <Link href={catalogHref(params, { category: undefined })} aria-current={!params.category ? 'page' : undefined}>
-                  {t('catalog.allCategories')}
-                </Link>
-              </li>
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <Link href={catalogHref(params, { category: c.slug })} aria-current={params.category === c.slug ? 'page' : undefined}>
-                    {c.name}
-                  </Link>
-                  {c.children.length > 0 && (
-                    <ul>
-                      {c.children.map((ch) => (
-                        <li key={ch.id}>
-                          <Link
-                            href={catalogHref(params, { category: ch.slug })}
-                            aria-current={params.category === ch.slug ? 'page' : undefined}
-                          >
-                            {ch.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
+        {/* Chip-ээр сонгосон төлөв хайлтын form-д дамжина */}
+        {params.category && <input type="hidden" name="category" value={params.category} />}
+        {params.level && <input type="hidden" name="level" value={params.level} />}
+        {params.sort && <input type="hidden" name="sort" value={params.sort} />}
 
-          <details className="catalog-filters" open={filtersActive || undefined}>
-            <summary className="side-title">{t('catalog.filters')}</summary>
-            <label>
-              {t('catalog.level')}
-              <select className="input" name="level" defaultValue={params.level ?? ''}>
-                <option value="">{t('catalog.anyLevel')}</option>
-                {COURSE_LEVELS.map((l) => (
-                  <option key={l} value={l}>
-                    {levelLabel(l)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <fieldset>
-              <legend>{t('catalog.price')}</legend>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="input" type="number" min={0} name="minPrice" defaultValue={params.minPrice} placeholder={t('catalog.minPrice')} aria-label={t('catalog.minPrice')} />
-                <input className="input" type="number" min={0} name="maxPrice" defaultValue={params.maxPrice} placeholder={t('catalog.maxPrice')} aria-label={t('catalog.maxPrice')} />
-              </div>
-            </fieldset>
-            <label>
+        <div className={styles.bar}>
+          <nav className={styles.chips} aria-label={t('catalog.categories')}>
+            <Link
+              className={styles.chip}
+              href={catalogHref(params, { category: undefined })}
+              aria-current={!params.category ? 'page' : undefined}
+            >
+              {t('catalog.allCategories')}
+            </Link>
+            {categories.map((c) => (
+              <Link
+                key={c.id}
+                className={styles.chip}
+                href={catalogHref(params, { category: c.slug })}
+                aria-current={params.category === c.slug ? 'page' : undefined}
+              >
+                {c.name}
+              </Link>
+            ))}
+          </nav>
+          {root && root.children.length > 0 && (
+            <nav className={styles.chips} aria-label={t('courses.subcategories')}>
+              <Link
+                className={styles.chip}
+                href={catalogHref(params, { category: root.slug })}
+                aria-current={params.category === root.slug ? 'page' : undefined}
+              >
+                {t('catalog.allCategories')}
+              </Link>
+              {root.children.map((ch) => (
+                <Link
+                  key={ch.id}
+                  className={styles.chip}
+                  href={catalogHref(params, { category: ch.slug })}
+                  aria-current={params.category === ch.slug ? 'page' : undefined}
+                >
+                  {ch.name}
+                </Link>
+              ))}
+            </nav>
+          )}
+          <div className={styles.chips}>
+            <span className={styles.chipGroupLabel} id="level-group">
+              {t('courses.levelGroup')}
+            </span>
+            <div className={styles.chips} role="group" aria-labelledby="level-group">
+              {COURSE_LEVELS.map((l) => (
+                <Link
+                  key={l}
+                  className={styles.chip}
+                  href={catalogHref(params, { level: params.level === l ? undefined : l })}
+                  aria-current={params.level === l ? 'true' : undefined}
+                >
+                  {levelLabel(l)}
+                </Link>
+              ))}
+            </div>
+            <span className={styles.chipDivider} aria-hidden="true" />
+            <span className={styles.chipGroupLabel} id="sort-group">
+              {t('courses.sortGroup')}
+            </span>
+            <div className={styles.chips} role="group" aria-labelledby="sort-group">
+              {CATALOG_SORTS.filter((s) => s !== 'relevance' || params.q).map((s) => (
+                <Link
+                  key={s}
+                  className={styles.chip}
+                  href={catalogHref(params, { sort: s })}
+                  aria-current={sort === s ? 'true' : undefined}
+                >
+                  {t(`catalog.sort${s}` as MessageKey)}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <details className={styles.more} open={extraActive || undefined}>
+          <summary>{t('courses.moreFilters')}</summary>
+          <div className={styles.moreBody}>
+            <label className={styles.field}>
               {t('catalog.rating')}
               <select className="input" name="minRating" defaultValue={params.minRating ?? ''}>
                 <option value="">{t('catalog.anyRating')}</option>
@@ -128,63 +177,91 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
                 ))}
               </select>
             </label>
-            <label className="checkbox">
+            <fieldset className={styles.field}>
+              <legend>{t('catalog.price')}</legend>
+              <div className={styles.priceRow}>
+                <input
+                  className="input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  name="minPrice"
+                  defaultValue={params.minPrice}
+                  placeholder="0…"
+                  aria-label={t('catalog.minPrice')}
+                />
+                <input
+                  className="input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  name="maxPrice"
+                  defaultValue={params.maxPrice}
+                  placeholder="500…"
+                  aria-label={t('catalog.maxPrice')}
+                />
+              </div>
+            </fieldset>
+            <label className={styles.check}>
               <input type="checkbox" name="freePreview" value="1" defaultChecked={!!params.freePreview} />
               {t('catalog.freePreview')}
             </label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn">{t('catalog.apply')}</button>
-              <Link className="btn btn-ghost" href={catalogHref({ category: params.category })}>
-                {t('catalog.clear')}
-              </Link>
+            <div className={styles.moreActions}>
+              <button type="submit" className="btn btn-secondary">
+                {t('catalog.apply')}
+              </button>
             </div>
-          </details>
-        </aside>
-
-        <section className="catalog-results">
-          {result ? <Results params={params} result={result} /> : <p className="muted">{t('catalog.unavailable')}</p>}
-        </section>
+          </div>
+        </details>
       </form>
-    </main>
+
+      <section aria-label={t('catalog.title')}>
+        {result ? (
+          <Results params={params} result={result} anyFilter={anyFilter} />
+        ) : (
+          <EmptyState title={t('courses.unavailableTitle')} description={t('courses.unavailableBody')} />
+        )}
+      </section>
+    </div>
   );
 }
 
-function Results({ params, result }: { params: CatalogParams; result: CatalogPage }) {
+function Results({ params, result, anyFilter }: { params: CatalogParams; result: CatalogPage; anyFilter: boolean }) {
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
-  const sort = params.sort ?? (params.q ? 'relevance' : 'newest');
   return (
     <>
-      <div className="results-bar">
-        <span className="muted">
-          {params.q ? t('catalog.resultsFor', { q: params.q, count: result.total }) : t('catalog.results', { count: result.total })}
-        </span>
-        <label className="sort">
-          {t('catalog.sort')}
-          <select className="input" name="sort" defaultValue={sort}>
-            {CATALOG_SORTS.filter((s) => s !== 'relevance' || params.q).map((s) => (
-              <option key={s} value={s}>
-                {t(`catalog.sort${s}` as MessageKey)}
-              </option>
-            ))}
-          </select>
-          <button className="btn btn-ghost">{t('catalog.apply')}</button>
-        </label>
-      </div>
-      {result.items.length === 0 ? <p className="muted">{t('catalog.empty')}</p> : <CourseGrid courses={result.items} />}
+      <p className={styles.resultsInfo} role="status">
+        {params.q ? t('catalog.resultsFor', { q: params.q, count: result.total }) : t('catalog.results', { count: result.total })}
+      </p>
+      {result.items.length === 0 ? (
+        <EmptyState
+          title={t('courses.emptyTitle')}
+          description={t('courses.emptyBody')}
+          action={
+            anyFilter ? (
+              <LinkButton variant="secondary" href="/courses">
+                {t('courses.clearFilters')}
+              </LinkButton>
+            ) : undefined
+          }
+        />
+      ) : (
+        <CourseGrid courses={result.items} />
+      )}
       {pages > 1 && (
-        <nav className="pager" aria-label={t('catalog.pageOf', { page: result.page, pages })}>
+        <nav className={styles.pager} aria-label={t('catalog.pageOf', { page: result.page, pages })}>
           {result.page > 1 ? (
-            <Link className="btn btn-ghost" href={catalogHref(params, { page: String(result.page - 1) })} rel="prev">
+            <LinkButton variant="secondary" href={catalogHref(params, { page: String(result.page - 1) })} rel="prev">
               {t('catalog.prev')}
-            </Link>
+            </LinkButton>
           ) : (
             <span />
           )}
           <span className="muted">{t('catalog.pageOf', { page: result.page, pages })}</span>
           {result.page < pages ? (
-            <Link className="btn btn-ghost" href={catalogHref(params, { page: String(result.page + 1) })} rel="next">
+            <LinkButton variant="secondary" href={catalogHref(params, { page: String(result.page + 1) })} rel="next">
               {t('catalog.next')}
-            </Link>
+            </LinkButton>
           ) : (
             <span />
           )}

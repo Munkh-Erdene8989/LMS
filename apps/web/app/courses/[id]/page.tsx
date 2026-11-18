@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BRAND, formatUbDateTime } from '@lms/shared';
+import { BRAND } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { fetchCourse, fetchCourseReviews } from '@/lib/catalog';
 import { Markdown } from '../../markdown';
-import { Credits, levelLabel, Rating } from '../catalog-ui';
-import { CoursePriceBox, CourseReferralCopy, LessonAction, PurchaseProvider } from '../purchase-ui';
+import { Rating, levelLabel } from '../catalog-ui';
+import { CourseMobileBar, CoursePriceBox, CourseReferralCopy, LessonRow, PurchaseProvider } from '../purchase-ui';
+import styles from '../courses.module.css';
 import { CourseReviews } from './reviews-ui';
 
 export const dynamic = 'force-dynamic';
@@ -43,67 +44,68 @@ export default async function CoursePage({ params }: { params: Params }) {
   if (!course) notFound();
 
   return (
-    <main className="page wide course-page">
-      <nav className="breadcrumb" aria-label={t('catalog.categories')}>
-        <Link href="/courses">{t('catalog.title')}</Link>
-        {course.category?.parent && (
-          <>
-            {' / '}
-            <Link href={`/courses?category=${course.category.parent.slug}`}>{course.category.parent.name}</Link>
-          </>
-        )}
-        {course.category && (
-          <>
-            {' / '}
-            <Link href={`/courses?category=${course.category.slug}`}>{course.category.name}</Link>
-          </>
-        )}
+    <div className={`page wide ${styles.pageWithBar}`}>
+      <nav aria-label={t('courses.breadcrumb')}>
+        <ol className={styles.crumbs}>
+          <li>
+            <Link href="/courses">{t('catalog.title')}</Link>
+          </li>
+          {course.category?.parent && (
+            <li>
+              <Link href={`/courses?category=${course.category.parent.slug}`}>{course.category.parent.name}</Link>
+            </li>
+          )}
+          {course.category && (
+            <li>
+              <Link href={`/courses?category=${course.category.slug}`}>{course.category.name}</Link>
+            </li>
+          )}
+        </ol>
       </nav>
 
-      <div className="course-hero">
-        <div style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
-          <h1 style={{ margin: 0 }}>{course.title}</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            {levelLabel(course.level)} · {t('catalog.lessons', { count: course.lessonCount })} · <a href="#reviews"><Rating rating={course.rating} /></a>
-          </p>
-          <p style={{ margin: 0 }}>
-            {t('catalog.teacher')}: <Link href={`/teachers/${course.teacher.id}`}>{course.teacher.name}</Link>
-          </p>
-        </div>
-        {course.coverUrl && <img className="course-cover" src={course.coverUrl} alt="" />}
-      </div>
-
       <PurchaseProvider initial={course}>
-        <div className="course-body">
-          <div style={{ display: 'grid', gap: 24, minWidth: 0 }}>
+        <div className={styles.layout}>
+          <div className={styles.main}>
+            <header className={styles.hero}>
+              <h1 className={styles.heroTitle}>{course.title}</h1>
+              <p className={styles.meta}>
+                <span>{levelLabel(course.level)}</span>
+                <span>{t('catalog.lessons', { count: course.lessonCount })}</span>
+                <a href="#reviews">
+                  <Rating rating={course.rating} />
+                </a>
+                <Link className={styles.teacherInline} href={`/teachers/${course.teacher.id}`}>
+                  {course.teacher.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- avatar host тогтмол биш
+                    <img className={styles.avatarSm} src={course.teacher.avatarUrl} alt="" width={24} height={24} />
+                  ) : (
+                    <span className={styles.avatarSm} aria-hidden="true" />
+                  )}
+                  {course.teacher.name}
+                </Link>
+              </p>
+              {course.coverUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- cover host тогтмол биш; aspect-ratio-оор CLS-гүй
+                <img className={styles.cover} src={course.coverUrl} alt="" width={1280} height={720} decoding="async" />
+              )}
+            </header>
+
             <CourseReferralCopy />
-            <section>
-              <h2>{t('catalog.about')}</h2>
+
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>{t('catalog.about')}</h2>
               <Markdown source={course.description} />
             </section>
 
-            <section>
-              <h2>{t('catalog.curriculum')}</h2>
-              <div style={{ display: 'grid', gap: 12 }}>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>{t('catalog.curriculum')}</h2>
+              <div className={styles.curriculum}>
                 {course.sections.map((s) => (
-                  <div key={s.id} className="card">
-                    <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>{s.title}</h3>
-                    <ul className="lesson-list">
+                  <div key={s.id} className={`card ${styles.lessonGroup}`}>
+                    <h3 className={styles.lessonGroupTitle}>{s.title}</h3>
+                    <ul className={styles.lessons} aria-label={t('courses.lessonList')}>
                       {s.lessons.map((l) => (
-                        <li key={l.id} className="lesson-row">
-                          <span>
-                            {l.title} <small>· {t(`course.type${l.type}`)}</small>
-                            {l.live?.startsAt && (
-                              <small> · {formatUbDateTime(l.live.startsAt)}</small>
-                            )}
-                          </span>
-                          <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <small>
-                              <Credits count={l.priceCredits} />
-                            </small>
-                            <LessonAction lesson={l} />
-                          </span>
-                        </li>
+                        <LessonRow key={l.id} lesson={l} />
                       ))}
                     </ul>
                   </div>
@@ -111,15 +113,24 @@ export default async function CoursePage({ params }: { params: Params }) {
               </div>
             </section>
 
-            <section>
-              <h2>{t('catalog.teacher')}</h2>
-              <div className="teacher-box">
-                {course.teacher.avatarUrl ? <img className="avatar" src={course.teacher.avatarUrl} alt="" /> : <div className="avatar" />}
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <Link href={`/teachers/${course.teacher.id}`}>
-                    <strong>{course.teacher.name}</strong>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>{t('catalog.teacher')}</h2>
+              <div className={`card ${styles.teacherCard}`}>
+                {course.teacher.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- avatar host тогтмол биш
+                  <img className={styles.avatar} src={course.teacher.avatarUrl} alt="" width={56} height={56} loading="lazy" />
+                ) : (
+                  <span className={styles.avatar} aria-hidden="true" />
+                )}
+                <div className={styles.teacherBody}>
+                  <Link className={styles.teacherName} href={`/teachers/${course.teacher.id}`}>
+                    {course.teacher.name}
                   </Link>
-                  {course.teacher.bio && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{course.teacher.bio}</p>}
+                  {course.teacher.bio && <p className={styles.bio}>{course.teacher.bio}</p>}
+                  <div className={styles.teacherLinks}>
+                    <Link href={`/teachers/${course.teacher.id}`}>{t('courses.viewProfile')}</Link>
+                    <Link href={`/communities/${course.teacher.id}`}>{t('community.open')}</Link>
+                  </div>
                 </div>
               </div>
             </section>
@@ -129,7 +140,8 @@ export default async function CoursePage({ params }: { params: Params }) {
 
           <CoursePriceBox />
         </div>
+        <CourseMobileBar />
       </PurchaseProvider>
-    </main>
+    </div>
   );
 }

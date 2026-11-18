@@ -510,7 +510,6 @@
     "muxNOT_CONFIGURED": "Mux Data тохируулаагүй тул үзэлт, үзсэн хугацаа харагдахгүй. Зогсдог цэг манай өгөгдлөөс.",
     "muxUNAVAILABLE": "Mux Data-аас өгөгдөл авч чадсангүй. Дараа дахин оролдоно уу.",
     "muxHint": "Үзэлт, хугацаа Mux Data-аас (сонгосон хугацаанд)."
-
   },
   "referral": {
     "title": "Referral линк",
@@ -1089,5 +1088,38 @@
     "colExpired": "Дууссан",
     "colExpiresAt": "Дууссан огноо",
     "noExpired": "Энэ хугацаанд дууссан кредит алга."
+  },
+  "courses": {
+    "searchLabel": "Курс хайх",
+    "breadcrumb": "Курсийн зам",
+    "filterBar": "Шүүлтүүр",
+    "subcategories": "Дэд ангилал",
+    "levelGroup": "Түвшин",
+    "sortGroup": "Эрэмбэ",
+    "moreFilters": "Нэмэлт шүүлтүүр",
+    "clearFilters": "Шүүлтүүр цэвэрлэх",
+    "emptyTitle": "Тохирох сургалт олдсонгүй",
+    "emptyBody": "Шүүлтүүрээ цэвэрлээд дахин үзнэ үү.",
+    "unavailableTitle": "Каталог түр ачаалагдсангүй",
+    "unavailableBody": "Хэсэг хугацааны дараа дахин оролдоно уу.",
+    "owned": "Авсан",
+    "loading": "Курсүүдийг ачаалж байна",
+    "creditUnit": "кредит",
+    "lessonFree": "Үнэгүй үзэх",
+    "lessonOwned": "Авсан",
+    "lessonLocked": "Түгжээтэй",
+    "lessonBuy": "Авах",
+    "lessonList": "Хичээлүүд",
+    "bought": "Авлаа: {title}",
+    "buyBar": "Худалдан авах",
+    "buybox": "Худалдан авах",
+    "viewProfile": "Багшийн профайл",
+    "reviewBodyLabel": "Сэтгэгдэл",
+    "reviewList": "Сэтгэгдлүүд",
+    "coverAlt": "{title} курсийн нүүр зураг",
+    "teacherAvatar": "{name} багшийн зураг",
+    "ratingCount": "{count} үнэлгээ",
+    "coursePage": "Курсийн мэдээлэл",
+    "purchaseResult": "Худалдан авалтын үр дүн"
   }
 }
