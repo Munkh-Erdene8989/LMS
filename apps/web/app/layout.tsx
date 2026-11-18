@@ -6,6 +6,7 @@ import { Inter } from 'next/font/google';
 import { BRAND, LEGAL_DOC_TYPES, LEGAL_SLUGS } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { SiteHeader } from './site-header';
+import { DemoBadge } from './ui/demo-badge';
 import './globals.css';
 
 // next/font нь шрифтийг build-д татаж өөрийн домэйнээс (`/_next/static/media`) үйлчилнэ → CSP `font-src 'self'` зөрчигдөхгүй.
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </Link>
           ))}
         </footer>
+        <DemoBadge />
       </body>
     </html>
   );
