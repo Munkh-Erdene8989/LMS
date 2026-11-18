@@ -2,8 +2,9 @@ import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import type { Env } from './env';
+import { csrfOriginGuard } from './csrf';
 
-export type AppConfig = Pick<Env, 'WEB_ORIGIN' | 'TRUST_PROXY'> & Partial<Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV'>>;
+export type AppConfig = Pick<Env, 'WEB_ORIGIN' | 'TRUST_PROXY'> & Partial<Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV' | 'PUBLIC_WEB_URL'>>;
 
 const escapeRegex = (s: string): string => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 
@@ -28,6 +29,8 @@ export function configureApp(app: INestApplication, env: AppConfig): void {
   );
   // CORS allowlist: зөвхөн WEB_ORIGIN + CORS_ORIGINS. Origin-гүй (server-to-server, webhook, curl) хүсэлт CORS-д хамаарахгүй.
   const allowlist = [env.WEB_ORIGIN, ...(env.CORS_ORIGINS ?? [])];
+  // CSRF: auth cookie-тэй тул state-changing хүсэлтийн Origin/Referer-ийг шалгана (PUBLIC_WEB_URL-ийн origin мөн зөвшөөрнө).
+  app.use(csrfOriginGuard(env.PUBLIC_WEB_URL ? [...allowlist, new URL(env.PUBLIC_WEB_URL).origin] : allowlist));
   app.enableCors({
     origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, !origin || originAllowed(origin, allowlist)),
     credentials: true,

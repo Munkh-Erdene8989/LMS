@@ -1,3 +1,4 @@
+import request from 'supertest';
 import type { Response } from 'express';
 import { grantRoleByIdentifier } from '../src/admin/roles';
 import { originAllowed } from '../src/configure-app';
@@ -205,5 +206,64 @@ describe('Production env шалгалт (fail fast)', () => {
       'https://a.mn',
       'https://b-*.vercel.app',
     ]);
+  });
+});
+
+describe('CSRF: Origin/Referer шалгалт', () => {
+  let t: TestApp;
+  const raw = () => request(t.app.getHttpServer()); // harness-ийн дефолт Origin-гүй
+
+  beforeAll(async () => {
+    t = await createTestApp({ corsOrigins: ['https://staging.example.mn', 'https://lms-git-*-team.vercel.app'] });
+  });
+  afterAll(() => t.close());
+
+
+  it('зөвшөөрөгдсөн Origin (WEB_ORIGIN, CORS_ORIGINS, wildcard) дээр state-changing хүсэлт гарна', async () => {
+    for (const origin of ['http://localhost:3000', 'https://staging.example.mn', 'https://lms-git-x-team.vercel.app']) {
+      await raw().post('/auth/logout').set('Origin', origin).expect(204);
+    }
+  });
+
+  it('буруу Origin-д 403 CSRF_ORIGIN (POST/PUT/PATCH/DELETE), Origin: null мөн', async () => {
+    for (const origin of ['https://evil.example', 'null', 'http://localhost:3000.evil.com']) {
+      const res = await raw().post('/auth/logout').set('Origin', origin).expect(403);
+      expect(res.body.code).toBe('CSRF_ORIGIN');
+    }
+    for (const m of ['put', 'patch', 'delete'] as const) {
+      await raw()[m]('/auth/me').set('Origin', 'https://evil.example').expect(403);
+    }
+  });
+
+  it('GET/OPTIONS-д Origin шалгахгүй', async () => {
+    await raw().get('/health').set('Origin', 'https://evil.example').expect(200);
+  });
+
+  it('Origin байхгүй бол Referer-ээр шалгана', async () => {
+    await raw().post('/auth/logout').set('Referer', 'http://localhost:3000/login').expect(204);
+    await raw().post('/auth/logout').set('Referer', 'https://evil.example/x').expect(403);
+    await raw().post('/auth/logout').set('Referer', 'not a url').expect(403);
+  });
+
+  it('Origin/Referer-гүй: auth cookie байхгүй бол зөвшөөрнө, cookie байвал 403', async () => {
+    await raw().post('/auth/logout').expect(204);
+    const res = await raw().post('/auth/logout').set('Cookie', 'access_token=x').expect(403);
+    expect(res.body.code).toBe('CSRF_ORIGIN');
+    await raw().post('/auth/logout').set('Cookie', 'refresh_token=x').expect(403);
+    // Нэвтэрсэн хэрэглэгч буруу Origin-оос
+    const { agent } = await loginByEmail(t, 'csrf-user@example.com');
+    await agent.post('/auth/logout').set('Origin', 'https://evil.example').expect(403);
+    await agent.post('/auth/logout').expect(204);
+  });
+
+  it('server-to-server webhook/callback Origin шалгалтаас чөлөөлөгдсөн', async () => {
+    // Origin-гүй ч, cookie-тэй ч, буруу Origin-той ч CSRF guard саад болохгүй (өөр шалтгаанаар 4xx байж болно, гэхдээ 403 CSRF_ORIGIN биш)
+    const targets = ['/webhooks/mux', '/payments/qpay/callback/x', '/payments/qpay/subscription-callback/x'];
+    for (const path of targets) {
+      for (const setup of [(r: request.Test) => r, (r: request.Test) => r.set('Origin', 'https://evil.example'), (r: request.Test) => r.set('Cookie', 'access_token=x')]) {
+        const res = await setup(raw().post(path).send({}));
+        expect(res.body?.code).not.toBe('CSRF_ORIGIN');
+      }
+    }
   });
 });
