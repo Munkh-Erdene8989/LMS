@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
@@ -11,15 +11,22 @@ import type {
   TopupView,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatCredits, formatDate, formatDelta, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { safeNext } from '@/lib/next-path';
+import { Button } from '@/app/ui/button';
+import { EmptyState } from '@/app/ui/empty-state';
+import { Skeleton } from '@/app/ui/skeleton';
+import { useToast } from '@/app/ui/toast';
+import { QPayDialog } from './qpay-dialog';
+import styles from './credits.module.css';
 
 const POLL_MS = 4_000;
 /** Хуудас нээлттэй үед төлбөрийн төлөвийг хэр удаан автоматаар шалгах */
 const POLL_LIMIT_MS = 15 * 60_000;
 /** Худалдан авалтаас ирсэн бол буцах хуудас (банкны апп-аас буцаж ирэхэд ч хадгалагдана) */
 const RETURN_KEY = 'credits:returnTo';
+const COUNT_UP_MS = 900;
 
 function forgetReturn(): void {
   try {
@@ -37,16 +44,49 @@ function daysLeft(expiresAt: string): number {
   return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / DAY_MS));
 }
 
+/** Тоо 0-ээс (эсвэл өмнөх утгаас) шинэ утга хүртэл өсөнө; reduced-motion-д шууд. */
+function useCountUp(target: number): number {
+  const [value, setValue] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      from.current = target;
+      setValue(target);
+      return;
+    }
+    const start = performance.now();
+    const origin = from.current;
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / COUNT_UP_MS);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = Math.round(origin + (target - origin) * eased);
+      from.current = v;
+      setValue(v);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return value;
+}
+
 export default function CreditsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [balance, setBalance] = useState<CreditBalanceView | null>(null);
   const [packages, setPackages] = useState<CreditPackageView[]>([]);
   const [history, setHistory] = useState<CreditEntryView[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [topup, setTopup] = useState<TopupView | null>(null);
   const [busy, setBusy] = useState(false);
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState<string | null>(null);
+  const prevStatus = useRef<string | null>(null);
+  const shown = useCountUp(balance?.balance ?? 0);
 
   const onError = useCallback(
     (err: unknown) => {
@@ -109,6 +149,16 @@ export default function CreditsPage() {
     return () => clearInterval(timer);
   }, [topup, reload]);
 
+  // PENDING → PAID: toast + толгойн CreditPill шинэчлэх.
+  useEffect(() => {
+    const status = topup?.status ?? null;
+    if (topup && prevStatus.current === 'PENDING' && status === 'PAID') {
+      toast(t('creditsUi.paidToast', { count: formatNumber(topup.credits) }));
+      window.dispatchEvent(new Event('credits:changed'));
+    }
+    prevStatus.current = status;
+  }, [topup, toast]);
+
   function rememberPayment(id: string | null) {
     const url = new URL(window.location.href);
     if (id) url.searchParams.set('payment', id);
@@ -119,6 +169,7 @@ export default function CreditsPage() {
   async function buy(pkg: CreditPackageView) {
     setError(null);
     setBusy(true);
+    setBuyingId(pkg.id);
     try {
       const r = await api<TopupView>('/credits/topups', { method: 'POST', body: { packageId: pkg.id } });
       setTopup(r.data);
@@ -127,6 +178,7 @@ export default function CreditsPage() {
       onError(err);
     } finally {
       setBusy(false);
+      setBuyingId(null);
     }
   }
 
@@ -152,189 +204,217 @@ export default function CreditsPage() {
 
   async function more() {
     if (!cursor) return;
+    setLoadingMore(true);
     try {
       const r = await api<CreditHistoryPage>(`/credits/history?limit=20&before=${cursor}`);
       setHistory((prev) => [...prev, ...r.data.items]);
       setCursor(r.data.nextCursor);
     } catch (err) {
       onError(err);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
   if (!balance) {
     return (
-      <main className="page">
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className="page-narrow">
+        {error ? (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={styles.stack} aria-busy="true" aria-label={t('me.loading')}>
+            <Skeleton height={28} width="40%" />
+            <Skeleton height={140} radius="var(--r-lg)" />
+            <Skeleton height={160} radius="var(--r-lg)" />
+          </div>
+        )}
+      </div>
     );
   }
 
+  const popularId = packages.length >= 3 ? packages[1]!.id : null;
+  const anySoon = balance.lots.some((l) => daysLeft(l.expiresAt) <= EXPIRY_WARN_DAYS);
+
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('credits.title')}</h1>
+    <div className={`page-narrow ${styles.stack}`}>
+      <h1 className={styles.title}>{t('credits.title')}</h1>
       {returnTo && (
-        <Link href={returnTo} onClick={forgetReturn}>
+        <Link href={returnTo} onClick={forgetReturn} className={styles.back}>
           {t('purchase.backToPurchase')}
         </Link>
       )}
 
-      <section className="card credit-balance">
-        <span style={{ color: 'var(--muted)' }}>{t('credits.balance')}</span>
-        <strong>{t('credits.creditsCount', { count: formatNumber(balance.balance) })}</strong>
+      <section className={styles.hero} aria-label={t('credits.balance')}>
+        <span className={styles.heroLabel}>{t('creditsUi.balanceLabel')}</span>
+        <p className={styles.heroValue}>
+          <span aria-hidden="true">{formatNumber(shown)}</span>
+          <span className={styles.srOnly}>{formatCredits(balance.balance)}</span>
+          <span className={styles.heroUnit} aria-hidden="true">
+            {t('credits.nav').toLowerCase()}
+          </span>
+        </p>
       </section>
 
-      {error && <p style={{ color: 'var(--err)', margin: 0 }}>{error}</p>}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
 
-      {topup ? (
-        <TopupPanel topup={topup} busy={busy} onCheck={check} onClose={close} />
-      ) : (
-        <section style={{ display: 'grid', gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{t('credits.buy')}</h2>
-          {packages.length === 0 && <p style={{ margin: 0 }}>{t('credits.noPackages')}</p>}
-          <div className="grid-2">
+      <section className={styles.section} aria-labelledby="credits-buy">
+        <h2 id="credits-buy" className={styles.h2}>
+          {t('credits.buy')}
+        </h2>
+        <p className={styles.muted}>{t('creditsUi.buyHint')}</p>
+        {packages.length === 0 ? (
+          <EmptyState title={t('creditsUi.noPackagesTitle')} description={t('credits.noPackages')} />
+        ) : (
+          <ul className={styles.packages}>
             {packages.map((p) => (
-              <button key={p.id} className="card package-card" disabled={busy} onClick={() => buy(p)}>
-                <strong>
-                  {t('credits.creditsCount', { count: formatNumber(p.credits) })}{' '}
-                  {p.isTest && <span className="badge-status">{t('credits.testBadge')}</span>}
-                </strong>
-                <span>{t('credits.packagePrice', { price: formatNumber(p.priceMnt) })}</span>
-                <small style={{ color: 'var(--muted)' }}>{p.name}</small>
-              </button>
-            ))}
-          </div>
-          {busy && <p style={{ margin: 0 }}>{t('credits.creating')}</p>}
-        </section>
-      )}
-
-      <section style={{ display: 'grid', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>{t('credits.lots')}</h2>
-        {balance.lots.length === 0 && <p style={{ margin: 0 }}>{t('credits.noLots')}</p>}
-        {balance.lots.some((l) => daysLeft(l.expiresAt) <= EXPIRY_WARN_DAYS) && (
-          <p style={{ margin: 0, color: 'var(--err)' }}>{t('credits.expiresSoonNote')}</p>
-        )}
-        <ul className="lesson-list">
-          {balance.lots.map((l) => {
-            const days = daysLeft(l.expiresAt);
-            const soon = days <= EXPIRY_WARN_DAYS;
-            return (
-              <li
-                key={l.id}
-                className="lesson-row card"
-                style={{ padding: '8px 12px', ...(soon ? { borderColor: 'var(--err)' } : {}) }}
-              >
-                <span>
-                  {t('credits.lotLine', { remaining: l.remaining, initial: l.initial })}{' '}
-                  <small>{t(`credits.type${l.source}` as MessageKey)}</small>
-                </span>
-                <span style={{ display: 'grid', justifyItems: 'end' }}>
-                  {soon && (
-                    <strong style={{ color: 'var(--err)', fontSize: 14 }}>
-                      {t('credits.expiresInDays', { days })}
-                    </strong>
+              <li key={p.id}>
+                <article className={`${styles.package} ${p.id === popularId ? styles.popular : ''}`}>
+                  {p.id === popularId && <span className={styles.badge}>{t('creditsUi.popular')}</span>}
+                  <span className={styles.packageCredits}>
+                    {formatCredits(p.credits)}{' '}
+                    {p.isTest && <span className={styles.test}>{t('credits.testBadge')}</span>}
+                  </span>
+                  <span className={styles.packagePrice}>{t('credits.packagePrice', { price: formatMnt(p.priceMnt) })}</span>
+                  <span className={styles.packageName}>{p.name}</span>
+                  {p.credits > 0 && (
+                    <span className={styles.perCredit}>
+                      {t('creditsUi.perCredit', { price: formatMnt(Math.round(p.priceMnt / p.credits)) })}
+                    </span>
                   )}
-                  <small>{t('credits.expires', { date: formatDate(l.expiresAt) })}</small>
-                </span>
+                  <Button
+                    variant={p.id === popularId ? 'primary' : 'secondary'}
+                    disabled={busy && buyingId !== p.id}
+                    loading={buyingId === p.id}
+                    loadingLabel={t('creditsUi.creating')}
+                    onClick={() => void buy(p)}
+                  >
+                    {t('creditsUi.choose')}
+                  </Button>
+                </article>
               </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      <section style={{ display: 'grid', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>{t('credits.history')}</h2>
-        {history.length === 0 && <p style={{ margin: 0 }}>{t('credits.noHistory')}</p>}
-        <ul className="lesson-list">
-          {history.map((e) => (
-            <li key={e.id} className="lesson-row" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
-              <span style={{ display: 'grid' }}>
-                <span>
-                  {t(`credits.type${e.type}` as MessageKey)}{' '}
-                  {e.isTest && <span className="badge-status">{t('credits.testBadge')}</span>}
-                </span>
-                {e.reason && <small>{e.reason}</small>}
-                <small>{formatDate(e.createdAt)}</small>
-              </span>
-              <strong style={{ color: e.amount > 0 ? 'var(--ok)' : 'var(--fg)' }}>
-                {e.amount > 0 ? '+' : '−'}
-                {formatNumber(Math.abs(e.amount))}
-              </strong>
-            </li>
-          ))}
-        </ul>
-        {cursor && (
-          <button className="btn btn-ghost" onClick={more}>
-            {t('credits.loadMore')}
-          </button>
+            ))}
+          </ul>
         )}
       </section>
-    </main>
-  );
-}
 
-function TopupPanel({
-  topup,
-  busy,
-  onCheck,
-  onClose,
-}: {
-  topup: TopupView;
-  busy: boolean;
-  onCheck: () => void;
-  onClose: () => void;
-}) {
-  if (topup.status === 'PAID') {
-    return (
-      <section className="card" style={{ display: 'grid', gap: 8 }}>
-        <p style={{ margin: 0, color: 'var(--ok)', fontWeight: 700 }}>
-          {t('credits.paid', { count: formatNumber(topup.credits) })}
-        </p>
-        <button className="btn btn-ghost" onClick={onClose}>
-          {t('credits.cancel')}
-        </button>
+      <section className={styles.section} aria-labelledby="credits-lots">
+        <h2 id="credits-lots" className={styles.h2}>
+          {t('credits.lots')}
+        </h2>
+        {balance.lots.length === 0 ? (
+          <p className={styles.muted}>{t('credits.noLots')}</p>
+        ) : (
+          <>
+            <p className={styles.muted}>{t('creditsUi.lotsHint')}</p>
+            {anySoon && <p className={styles.warn}>{t('credits.expiresSoonNote')}</p>}
+            <ul className={styles.lots}>
+              {balance.lots.map((l) => {
+                const days = daysLeft(l.expiresAt);
+                const soon = days <= EXPIRY_WARN_DAYS;
+                return (
+                  <li key={l.id} className={`${styles.lot} ${soon ? styles.lotSoon : ''}`}>
+                    <span>
+                      {t('creditsUi.lotRemaining', {
+                        remaining: formatNumber(l.remaining),
+                        initial: formatNumber(l.initial),
+                      })}
+                      <br />
+                      <small className={styles.muted}>{t(`credits.type${l.source}` as MessageKey)}</small>
+                    </span>
+                    <span className={styles.lotMeta}>
+                      {soon && <strong className={styles.warn}>{t('credits.expiresInDays', { days })}</strong>}
+                      <time dateTime={l.expiresAt}>{t('credits.expires', { date: formatDate(l.expiresAt) })}</time>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </section>
-    );
-  }
-  if (topup.status !== 'PENDING') {
-    return (
-      <section className="card" style={{ display: 'grid', gap: 8 }}>
-        <p style={{ margin: 0, color: 'var(--err)' }}>
-          {t(topup.status === 'AMOUNT_MISMATCH' ? 'credits.mismatch' : 'credits.failed')}
-        </p>
-        <button className="btn btn-ghost" onClick={onClose}>
-          {t('credits.cancel')}
-        </button>
+
+      <section className={styles.section} aria-labelledby="credits-history">
+        <h2 id="credits-history" className={styles.h2}>
+          {t('credits.history')}
+        </h2>
+        {history.length === 0 ? (
+          <EmptyState title={t('creditsUi.noHistoryTitle')} description={t('credits.noHistory')} />
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <caption className={styles.srOnly}>{t('creditsUi.historyCaption')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('creditsUi.colDate')}</th>
+                  <th scope="col">{t('creditsUi.colType')}</th>
+                  <th scope="col" className={styles.num}>
+                    {t('creditsUi.colAmount')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((e) => (
+                  <tr key={e.id}>
+                    <td>
+                      <time dateTime={e.createdAt}>{formatDate(e.createdAt)}</time>
+                    </td>
+                    <td>
+                      {t(`credits.type${e.type}` as MessageKey)}{' '}
+                      {e.isTest && <span className={styles.test}>{t('credits.testBadge')}</span>}
+                      {e.reason && <span className={styles.reason}>{e.reason}</span>}
+                    </td>
+                    <td className={`${styles.num} ${e.amount > 0 ? styles.plus : ''}`}>{formatDelta(e.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {cursor && (
+          <Button
+            variant="ghost"
+            className={styles.more}
+            loading={loadingMore}
+            loadingLabel={t('creditsUi.loadingMore')}
+            onClick={() => void more()}
+          >
+            {t('credits.loadMore')}
+          </Button>
+        )}
       </section>
-    );
-  }
-  return (
-    <section className="card qpay-panel">
-      <h2 style={{ margin: 0 }}>{t('credits.payTitle', { amount: formatNumber(topup.amountMnt) })}</h2>
-      <p style={{ margin: 0 }}>{t('credits.scanQr')}</p>
-      {topup.qrImage && (
-        <img className="qpay-qr" src={`data:image/png;base64,${topup.qrImage}`} alt={t('credits.qrAlt')} />
+
+      {topup && (
+        <QPayDialog
+          open
+          status={topup.status}
+          amountMnt={topup.amountMnt}
+          qrImage={topup.qrImage}
+          deeplinks={topup.deeplinks}
+          busy={busy}
+          labels={{
+            title: t('credits.payTitle', { amount: '{amount}' }),
+            scan: t('credits.scanQr'),
+            qrAlt: t('credits.qrAlt'),
+            openBank: t('credits.openBank'),
+            pending: t('credits.pending'),
+            result:
+              topup.status === 'PAID'
+                ? t('credits.paid', { count: formatNumber(topup.credits) })
+                : t(topup.status === 'AMOUNT_MISMATCH' ? 'credits.mismatch' : 'credits.failed'),
+            check: t('credits.check'),
+            checking: t('credits.checking'),
+            close: t('credits.cancel'),
+          }}
+          onCheck={() => void check()}
+          onClose={close}
+        />
       )}
-      {topup.deeplinks.length > 0 && (
-        <div className="bank-links" aria-label={t('credits.openBank')}>
-          {topup.deeplinks.map((d) => (
-            <a key={d.link} className="bank-link" href={d.link}>
-              {d.logo && (
-                <img src={d.logo} alt="" width={32} height={32} />
-              )}
-              <span>{d.description || d.name}</span>
-            </a>
-          ))}
-        </div>
-      )}
-      <p style={{ margin: 0, color: 'var(--muted)' }}>{t('credits.pending')}</p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" disabled={busy} onClick={onCheck}>
-          {busy ? t('credits.checking') : t('credits.check')}
-        </button>
-        <button className="btn btn-ghost" onClick={onClose}>
-          {t('credits.cancel')}
-        </button>
-      </div>
-    </section>
+    </div>
   );
 }

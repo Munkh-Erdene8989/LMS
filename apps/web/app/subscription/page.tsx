@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   CardRegistrationStart,
@@ -10,21 +10,36 @@ import type {
   SubscriptionPlanView,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { Button } from '@/app/ui/button';
+import { useConfirm } from '@/app/ui/confirm';
+import { EmptyState } from '@/app/ui/empty-state';
+import { Skeleton } from '@/app/ui/skeleton';
+import { useToast } from '@/app/ui/toast';
+import { QPayDialog } from '@/app/credits/qpay-dialog';
+import styles from './subscription.module.css';
 
 const POLL_MS = 4_000;
 /** Хуудас нээлттэй үед төлбөрийн төлөвийг хэр удаан автоматаар шалгах */
 const POLL_LIMIT_MS = 15 * 60_000;
 
+function creditsChanged(): void {
+  window.dispatchEvent(new Event('credits:changed'));
+}
+
 export default function SubscriptionPage() {
   const router = useRouter();
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [ov, setOv] = useState<SubscriptionOverview | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlanView[]>([]);
   const [payment, setPayment] = useState<SubscriptionPaymentView | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const prevStatus = useRef<string | null>(null);
 
   const onError = useCallback(
     (err: unknown) => {
@@ -80,9 +95,20 @@ export default function SubscriptionPage() {
     return () => clearInterval(timer);
   }, [payment, reload]);
 
-  async function run<T>(fn: () => Promise<T>): Promise<T | null> {
+  // PENDING → PAID: toast + толгойн CreditPill шинэчлэх.
+  useEffect(() => {
+    const status = payment?.status ?? null;
+    if (payment && prevStatus.current === 'PENDING' && status === 'PAID') {
+      toast(t('creditsUi.paidToast', { count: formatNumber(payment.credits) }));
+      creditsChanged();
+    }
+    prevStatus.current = status;
+  }, [payment, toast]);
+
+  async function run<T>(key: string, fn: () => Promise<T>): Promise<T | null> {
     setError(null);
     setBusy(true);
+    setBusyKey(key);
     try {
       return await fn();
     } catch (err) {
@@ -90,6 +116,7 @@ export default function SubscriptionPage() {
       return null;
     } finally {
       setBusy(false);
+      setBusyKey(null);
     }
   }
 
@@ -98,55 +125,86 @@ export default function SubscriptionPage() {
     setOv(r.overview);
     setPayment(r.payment);
     setChoosing(false);
+    toast(t('creditsUi.subscribed'));
+    creditsChanged();
   }
 
   const start = (plan: SubscriptionPlanView) =>
-    run(() => api<SubscriptionActionResult>('/subscription', { method: 'POST', body: { planId: plan.id } })).then(
-      (r) => applyResult(r?.data ?? null),
-    );
+    run(`plan:${plan.id}`, () =>
+      api<SubscriptionActionResult>('/subscription', { method: 'POST', body: { planId: plan.id } }),
+    ).then((r) => applyResult(r?.data ?? null));
   const reactivate = () =>
-    run(() => api<SubscriptionActionResult>('/subscription/reactivate', { method: 'POST' })).then((r) =>
+    run('reactivate', () => api<SubscriptionActionResult>('/subscription/reactivate', { method: 'POST' })).then((r) =>
       applyResult(r?.data ?? null),
     );
   const pay = () =>
-    run(() => api<SubscriptionActionResult>('/subscription/pay', { method: 'POST' })).then((r) =>
+    run('pay', () => api<SubscriptionActionResult>('/subscription/pay', { method: 'POST' })).then((r) =>
       applyResult(r?.data ?? null),
     );
-  const cancel = () => {
-    if (!window.confirm(t('subscription.cancelConfirm'))) return;
-    void run(() => api<SubscriptionOverview>('/subscription/cancel', { method: 'POST' })).then((r) => {
-      if (r) {
-        setOv(r.data);
-        setPayment(null);
-      }
+  const cancel = async () => {
+    const ok = await confirm({
+      title: t('creditsUi.cancelTitle'),
+      body: t('creditsUi.cancelBody'),
+      confirmLabel: t('creditsUi.cancelConfirm'),
+      danger: true,
     });
+    if (!ok) return;
+    const r = await run('cancel', () => api<SubscriptionOverview>('/subscription/cancel', { method: 'POST' }));
+    if (r) {
+      setOv(r.data);
+      setPayment(null);
+      toast(t('creditsUi.subscriptionCanceled'));
+      creditsChanged();
+    }
   };
   const check = () => {
     if (!payment) return;
-    void run(() => api<SubscriptionPaymentView>(`/subscription/payments/${payment.id}/check`, { method: 'POST' })).then(
-      (r) => {
-        if (!r) return;
-        setPayment(r.data);
-        if (r.data.status !== 'PENDING') void reload();
-      },
-    );
+    void run('check', () =>
+      api<SubscriptionPaymentView>(`/subscription/payments/${payment.id}/check`, { method: 'POST' }),
+    ).then((r) => {
+      if (!r) return;
+      setPayment(r.data);
+      if (r.data.status !== 'PENDING') void reload();
+    });
   };
   const linkCard = () =>
-    run(() => api<CardRegistrationStart>('/subscription/card', { method: 'POST' })).then((r) => {
+    run('card', () => api<CardRegistrationStart>('/subscription/card', { method: 'POST' })).then((r) => {
       if (r) window.location.assign(r.data.redirectUrl);
     });
   const checkCard = () =>
-    run(() => api<SubscriptionOverview>('/subscription/card/check', { method: 'POST' })).then((r) => r && setOv(r.data));
-  const removeCard = () => {
-    if (!window.confirm(t('subscription.cardRemoveConfirm'))) return;
-    void run(() => api<SubscriptionOverview>('/subscription/card', { method: 'DELETE' })).then((r) => r && setOv(r.data));
+    run('cardCheck', () => api<SubscriptionOverview>('/subscription/card/check', { method: 'POST' })).then(
+      (r) => r && setOv(r.data),
+    );
+  const removeCard = async () => {
+    const ok = await confirm({
+      title: t('creditsUi.cardRemoveTitle'),
+      body: t('creditsUi.cardRemoveBody'),
+      confirmLabel: t('creditsUi.cardRemoveConfirm'),
+      danger: true,
+    });
+    if (!ok) return;
+    const r = await run('cardRemove', () => api<SubscriptionOverview>('/subscription/card', { method: 'DELETE' }));
+    if (r) {
+      setOv(r.data);
+      toast(t('creditsUi.cardRemoved'));
+    }
   };
 
   if (!ov) {
     return (
-      <main className="page">
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className="page-narrow">
+        {error ? (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={styles.stack} aria-busy="true" aria-label={t('me.loading')}>
+            <Skeleton height={28} width="40%" />
+            <Skeleton height={160} radius="var(--r-lg)" />
+            <Skeleton height={120} radius="var(--r-lg)" />
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -154,165 +212,181 @@ export default function SubscriptionPage() {
   const canStart = !sub || sub.status === 'INCOMPLETE' || sub.status === 'PAUSED' || sub.status === 'CANCELED';
   const showPlans = !sub || sub.status === 'INCOMPLETE' || choosing;
 
+  // Карт/автомат төлбөр эсвэл дууссан нэхэмжлэх: QR-гүй үр дүнгийн мессеж.
+  const dialogStatus = payment
+    ? payment.method === 'INVOICE'
+      ? payment.status
+      : payment.status === 'PAID'
+        ? 'PAID'
+        : 'FAILED'
+    : 'PENDING';
+
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('subscription.title')}</h1>
-      <p style={{ margin: 0, color: 'var(--muted)' }}>{t('subscription.intro')}</p>
-      {error && <p style={{ color: 'var(--err)', margin: 0 }}>{error}</p>}
+    <div className={`page-narrow ${styles.stack}`}>
+      <div className={styles.section}>
+        <h1 className={styles.title}>{t('subscription.title')}</h1>
+        <p className={styles.muted}>{t('subscription.intro')}</p>
+      </div>
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
 
       {sub && (
-        <section className="card" style={{ display: 'grid', gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{t('subscription.current')}</h2>
-          <p style={{ margin: 0 }}>
-            <strong>{sub.plan.name}</strong> · {t('subscription.perMonth', { price: formatNumber(sub.plan.priceMnt) })} ·{' '}
+        <section className={styles.panel} aria-labelledby="sub-current">
+          <h2 id="sub-current" className={styles.h2}>
+            {t('subscription.current')}
+          </h2>
+          <p className={styles.summary}>
+            <strong>{sub.plan.name}</strong> · {t('subscription.perMonth', { price: formatMnt(sub.plan.priceMnt) })} ·{' '}
             {t('subscription.creditsPerMonth', { count: formatNumber(sub.plan.credits) })}
           </p>
-          <p style={{ margin: 0 }}>
+          <p className={styles.summary}>
             {t('subscription.status')}:{' '}
-            <span className={`badge-status sub-status-${sub.status.toLowerCase()}`}>
+            <span className={`${styles.badge} ${styles[`status${sub.status}` as keyof typeof styles] ?? ''}`}>
               {t(`subscription.status${sub.status}` as MessageKey)}
             </span>
           </p>
-          {sub.currentPeriodStart && sub.currentPeriodEnd && sub.status !== 'CANCELED' && (
-            <small>
-              {t('subscription.period', { start: formatDate(sub.currentPeriodStart), end: formatDate(sub.currentPeriodEnd) })}
-            </small>
-          )}
-          {sub.nextRenewalAt && <small>{t('subscription.nextRenewal', { date: formatDate(sub.nextRenewalAt) })}</small>}
-          {sub.pauseAt && <small style={{ color: 'var(--err)' }}>{t('subscription.pauseAt', { date: formatDate(sub.pauseAt) })}</small>}
-          {sub.status === 'CANCELED' && sub.currentPeriodEnd && (
-            <small>{t('subscription.canceledUntil', { date: formatDate(sub.currentPeriodEnd) })}</small>
-          )}
-          {sub.status === 'PAUSED' && <small>{t('subscription.pausedInfo')}</small>}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className={styles.meta}>
+            {sub.currentPeriodStart && sub.currentPeriodEnd && sub.status !== 'CANCELED' && (
+              <span>
+                {t('subscription.period', {
+                  start: formatDate(sub.currentPeriodStart),
+                  end: formatDate(sub.currentPeriodEnd),
+                })}
+              </span>
+            )}
+            {sub.nextRenewalAt && <span>{t('subscription.nextRenewal', { date: formatDate(sub.nextRenewalAt) })}</span>}
+            {sub.pauseAt && <span className={styles.warn}>{t('subscription.pauseAt', { date: formatDate(sub.pauseAt) })}</span>}
+            {sub.status === 'CANCELED' && sub.currentPeriodEnd && (
+              <span>{t('subscription.canceledUntil', { date: formatDate(sub.currentPeriodEnd) })}</span>
+            )}
+            {sub.status === 'PAUSED' && <span>{t('subscription.pausedInfo')}</span>}
+          </div>
+          <div className={styles.actions}>
             {sub.status === 'PAST_DUE' && !ov.pendingPayment && (
-              <button className="btn" disabled={busy} onClick={pay}>
+              <Button loading={busyKey === 'pay'} disabled={busy} onClick={() => void pay()}>
                 {t('subscription.pay')}
-              </button>
+              </Button>
             )}
             {(sub.status === 'PAUSED' || sub.status === 'CANCELED') && (
               <>
-                <button className="btn" disabled={busy} onClick={reactivate}>
+                <Button loading={busyKey === 'reactivate'} disabled={busy} onClick={() => void reactivate()}>
                   {t('subscription.reactivate')}
-                </button>
-                <button className="btn btn-ghost" disabled={busy} onClick={() => setChoosing((v) => !v)}>
+                </Button>
+                <Button variant="ghost" disabled={busy} aria-expanded={choosing} onClick={() => setChoosing((v) => !v)}>
                   {t('subscription.changePlan')}
-                </button>
+                </Button>
               </>
             )}
             {sub.status !== 'CANCELED' && (
-              <button className="btn btn-ghost" disabled={busy} onClick={cancel}>
+              <Button variant="ghost" loading={busyKey === 'cancel'} disabled={busy} onClick={() => void cancel()}>
                 {t('subscription.cancel')}
-              </button>
+              </Button>
             )}
           </div>
         </section>
       )}
 
-      {payment && <PaymentPanel payment={payment} busy={busy} onCheck={check} onClose={() => setPayment(null)} />}
-
       {canStart && showPlans && (
-        <section style={{ display: 'grid', gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{t('subscription.plans')}</h2>
-          {plans.length === 0 && <p style={{ margin: 0 }}>{t('subscription.noPlans')}</p>}
-          <div className="grid-2">
-            {plans.map((p) => (
-              <button key={p.id} className="card package-card" disabled={busy} onClick={() => start(p)}>
-                <strong>{p.name}</strong>
-                <span>{t('subscription.creditsPerMonth', { count: formatNumber(p.credits) })}</span>
-                <span>{t('subscription.perMonth', { price: formatNumber(p.priceMnt) })}</span>
-              </button>
-            ))}
-          </div>
-          {busy && <p style={{ margin: 0 }}>{t('subscription.working')}</p>}
+        <section className={styles.section} aria-labelledby="sub-plans">
+          <h2 id="sub-plans" className={styles.h2}>
+            {t('subscription.plans')}
+          </h2>
+          {plans.length === 0 ? (
+            <EmptyState title={t('subscription.noPlans')} />
+          ) : (
+            <ul className={styles.plans}>
+              {plans.map((p) => {
+                const current = sub?.plan.id === p.id && sub.status === 'ACTIVE';
+                return (
+                  <li key={p.id}>
+                    <article className={`${styles.plan} ${current ? styles.planCurrent : ''}`}>
+                      <span className={styles.planName}>
+                        {p.name}{' '}
+                        {current && <span className={`${styles.badge} ${styles.statusACTIVE}`}>{t('creditsUi.planActive')}</span>}
+                      </span>
+                      <span className={styles.planPrice}>{t('subscription.perMonth', { price: formatMnt(p.priceMnt) })}</span>
+                      <span className={styles.planCredits}>{t('subscription.creditsPerMonth', { count: formatNumber(p.credits) })}</span>
+                      <Button
+                        variant={current ? 'secondary' : 'primary'}
+                        loading={busyKey === `plan:${p.id}`}
+                        loadingLabel={t('subscription.working')}
+                        disabled={busy || current}
+                        onClick={() => void start(p)}
+                      >
+                        {t('subscription.choose')}
+                      </Button>
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       )}
 
-      <section className="card" style={{ display: 'grid', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>{t('subscription.card')}</h2>
+      <section className={styles.panel} aria-labelledby="sub-card">
+        <h2 id="sub-card" className={styles.h2}>
+          {t('subscription.card')}
+        </h2>
         {!ov.cardSupported && !ov.card ? (
-          <p style={{ margin: 0, color: 'var(--muted)' }}>{t('subscription.cardUnsupported')}</p>
+          <p className={styles.muted}>{t('subscription.cardUnsupported')}</p>
         ) : ov.card?.status === 'ACTIVE' ? (
           <>
-            <p style={{ margin: 0 }}>
+            <p className={styles.summary}>
               {t('subscription.cardActive', { brand: ov.card.brand ?? '', pan: ov.card.maskedPan ?? '' })}
             </p>
-            <button className="btn btn-ghost" disabled={busy} onClick={removeCard}>
-              {t('subscription.cardRemove')}
-            </button>
+            <div className={styles.actions}>
+              <Button variant="ghost" loading={busyKey === 'cardRemove'} disabled={busy} onClick={() => void removeCard()}>
+                {t('subscription.cardRemove')}
+              </Button>
+            </div>
           </>
         ) : (
           <>
-            <p style={{ margin: 0 }}>{ov.card ? t('subscription.cardPending') : t('subscription.cardNone')}</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn" disabled={busy} onClick={linkCard}>
+            <p className={styles.summary}>{ov.card ? t('subscription.cardPending') : t('subscription.cardNone')}</p>
+            <div className={styles.actions}>
+              <Button loading={busyKey === 'card'} disabled={busy} onClick={() => void linkCard()}>
                 {t('subscription.cardLink')}
-              </button>
+              </Button>
               {ov.card && (
-                <button className="btn btn-ghost" disabled={busy} onClick={checkCard}>
+                <Button variant="ghost" loading={busyKey === 'cardCheck'} disabled={busy} onClick={() => void checkCard()}>
                   {t('subscription.cardCheck')}
-                </button>
+                </Button>
               )}
             </div>
           </>
         )}
       </section>
-    </main>
-  );
-}
 
-function PaymentPanel({
-  payment,
-  busy,
-  onCheck,
-  onClose,
-}: {
-  payment: SubscriptionPaymentView;
-  busy: boolean;
-  onCheck: () => void;
-  onClose: () => void;
-}) {
-  if (payment.status !== 'PENDING' || payment.method !== 'INVOICE') {
-    const ok = payment.status === 'PAID';
-    return (
-      <section className="card" style={{ display: 'grid', gap: 8 }}>
-        <p style={{ margin: 0, color: ok ? 'var(--ok)' : 'var(--err)', fontWeight: ok ? 700 : 400 }}>
-          {ok
-            ? t('subscription.paid', { count: formatNumber(payment.credits) })
-            : t(payment.status === 'AMOUNT_MISMATCH' ? 'subscription.mismatch' : 'subscription.failed')}
-        </p>
-        <button className="btn btn-ghost" onClick={onClose}>
-          {t('subscription.close')}
-        </button>
-      </section>
-    );
-  }
-  return (
-    <section className="card qpay-panel">
-      <h2 style={{ margin: 0 }}>{t('subscription.payTitle', { amount: formatNumber(payment.amountMnt) })}</h2>
-      <p style={{ margin: 0 }}>{t('subscription.scanQr')}</p>
-      {payment.qrImage && (
-        <img className="qpay-qr" src={`data:image/png;base64,${payment.qrImage}`} alt={t('subscription.qrAlt')} />
+      {payment && (
+        <QPayDialog
+          open
+          status={dialogStatus}
+          amountMnt={payment.amountMnt}
+          qrImage={payment.qrImage}
+          deeplinks={payment.deeplinks}
+          busy={busyKey === 'check'}
+          labels={{
+            title: t('subscription.payTitle', { amount: '{amount}' }),
+            scan: t('subscription.scanQr'),
+            qrAlt: t('subscription.qrAlt'),
+            openBank: t('subscription.openBank'),
+            pending: t('subscription.pending'),
+            result:
+              dialogStatus === 'PAID'
+                ? t('subscription.paid', { count: formatNumber(payment.credits) })
+                : t(payment.status === 'AMOUNT_MISMATCH' ? 'subscription.mismatch' : 'subscription.failed'),
+            check: t('subscription.check'),
+            checking: t('subscription.checking'),
+            close: t('subscription.close'),
+          }}
+          onCheck={check}
+          onClose={() => setPayment(null)}
+        />
       )}
-      {payment.deeplinks.length > 0 && (
-        <div className="bank-links" aria-label={t('subscription.openBank')}>
-          {payment.deeplinks.map((d) => (
-            <a key={d.link} className="bank-link" href={d.link}>
-              {d.logo && <img src={d.logo} alt="" width={32} height={32} />}
-              <span>{d.description || d.name}</span>
-            </a>
-          ))}
-        </div>
-      )}
-      <p style={{ margin: 0, color: 'var(--muted)' }}>{t('subscription.pending')}</p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" disabled={busy} onClick={onCheck}>
-          {busy ? t('subscription.checking') : t('subscription.check')}
-        </button>
-        <button className="btn btn-ghost" onClick={onClose}>
-          {t('subscription.close')}
-        </button>
-      </div>
-    </section>
+    </div>
   );
 }
