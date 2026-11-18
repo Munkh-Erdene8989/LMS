@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import type { MuxPlayerRefAttributes } from '@mux/mux-player-react';
 // Lazy: player-ийн JS (~300 KB) зөвхөн видео харагдах үед ачаалагдана.
 import MuxPlayer from '@mux/mux-player-react/lazy';
@@ -205,7 +205,7 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
           metadata={grant.muxData.metadata}
           fullscreenElement={containerId}
           streamType="on-demand"
-          accentColor="#2563eb"
+          accentColor="#0071e3"
           style={{ width: '100%', height: '100%' }}
           onPlay={onPlay}
           onPause={onPause}
@@ -215,8 +215,12 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
           onError={onError}
         />
         {grant.watermark && (
-          <span className="video-watermark" aria-hidden style={{ top: `${spot.top}%`, left: `${spot.left}%` }}>
-            {grant.watermark}
+          <span
+            className="video-watermark"
+            aria-hidden
+            style={{ '--wm-x': `${spot.left}%`, '--wm-y': `${spot.top}%` } as CSSProperties}
+          >
+            <span>{grant.watermark}</span>
           </span>
         )}
       </div>

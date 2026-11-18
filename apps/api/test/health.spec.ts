@@ -12,7 +12,7 @@ describe('GET /health', () => {
 
   it('DB холбогдсон үед ok буцаана', async () => {
     const res = await t.http().get('/health').expect(200);
-    expect(res.body).toMatchObject({ status: 'ok', db: 'ok', brand: 'LMS' });
+    expect(res.body).toMatchObject({ status: 'ok', db: 'ok', brand: 'Суралц' });
     expect(typeof res.body.time).toBe('string');
   });
 });

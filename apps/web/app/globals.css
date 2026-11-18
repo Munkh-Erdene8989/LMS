@@ -1,44 +1,234 @@
+/* ==========================================================================
+   Design foundation (ticket 32): token, reset, typography, primitive.
+   Эх сурвалж: .scratch/design/README.md + frontend-design/DESIGN.md.
+   ========================================================================== */
+
 :root {
+  color-scheme: light dark;
+
+  /* Color: light */
   --bg: #ffffff;
-  --fg: #111827;
-  --muted: #6b7280;
-  --ok: #15803d;
-  --err: #b91c1c;
-  --border: #e5e7eb;
-  /* Графикийн өнгө (dataviz validator-оор шалгасан: гэрэл/бараан горимд) */
-  --chart-1: #2563eb;
+  --bg-alt: #f5f5f7;
+  --surface: #ffffff;
+  --fg: #1d1d1f;
+  --fg-2: #515154;
+  --muted: #6e6e73;
+  --border: rgba(0, 0, 0, 0.1);
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 113, 227, 0.1);
+  --ok: #167a3e;
+  --warn: #9a5b00;
+  --err: #c4262e;
+  --err-fg: #ffffff;
+  --glass: rgba(255, 255, 255, 0.72);
+  --scrim: rgba(0, 0, 0, 0.4);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+  /* Графикийн өнгө (гэрэл/бараан горимд) */
+  --chart-1: var(--accent);
   --chart-2: #ea580c;
+
+  /* Shadow (soft depth) */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 1px rgba(0, 0, 0, 0.03);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-3: 0 24px 60px rgba(0, 0, 0, 0.14), 0 6px 16px rgba(0, 0, 0, 0.06);
+
+  /* Type: --font-inter-ийг app/layout.tsx дахь next/font тавина */
+  --font: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --fs-display: clamp(2.5rem, 1.4rem + 5.6vw, 5.5rem);
+  --fs-h1: clamp(2rem, 1.3rem + 3.2vw, 3.5rem);
+  --fs-h2: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
+  --fs-h3: 1.25rem;
+  --fs-lead: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);
+  --fs-body: 1.0625rem;
+  --fs-small: 0.875rem;
+  --fs-micro: 0.75rem;
+
+  /* Spacing (4px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 144px;
+
+  /* Radius */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --d-fast: 150ms;
+  --d-base: 280ms;
+  --d-slow: 600ms;
+  --d-hero: 900ms;
+
+  /* Layout */
+  --header-h: 52px;
+  --wrap: 1120px;
 }
 
-@media (prefers-color-scheme: dark) {
+/* CSS linear() дэмждэг browser-т жинхэнэ spring; бусдад дээрх cubic-bezier fallback. */
+@supports (transition-timing-function: linear(0, 1)) {
   :root {
-    --bg: #0b0f17;
-    --fg: #f3f4f6;
-    --muted: #9ca3af;
-    --ok: #4ade80;
-    --err: #f87171;
-    --border: #1f2937;
-    --chart-1: #3b82f6;
-    --chart-2: #ea580c;
+    --spring: linear(0, 0.0095 1.5%, 0.0386 3.1%, 0.1428 6.3%, 0.3029 9.7%, 0.4733 13%, 0.6416 16.4%, 0.7886 19.8%, 0.9065 23.2%, 0.9964 26.9%, 1.0581 30.9%, 1.0907 34.6%, 1.0997 38.4%, 1.0875 42.3%, 1.0613 46.7%, 1.0285 51.7%, 1.0006 57.3%, 0.9857 62.6%, 0.9812 67.9%, 0.9866 74.4%, 0.9975 82.5%, 1.0017 91%, 1);
   }
 }
 
+/* Dark: system default (data-theme="light"-аар дарж болно) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #000000;
+    --bg-alt: #111113;
+    --surface: #1c1c1e;
+    --fg: #f5f5f7;
+    --fg-2: #c7c7cc;
+    --muted: #98989d;
+    --border: rgba(255, 255, 255, 0.14);
+    --accent: #2997ff;
+    --accent-hover: #47a6ff;
+    --accent-fg: #ffffff;
+    --accent-soft: rgba(41, 151, 255, 0.16);
+    --ok: #4cd37b;
+    --warn: #ffb340;
+    --err: #ff6b6b;
+    --err-fg: #1a0000;
+    --glass: rgba(28, 28, 30, 0.72);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --chart-2: #ea580c;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-3: 0 24px 60px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* Dark: гараар сонгосон (дээрхтэй ижил бүтэн хуулбар) */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-alt: #111113;
+  --surface: #1c1c1e;
+  --fg: #f5f5f7;
+  --fg-2: #c7c7cc;
+  --muted: #98989d;
+  --border: rgba(255, 255, 255, 0.14);
+  --accent: #2997ff;
+  --accent-hover: #47a6ff;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(41, 151, 255, 0.16);
+  --ok: #4cd37b;
+  --warn: #ffb340;
+  --err: #ff6b6b;
+  --err-fg: #1a0000;
+  --glass: rgba(28, 28, 30, 0.72);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --chart-2: #ea580c;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* --- Reset + typography --- */
+
 * {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + var(--s-3));
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
+  font-size: var(--fs-body);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+a {
+  color: var(--accent);
+}
+
+small {
+  font-size: var(--fs-small);
+}
+
+a,
+button,
+input,
+select,
+textarea,
+summary,
+label,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* Глобал focus ring: outline-ийг ring-тэй хамт солино (forced-colors-т transparent outline харагдана). */
+:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--ring);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Primitive --- */
 
 .page {
   margin: 0 auto;
   padding: 48px 16px;
-  max-width: 720px;
+  max-width: var(--wrap);
 }
 
 .page.narrow {
@@ -47,51 +237,165 @@ body {
 
 .card {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  padding: 20px;
 }
 
 .input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--bg-alt);
   color: var(--fg);
   font: inherit;
+  transition: border-color var(--d-fast) var(--ease), background-color var(--d-fast) var(--ease);
+}
+
+.input::placeholder {
+  color: var(--muted);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.input:disabled {
+  opacity: 0.55;
 }
 
 .btn {
-  display: inline-block;
-  padding: 10px 14px;
-  border: 1px solid var(--fg);
-  border-radius: 6px;
-  background: var(--fg);
-  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-fg);
   font: inherit;
+  font-weight: 500;
+  line-height: 1.25;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    transform var(--d-slow) var(--spring),
+    background-color var(--d-fast) var(--ease),
+    border-color var(--d-fast) var(--ease),
+    color var(--d-fast) var(--ease),
+    opacity var(--d-fast) var(--ease);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 80ms, var(--d-fast), var(--d-fast), var(--d-fast), var(--d-fast);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
+}
+
+.btn-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .btn-ghost {
   background: transparent;
+  color: var(--accent);
+  border-color: transparent;
+}
+
+.btn-danger {
+  background: var(--err);
+  color: var(--err-fg);
+}
+
+.btn-small {
+  position: relative;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: var(--fs-small);
+}
+
+/* Нүдэнд харагдах хэмжээ 34px, дарах бүс 44px */
+.btn-small::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.btn-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: transparent;
   color: var(--fg);
-  border-color: var(--border);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition:
+    transform var(--d-slow) var(--spring),
+    background-color var(--d-fast) var(--ease),
+    opacity var(--d-fast) var(--ease);
+}
+
+.btn-icon:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: transparent;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--err) 88%, var(--fg));
+  }
+  .btn-icon:hover:not(:disabled) {
+    background: var(--bg-alt);
+  }
 }
 
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  min-height: var(--header-h);
+  padding: 4px 16px;
+  padding-top: max(4px, env(safe-area-inset-top));
   border-bottom: 1px solid var(--border);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
 }
 
 .site-header a {
@@ -101,27 +405,33 @@ body {
 
 .site-header .brand {
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .bell {
   position: relative;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px;
 }
 
 .badge {
   position: absolute;
-  top: -4px;
-  right: -8px;
+  top: 4px;
+  right: 0;
   min-width: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: var(--r-pill);
   background: var(--err);
-  color: #fff;
+  color: var(--err-fg);
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .notification {
@@ -130,7 +440,7 @@ body {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -139,12 +449,21 @@ body {
 }
 
 .notification.unread {
-  border-left: 4px solid var(--fg);
-  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+@media (hover: hover) {
+  .notification:hover {
+    background: var(--bg-alt);
+  }
+  .notification.unread:hover {
+    background: var(--accent-soft);
+  }
 }
 
 .page.wide {
-  max-width: 1040px;
+  max-width: var(--wrap);
 }
 
 .table {
@@ -236,8 +555,8 @@ body {
 }
 
 .s-IN_REVIEW {
-  color: #b45309;
-  border-color: #b45309;
+  color: var(--warn);
+  border-color: var(--warn);
 }
 
 .section-block {
@@ -275,22 +594,6 @@ body {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-}
-
-.btn-icon {
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.btn-icon:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .markdown pre {
@@ -433,11 +736,13 @@ body {
 
 .results-bar .sort .input {
   width: auto;
-  padding: 6px 8px;
+  min-height: 36px;
+  padding: 6px 10px;
 }
 
 .results-bar .sort .btn {
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 .catalog-grid {
@@ -456,8 +761,16 @@ body {
   text-decoration: none;
 }
 
-.catalog-card:hover {
-  border-color: var(--muted);
+.catalog-card {
+  transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .catalog-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--muted);
+    box-shadow: var(--shadow-2);
+  }
 }
 
 .catalog-card img,
@@ -675,11 +988,6 @@ body {
 }
 
 /* Худалдан авалт (ticket 09) */
-.btn-small {
-  padding: 4px 10px;
-  font-size: 13px;
-}
-
 .pill-owned {
   background: var(--ok);
   color: var(--bg);
@@ -692,7 +1000,10 @@ body {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgb(0 0 0 / 0.5);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  overscroll-behavior: contain;
 }
 
 .modal {
@@ -701,8 +1012,12 @@ body {
   width: 100%;
   max-width: 460px;
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  background: var(--bg);
+  overscroll-behavior: contain;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
 }
 
 .modal-actions {
@@ -828,8 +1143,16 @@ body {
   place-items: center;
   color: #cbd5e1;
 }
+/* Контейнер frame-тэй ижил хэмжээтэй; байрлалыг transform (translate %) -аар шилжүүлнэ (top/left animate хийхгүй). */
 .video-watermark {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: translate(var(--wm-x, 10%), var(--wm-y, 10%));
+  transition: transform 1.5s ease-in-out;
+  will-change: transform;
   z-index: 2;
   pointer-events: none;
   user-select: none;
@@ -838,7 +1161,13 @@ body {
   font-size: clamp(12px, 2.2vw, 18px);
   font-weight: 600;
   white-space: nowrap;
-  transition: top 1.5s ease-in-out, left 1.5s ease-in-out;
+}
+
+.video-watermark > span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
 }
 
 /* --- Багшийн аналитик (ticket 21) --- */
@@ -875,7 +1204,8 @@ body {
 
 .filter-row .input {
   width: auto;
-  padding: 6px 8px;
+  min-height: 36px;
+  padding: 6px 10px;
 }
 
 .chart-svg {
@@ -931,5 +1261,19 @@ body {
   }
   .community-layout > aside {
     order: -1;
+  }
+}
+
+/* Хөдөлгөөн хүсээгүй хэрэглэгч (prototype.html-ийн блок): бүх animation/transition ~0. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }
