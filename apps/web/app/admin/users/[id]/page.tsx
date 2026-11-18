@@ -117,7 +117,7 @@ export default function AdminUserDetailPage() {
             <>
               {formatMnt(p.amountMnt)}
               {p.paidAmountMnt !== null && p.paidAmountMnt !== p.amountMnt && (
-                <small className={styles.muted}> ({t('adminOps.paidAmount', { amount: formatNumber(p.paidAmountMnt) })})</small>
+                <small className={styles.muted}> ({t('adminOps.paidAmount', { amount: formatMnt(p.paidAmountMnt) })})</small>
               )}
             </>,
             <>
@@ -367,7 +367,7 @@ function EarningsAdjustForm({ user, onDone }: { user: AdminUserDetail; onDone: (
       onDone={onDone}
       extra={
         <p className={styles.line}>
-          {t('adminOps.earningsSummary', { balance: formatNumber(e.balanceMnt), locked: formatNumber(e.lockedMnt), test: formatNumber(e.testBalanceMnt) })}
+          {t('adminOps.earningsSummary', { balance: formatMnt(e.balanceMnt), locked: formatMnt(e.lockedMnt), test: formatMnt(e.testBalanceMnt) })}
           {e.onHold && (
             <span className={styles.pills}>
               <Pill tone="err">{t('adminOps.onHold')}</Pill>

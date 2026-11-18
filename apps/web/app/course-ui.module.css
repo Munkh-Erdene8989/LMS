@@ -1,0 +1,43 @@
+.stack {
+  display: grid;
+  gap: 8px;
+}
+
+.stackTight {
+  display: grid;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.join {
+  justify-self: start;
+}
+
+.questions {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.options {
+  margin: 0;
+}
+
+.correct {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.url {
+  word-break: break-all;
+}
+
+.err {
+  color: var(--err);
+}

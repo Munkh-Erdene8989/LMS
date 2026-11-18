@@ -11,7 +11,7 @@
 }
 
 .rootFull {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 @media (prefers-color-scheme: dark) {

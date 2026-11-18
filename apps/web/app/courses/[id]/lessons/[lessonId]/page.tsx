@@ -53,7 +53,7 @@ function frameSections(course: PublicCourseDetail, currentOpen: string | null): 
 /**
  * Хичээл үзэх. Контентыг API зөвхөн эрхтэй үед өгнө (`LessonAccessPolicy`: preview, эзэмшил, багш, админ);
  * эрхгүй бол (403) хичээлийн нэр, үнэ + худалдаж авах товч. Худалдан авсны дараа хуудас шинэчлэгдэж контент гарна.
- * `<main>`-ыг app shell өгдөг — энд `<div>`.
+ * main-ийг app shell өгдөг — энд `<div>`.
  */
 export default async function LessonPage({ params }: { params: Params }) {
   const { id, lessonId } = await params;

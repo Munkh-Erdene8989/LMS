@@ -389,7 +389,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--s-3);
-  align-items: end;
+  align-items: flex-end;
 }
 
 .checkRow {
@@ -404,7 +404,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
-  align-items: end;
+  align-items: flex-end;
 }
 
 .grow {
@@ -436,7 +436,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-3);
-  align-items: end;
+  align-items: flex-end;
 }
 
 /* --- Stats --- */
@@ -517,7 +517,11 @@
 }
 
 .cover {
+  width: 100%;
   max-width: 320px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
   border-radius: var(--r-sm);
 }
 

@@ -20,7 +20,7 @@
 }
 
 .stars {
-  color: #d97706;
+  color: var(--warn);
   letter-spacing: 1px;
   white-space: nowrap;
 }
@@ -82,7 +82,7 @@
 }
 
 .starOn {
-  color: #d97706;
+  color: var(--warn);
 }
 
 .actions {

@@ -248,7 +248,7 @@
 
 .qrEmpty {
   padding: var(--s-4);
-  color: #6e6e73;
+  color: var(--muted);
   font-size: var(--fs-small);
   text-align: center;
 }

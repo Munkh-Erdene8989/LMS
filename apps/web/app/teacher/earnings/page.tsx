@@ -80,7 +80,7 @@ export default function TeacherEarningsPage() {
           <strong className={s.statValue}>{formatMnt(view.totalEarnedMnt)}</strong>
         </section>
       </div>
-      {view.testBalanceMnt !== 0 && <p className={s.hint}>{t('earnings.testBalance', { amount: formatNumber(view.testBalanceMnt) })}</p>}
+      {view.testBalanceMnt !== 0 && <p className={s.hint}>{t('earnings.testBalance', { amount: formatMnt(view.testBalanceMnt) })}</p>}
       <p className={s.hint}>{t('earnings.formula')}</p>
       {error && (
         <p role="alert" className={s.error}>
@@ -127,7 +127,7 @@ export default function TeacherEarningsPage() {
                         <small>
                           {t('earnings.calcValue', {
                             credits: formatNumber(e.credits),
-                            price: formatNumber(e.creditPriceMnt),
+                            price: formatMnt(e.creditPriceMnt),
                             commission: e.commissionPercent,
                           })}
                           {e.attribution && ` · ${t(`earnings.attribution${e.attribution}` as MessageKey)}`}

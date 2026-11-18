@@ -72,7 +72,7 @@ export default function AdminReportsPage() {
             </h2>
             <SectionView s={summary.live} />
             <p className={styles.line}>
-              <strong>{t('adminOps.payoutsPaid', { amount: formatNumber(summary.payoutsPaidMnt) })}</strong>
+              <strong>{t('adminOps.payoutsPaid', { amount: formatMnt(summary.payoutsPaidMnt) })}</strong>
             </p>
           </section>
 

@@ -4,7 +4,7 @@
 .shell {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100dvh - var(--header-h));
   background: var(--bg-alt);
 }
 

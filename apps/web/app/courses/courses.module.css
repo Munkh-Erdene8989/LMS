@@ -135,7 +135,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--s-4);
-  align-items: end;
+  align-items: flex-end;
   padding-top: var(--s-3);
 }
 

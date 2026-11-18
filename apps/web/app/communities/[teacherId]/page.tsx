@@ -500,7 +500,7 @@ function PostCard({
       )}
       {post.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className={s.postImage} src={post.imageUrl} alt={t('miscUi.postImageAlt')} loading="lazy" decoding="async" />
+        <img className={s.postImage} src={post.imageUrl} alt={t('miscUi.postImageAlt')} width={720} height={480} loading="lazy" decoding="async" />
       )}
       <div className={s.actions}>
         <Button variant={post.likedByMe ? 'primary' : 'ghost'} size="sm" aria-pressed={post.likedByMe} onClick={() => void toggleLike()}>

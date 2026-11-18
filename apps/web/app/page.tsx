@@ -36,7 +36,7 @@ function Points({ items }: { items: string[] }) {
   );
 }
 
-// Layout өөрөө <main id="main">-ийг өгдөг тул энд <div>.
+// Layout өөрөө main-ийг өгдөг тул энд <div>.
 export default async function HomePage() {
   const featured = await loadFeatured();
 

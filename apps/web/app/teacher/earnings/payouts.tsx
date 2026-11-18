@@ -52,7 +52,7 @@ export function PayoutSection() {
     if (!view) return;
     const ok = await confirm({
       title: t('teacherUi.payoutConfirmTitle'),
-      body: t('payout.confirm', { amount: formatNumber(view.availableMnt) }),
+      body: t('payout.confirm', { amount: formatMnt(view.availableMnt) }),
       confirmLabel: t('teacherUi.payoutConfirmLabel'),
     });
     if (!ok) return;
@@ -91,11 +91,11 @@ export function PayoutSection() {
           </div>
         )}
       </div>
-      <p className={s.hint}>{t('payout.minimum', { amount: formatNumber(view.minimumMnt) })}</p>
+      <p className={s.hint}>{t('payout.minimum', { amount: formatMnt(view.minimumMnt) })}</p>
 
       {view.blockReason ? (
         <p className={s.lead}>
-          {t(`payout.block${view.blockReason}` as MessageKey, { amount: formatNumber(view.minimumMnt) })}
+          {t(`payout.block${view.blockReason}` as MessageKey, { amount: formatMnt(view.minimumMnt) })}
           {view.blockReason === 'NO_BANK_ACCOUNT' && (
             <>
               {' '}
@@ -105,7 +105,7 @@ export function PayoutSection() {
         </p>
       ) : (
         <Button className={s.startSelf} loading={busy} onClick={() => void request()}>
-          {t('payout.request', { amount: formatNumber(view.availableMnt) })}
+          {t('payout.request', { amount: formatMnt(view.availableMnt) })}
         </Button>
       )}
       {error && (

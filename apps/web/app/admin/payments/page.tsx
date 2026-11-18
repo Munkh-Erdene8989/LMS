@@ -153,7 +153,7 @@ function IssueRow({ issue: p, onDone }: { issue: PaymentIssueView; onDone: () =>
         <div className={`${styles.muted} ${styles.small}`}>
           {t(`adminOps.purpose${p.purpose}` as MessageKey)} · {t(`adminOps.method${p.method}` as MessageKey)} · {t('adminOps.colCredits')}:{' '}
           {formatNumber(p.credits)}
-          {p.paidAmountMnt !== null && ` · ${t('adminOps.paidAmount', { amount: formatNumber(p.paidAmountMnt) })}`}
+          {p.paidAmountMnt !== null && ` · ${t('adminOps.paidAmount', { amount: formatMnt(p.paidAmountMnt) })}`}
           {p.providerInvoiceId && (
             <>
               {' '}

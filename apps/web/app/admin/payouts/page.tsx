@@ -84,7 +84,7 @@ export default function AdminPayoutsPage() {
         {status === 'REQUESTED' && items && items.length > 0 && (
           <div className={styles.toolbar}>
             <Button onClick={() => void exportCsv()}>{t('payout.exportCsv')}</Button>
-            <span className={styles.muted}>{t('payout.queueTotal', { count: items.length, amount: formatNumber(total) })}</span>
+            <span className={styles.muted}>{t('payout.queueTotal', { count: items.length, amount: formatMnt(total) })}</span>
           </div>
         )}
         {status === 'REQUESTED' && <p className={styles.hint}>{t('payout.adminHint')}</p>}
@@ -205,7 +205,7 @@ function PayoutRow({ payout: p, onDone }: { payout: AdminPayoutView; onDone: () 
             <Pill tone="err">{t('payout.onHold')}</Pill>
           </span>
         )}
-        <div className={`${styles.muted} ${styles.small}`}>{t('payout.teacherBalance', { amount: formatNumber(p.teacherBalanceMnt) })}</div>
+        <div className={`${styles.muted} ${styles.small}`}>{t('payout.teacherBalance', { amount: formatMnt(p.teacherBalanceMnt) })}</div>
       </td>
       <td className={styles.wrap}>
         {t(`banks.${p.bank}` as MessageKey)} · <code>{p.accountNumber}</code> · {p.holderName}
@@ -246,7 +246,7 @@ function PayoutRow({ payout: p, onDone }: { payout: AdminPayoutView; onDone: () 
           open={dialog === 'paid'}
           onClose={() => setDialog(null)}
           title={t('payout.markPaid')}
-          description={t('payout.paidConfirm', { amount: formatNumber(p.amountMnt) })}
+          description={t('payout.paidConfirm', { amount: formatMnt(p.amountMnt) })}
           label={t('payout.transferRef')}
           confirmLabel={t('payout.markPaid')}
           danger

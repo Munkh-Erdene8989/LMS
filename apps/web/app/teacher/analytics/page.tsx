@@ -357,7 +357,7 @@ function Attribution({ view }: { view: TeacherAnalyticsView }) {
                   {t('analytics.attrValue', {
                     sales: formatNumber(p.v.sales),
                     credits: formatNumber(p.v.credits),
-                    earning: formatNumber(p.v.earningMnt),
+                    earning: formatMnt(p.v.earningMnt),
                   })}
                 </span>
               </div>

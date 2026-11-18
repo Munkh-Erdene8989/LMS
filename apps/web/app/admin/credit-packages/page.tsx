@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { CreditAdjustResult, CreditPackageView } from '@lms/shared';
 import { api } from '@/lib/client-api';
-import { formatNumber } from '@/lib/format';
+import { formatMnt, formatNumber } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button } from '../../ui/button';
 import { useConfirm } from '../../ui/confirm';
@@ -123,7 +123,7 @@ function PackageForm({
         {t('credits.isTest')}
       </label>
       <small className={styles.muted}>
-        {d.credits > 0 && t('credits.perCredit', { price: formatNumber(Math.round(d.priceMnt / d.credits)) })}
+        {d.credits > 0 && t('credits.perCredit', { price: formatMnt(Math.round(d.priceMnt / d.credits)) })}
       </small>
       <span className={styles.rowActions}>
         <Button type="submit" loading={saving}>

@@ -48,7 +48,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ id: stri
 
       <section className={styles.item}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {course.coverUrl && <img className={styles.cover} src={course.coverUrl} alt="" />}
+        {course.coverUrl && <img className={styles.cover} src={course.coverUrl} alt="" width={320} height={180} loading="lazy" />}
         <p className={styles.line}>
           {t('course.teacher')}: {course.teacher.name ?? course.teacher.id} · {t(`course.level${course.level}` as MessageKey)} ·{' '}
           {t('course.credits', { count: course.priceCredits ?? 0 })} ({t('course.lessonsTotal', { count: course.lessonsTotalCredits })})
