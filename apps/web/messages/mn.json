@@ -1318,5 +1318,19 @@
     "subscribed": "Сарын багц шинэчлэгдлээ",
     "subscriptionCanceled": "Сарын багц цуцлагдлаа",
     "cardRemoved": "Карт салгагдлаа"
+  },
+  "learningUi": {
+    "backToCourse": "Курс",
+    "lessonList": "Хичээлийн жагсаалт",
+    "statusOpen": "Нээлттэй",
+    "nextLesson": "Дараагийн хичээл",
+    "guestHint": "Явцаа хадгалахын тулд нэвтэрнэ үү.",
+    "saving": "Хадгалж байна…",
+    "lead": "Үргэлжлүүлэх курсээ сонгоно уу.",
+    "emptyHint": "Курс сонгоод эхний хичээлээ үнэгүй үзээрэй.",
+    "backToLearning": "Миний сургалт",
+    "certificateClaimed": "Сертификат олгогдлоо",
+    "reqMet": "Биелсэн",
+    "reqNotMet": "Биелээгүй"
   }
 }

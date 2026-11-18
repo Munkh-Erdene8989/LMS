@@ -1,26 +1,59 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import Link from 'next/link';
-import { formatUbDateTime, QUIZ_ATTEMPTS_PER_DAY, type LessonLearningState, type LessonProgressView, type LessonType, type QuizAttemptResult, type QuizAttemptView, type QuizContent } from '@lms/shared';
+import {
+  formatUbDateTime,
+  QUIZ_ATTEMPTS_PER_DAY,
+  type LessonLearningState,
+  type LessonProgressView,
+  type LessonType,
+  type QuizAttemptResult,
+  type QuizAttemptView,
+  type QuizContent,
+} from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
+import { CheckIcon } from '../../../../learning/icons';
+import { Button, LinkButton } from '../../../../ui/button';
+import { useToast } from '../../../../ui/toast';
 import { AssignmentPanel } from './assignment-ui';
+import { LESSON_PROGRESS_EVENT } from './lesson-frame';
+import styles from './lesson.module.css';
+
+/** Sidebar / дээд мөрийн ахицыг дахин уншуулна. */
+const notifyProgress = () => window.dispatchEvent(new Event(LESSON_PROGRESS_EVENT));
 
 /**
  * Хичээлийн явц: нээхэд "сүүлд үзсэн" бүртгэнэ, текст/PDF-д "Дууслаа" товч, quiz бөглөх, даалгавар илгээх.
  * Видеоны үзсэн хувийг тоглуулагч (`VideoPlayer`) өөрөө илгээнэ — энд зөвхөн дууссан эсэх.
  * Нэвтрээгүй (зөвхөн preview) үед явц бичигдэхгүй — нэвтрэх линк.
  */
-export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: string; type: LessonType; quiz: QuizContent | null; loginHref: string }) {
+export function LessonLearning({
+  lessonId,
+  type,
+  quiz,
+  loginHref,
+}: {
+  lessonId: string;
+  type: LessonType;
+  quiz: QuizContent | null;
+  loginHref: string;
+}) {
   const [state, setState] = useState<LessonLearningState | null>(null);
   const [guest, setGuest] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    api<LessonProgressView>(`/learning/lessons/${lessonId}/progress`, { method: 'POST', body: {} })
+    // "Сүүлд үзсэн" бүртгэл нь туслах үйлдэл: нэвтрээгүй (401) биш бол алдааг үл тооно, төлөвийг үргэлжлүүлэн уншина.
+    api<LessonProgressView>(`/learning/lessons/${lessonId}/progress`, {
+      method: 'POST',
+      body: {},
+    })
+      .catch((err: unknown) => {
+        if (err instanceof ApiRequestError && err.status === 401) throw err;
+      })
       .then(() => api<LessonLearningState>(`/learning/lessons/${lessonId}`))
       .then((r) => alive && setState(r.data))
       .catch((err: unknown) => {
@@ -35,14 +68,17 @@ export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: 
 
   if (guest) {
     return (
-      <p className="muted" style={{ margin: 0 }}>
-        <Link href={loginHref}>{t('home.login')}</Link>
-      </p>
+      <div className={styles.guest}>
+        <span>{t('learningUi.guestHint')}</span>
+        <LinkButton href={loginHref} size="sm">
+          {t('home.login')}
+        </LinkButton>
+      </div>
     );
   }
   if (error) {
     return (
-      <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+      <p role="alert" className={styles.error}>
         {error}
       </p>
     );
@@ -60,49 +96,60 @@ export function LessonLearning({ lessonId, type, quiz, loginHref }: { lessonId: 
     return <CompleteButton lessonId={lessonId} progress={state.progress} />;
   }
   if (type === 'VIDEO' && state.progress.completed) {
-    return <p className="done-mark" style={{ margin: 0 }}>✓ {t('learning.completed')}</p>;
+    return <DoneMark />;
   }
   return null;
 }
 
+function DoneMark() {
+  return (
+    <p className={styles.done}>
+      <CheckIcon />
+      {t('learning.completed')}
+    </p>
+  );
+}
+
 function CompleteButton({ lessonId, progress: initial }: { lessonId: string; progress: LessonProgressView }) {
+  const { toast } = useToast();
   const [progress, setProgress] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (progress.completed) {
-    return <p className="done-mark" style={{ margin: 0 }}>✓ {t('learning.completed')}</p>;
+  if (progress.completed) return <DoneMark />;
+
+  async function complete() {
+    setBusy(true);
+    setError(null);
+    try {
+      setProgress((await api<LessonProgressView>(`/learning/lessons/${lessonId}/complete`, { method: 'POST' })).data);
+      toast(t('learning.markedComplete'));
+      notifyProgress();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+    } finally {
+      setBusy(false);
+    }
   }
+
   return (
-    <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
-      <button
-        type="button"
-        className="btn"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError(null);
-          try {
-            setProgress((await api<LessonProgressView>(`/learning/lessons/${lessonId}/complete`, { method: 'POST' })).data);
-          } catch (err) {
-            setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {t('learning.markComplete')}
-      </button>
+    <div className={styles.learning}>
+      <div>
+        <Button loading={busy} loadingLabel={t('learningUi.saving')} onClick={() => void complete()}>
+          {t('learning.markComplete')}
+        </Button>
+      </div>
       {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
+        <p role="alert" className={styles.error}>
           {error}
-        </small>
+        </p>
       )}
     </div>
   );
 }
 
 function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizContent; initial: LessonLearningState }) {
+  const { toast } = useToast();
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [result, setResult] = useState<QuizAttemptView | null>(null);
   const [best, setBest] = useState<number | null>(initial.quiz?.bestScorePercent ?? null);
@@ -141,6 +188,8 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
       setAttempts(r.quiz.attempts);
       setNextAt(r.quiz.nextAttemptAt);
       setNow(Date.now());
+      if (r.attempt.passed) toast(t('quiz.passed'));
+      notifyProgress();
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === 'QUIZ_RATE_LIMITED') {
         // Хязгаарын цагийг серверээс шинэчилнэ — товч өөрөө идэвхгүй болж, хүлээх хугацаа харагдана.
@@ -157,38 +206,43 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
   }
 
   return (
-    <section style={{ display: 'grid', gap: 12 }}>
-      <p className="muted" style={{ margin: 0 }}>
+    <section className={styles.quiz}>
+      <p className={styles.meta}>
         {t('quiz.passPercent', { percent: quiz.passPercent })}
         {best !== null && ` · ${t('quiz.best', { percent: best })}`}
       </p>
 
       {result ? (
-        <div className="card" style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
-          <strong>{t('quiz.result', { percent: result.scorePercent, correct: result.correctCount, total: result.questionCount })}</strong>
-          <span style={{ color: result.passed ? 'var(--ok)' : 'var(--err)' }}>{result.passed ? t('quiz.passed') : t('quiz.failed')}</span>
-          <small className="muted">{t('quiz.noAnswersHint')}</small>
-          <button
-            type="button"
-            className="btn btn-ghost"
+        <div className={styles.result} role="status">
+          <strong>
+            {t('quiz.result', {
+              percent: result.scorePercent,
+              correct: result.correctCount,
+              total: result.questionCount,
+            })}
+          </strong>
+          <span className={result.passed ? styles.pass : styles.fail}>{result.passed ? t('quiz.passed') : t('quiz.failed')}</span>
+          <p className={styles.meta}>{t('quiz.noAnswersHint')}</p>
+          <Button
+            variant="secondary"
             onClick={() => {
               setResult(null);
               setSelected({});
             }}
           >
             {t('quiz.retry')}
-          </button>
+          </Button>
         </div>
       ) : (
-        <form onSubmit={submit} style={{ display: 'grid', gap: 12 }}>
+        <form onSubmit={submit} className={styles.quiz}>
           {quiz.questions.map((q, i) => (
-            <fieldset key={q.id} className="quiz-question">
+            <fieldset key={q.id} className={styles.question}>
               <legend>
                 {i + 1}. {q.text}
               </legend>
-              <small className="muted">{q.multiple ? t('quiz.multiple') : t('quiz.single')}</small>
+              <small className={styles.meta}>{q.multiple ? t('quiz.multiple') : t('quiz.single')}</small>
               {q.options.map((o) => (
-                <label key={o.id} className="quiz-option">
+                <label key={o.id} className={styles.option}>
                   <input
                     type={q.multiple ? 'checkbox' : 'radio'}
                     name={q.id}
@@ -201,30 +255,42 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
             </fieldset>
           ))}
           {error && (
-            <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+            <p role="alert" className={styles.error}>
               {error}
             </p>
           )}
           {limited && nextAt && (
-            <p className="muted" role="status" style={{ margin: 0 }}>
+            <p className={styles.meta} role="status">
               {waitMs <= 60_000
-                ? t('quiz.rateLimitedSeconds', { seconds: Math.ceil(waitMs / 1000) })
-                : t('quiz.rateLimitedUntil', { max: QUIZ_ATTEMPTS_PER_DAY, time: formatUbDateTime(nextAt) })}
+                ? t('quiz.rateLimitedSeconds', {
+                    seconds: Math.ceil(waitMs / 1000),
+                  })
+                : t('quiz.rateLimitedUntil', {
+                    max: QUIZ_ATTEMPTS_PER_DAY,
+                    time: formatUbDateTime(nextAt),
+                  })}
             </p>
           )}
-          <button className="btn" disabled={busy || limited} style={{ justifySelf: 'start' }}>
-            {busy ? t('quiz.submitting') : t('quiz.submit')}
-          </button>
+          <div>
+            <Button type="submit" loading={busy} loadingLabel={t('quiz.submitting')} disabled={limited}>
+              {t('quiz.submit')}
+            </Button>
+          </div>
         </form>
       )}
 
       {attempts.length > 0 && (
-        <div style={{ display: 'grid', gap: 4 }}>
+        <div className={styles.attempts}>
           <strong>{t('quiz.attempts')}</strong>
-          <ul style={{ margin: 0 }}>
+          <ul>
             {attempts.map((a) => (
-              <li key={a.id} style={{ color: a.passed ? 'var(--ok)' : undefined }}>
-                {t('quiz.attemptRow', { date: formatDate(a.createdAt), percent: a.scorePercent, correct: a.correctCount, total: a.questionCount })}
+              <li key={a.id} className={a.passed ? styles.passed : undefined}>
+                {t('quiz.attemptRow', {
+                  date: formatDate(a.createdAt),
+                  percent: a.scorePercent,
+                  correct: a.correctCount,
+                  total: a.questionCount,
+                })}
               </li>
             ))}
           </ul>

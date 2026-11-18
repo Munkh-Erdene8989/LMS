@@ -1,14 +1,17 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { BRAND, type LessonAccessReason } from '@lms/shared';
+import { BRAND, type LessonAccessReason, type PublicCourseDetail } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
 import { fetchCourse, fetchLesson } from '@/lib/catalog';
 import { LiveInfo } from '../../../../course-ui';
 import { Markdown } from '../../../../markdown';
+import { LinkButton } from '../../../../ui/button';
+import { PlayIcon } from '../../../../learning/icons';
 import { LockedLesson, PurchaseProvider } from '../../../purchase-ui';
 import { VideoPlayer } from '../../../../video-player';
+import { LessonFrame, type FrameSection } from './lesson-frame';
 import { LessonLearning } from './lesson-learning';
+import styles from './lesson.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +20,10 @@ type Params = Promise<{ id: string; lessonId: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const lesson = await fetchLesson((await params).lessonId).catch(() => null);
   if (!lesson || lesson === 'locked') return { title: BRAND.name, robots: { index: false } };
-  return { title: `${lesson.lesson.title} · ${lesson.course.title} — ${BRAND.name}`, robots: { index: lesson.access === 'PREVIEW' } };
+  return {
+    title: `${lesson.lesson.title} · ${lesson.course.title} — ${BRAND.name}`,
+    robots: { index: lesson.access === 'PREVIEW' },
+  };
 }
 
 const ACCESS_BADGE: Record<LessonAccessReason, MessageKey> = {
@@ -27,71 +33,118 @@ const ACCESS_BADGE: Record<LessonAccessReason, MessageKey> = {
   ADMIN: 'purchase.adminBadge',
 };
 
+/** Хичээлийн жагсаалтын (sidebar) өгөгдөл: viewer-ийн эрхээр нээлттэй эсэхийг тодорхойлно. */
+function frameSections(course: PublicCourseDetail, currentOpen: string | null): FrameSection[] {
+  const v = course.viewer;
+  return course.sections.map((s) => ({
+    id: s.id,
+    title: s.title,
+    lessons: s.lessons.map((l) => ({
+      id: l.id,
+      title: l.title,
+      type: l.type,
+      priceCredits: l.priceCredits,
+      isFreePreview: l.isFreePreview,
+      open: l.id === currentOpen || !!v?.ownsCourse || !!v?.canViewAll || !!v?.ownedLessonIds.includes(l.id),
+    })),
+  }));
+}
+
 /**
  * Хичээл үзэх. Контентыг API зөвхөн эрхтэй үед өгнө (`LessonAccessPolicy`: preview, эзэмшил, багш, админ);
  * эрхгүй бол (403) хичээлийн нэр, үнэ + худалдаж авах товч. Худалдан авсны дараа хуудас шинэчлэгдэж контент гарна.
+ * `<main>`-ыг app shell өгдөг — энд `<div>`.
  */
 export default async function LessonPage({ params }: { params: Params }) {
   const { id, lessonId } = await params;
   const data = await fetchLesson(lessonId);
   if (!data || (data !== 'locked' && data.course.id !== id)) notFound();
+  const course = await fetchCourse(id);
 
   if (data === 'locked') {
-    const course = await fetchCourse(id);
     const item = course?.sections.flatMap((s) => s.lessons).find((l) => l.id === lessonId);
     if (!course || !item) notFound();
     return (
-      <main className="page" style={{ display: 'grid', gap: 16 }}>
-        <Link href={`/courses/${id}`}>{t('catalog.backToCourse')}</Link>
+      <LessonFrame courseId={id} courseTitle={course.title} sections={frameSections(course, null)} currentId={lessonId}>
         <PurchaseProvider initial={course}>
           <LockedLesson lesson={item} />
         </PurchaseProvider>
-      </main>
+      </LessonFrame>
     );
   }
 
+  const flat = course?.sections.flatMap((s) => s.lessons) ?? [];
+  const next = flat[flat.findIndex((l) => l.id === lessonId) + 1];
+  const { content } = data;
+
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <Link href={`/courses/${id}`}>{t('catalog.backToCourse')}</Link>
-      <div>
-        <span className="pill">{t(ACCESS_BADGE[data.access])}</span>
-        <h1 style={{ margin: '8px 0 0' }}>{data.lesson.title}</h1>
-        <p className="muted" style={{ margin: 0 }}>
-          {data.course.title}
-        </p>
+    <LessonFrame
+      courseId={id}
+      courseTitle={data.course.title}
+      sections={course ? frameSections(course, lessonId) : []}
+      currentId={lessonId}
+    >
+      <div className={styles.head}>
+        <div className={styles.headText}>
+          <span className="pill">{t(ACCESS_BADGE[data.access])}</span>
+          <h1 className={styles.title}>{data.lesson.title}</h1>
+          <p className={styles.sub}>{t(`course.type${data.lesson.type}` as MessageKey)}</p>
+        </div>
+        {next && (
+          <LinkButton className={styles.next} href={`/courses/${id}/lessons/${next.id}`}>
+            {t('learningUi.nextLesson')}
+          </LinkButton>
+        )}
       </div>
-      {data.content.type === 'TEXT' && <Markdown source={data.content.markdown} />}
-      {data.content.type === 'ASSIGNMENT' && <Markdown source={data.content.instructions} />}
-      {data.content.type === 'LIVE' && (
-        <section className="card">
-          <LiveInfo content={data.content} linkHidden={data.access === 'PREVIEW' ? 'owners-only' : undefined} />
-        </section>
-      )}
-      {data.content.type === 'VIDEO' &&
-        (data.content.status === 'READY' ? (
-          <div style={{ display: 'grid', gap: 4 }}>
+
+      {content.type === 'VIDEO' &&
+        (content.status === 'READY' ? (
+          <div className={styles.main}>
             <VideoPlayer lessonId={data.lesson.id} />
-            {data.access !== 'PREVIEW' && <small className="muted">{t('video.watermarkHint')}</small>}
+            {data.access !== 'PREVIEW' && <p className={styles.hint}>{t('video.watermarkHint')}</p>}
           </div>
         ) : (
-          <p className="muted">{data.content.fromLive ? t('live.recordingPending') : t('video.pending')}</p>
+          <div className={`${styles.frame} ${styles.placeholder}`}>
+            <span className={styles.placeholderIcon}>
+              <PlayIcon />
+            </span>
+            <p>{content.fromLive ? t('live.recordingPending') : t('video.pending')}</p>
+          </div>
         ))}
-      {data.content.type === 'PDF' && data.content.url && (
-        <div style={{ display: 'grid', gap: 8 }}>
-          <iframe className="pdf-frame" src={data.content.url} title={data.content.fileName ?? data.lesson.title} />
-          <a className="btn btn-ghost" href={data.content.url} target="_blank" rel="noreferrer">
-            {t('catalog.openPdf')}
-            {data.content.fileName ? `: ${data.content.fileName}` : ''}
-          </a>
-          <small className="muted">{t('catalog.pdfExpires')}</small>
+      {content.type === 'TEXT' && (
+        <div className={styles.panel}>
+          <Markdown source={content.markdown} />
         </div>
       )}
+      {content.type === 'ASSIGNMENT' && (
+        <div className={styles.panel}>
+          <Markdown source={content.instructions} />
+        </div>
+      )}
+      {content.type === 'LIVE' && (
+        <section className={styles.panel}>
+          <LiveInfo content={content} linkHidden={data.access === 'PREVIEW' ? 'owners-only' : undefined} />
+        </section>
+      )}
+      {content.type === 'PDF' && content.url && (
+        <div className={styles.pdf}>
+          <iframe className={styles.pdfFrame} src={content.url} title={content.fileName ?? data.lesson.title} />
+          <div>
+            <a className="btn btn-secondary" href={content.url} target="_blank" rel="noreferrer">
+              {t('catalog.openPdf')}
+              {content.fileName ? `: ${content.fileName}` : ''}
+            </a>
+          </div>
+          <p className={styles.hint}>{t('catalog.pdfExpires')}</p>
+        </div>
+      )}
+
       <LessonLearning
         lessonId={data.lesson.id}
         type={data.lesson.type}
-        quiz={data.content.type === 'QUIZ' ? data.content : null}
+        quiz={content.type === 'QUIZ' ? content : null}
         loginHref={`/login?next=${encodeURIComponent(`/courses/${id}/lessons/${lessonId}`)}`}
       />
-    </main>
+    </LessonFrame>
   );
 }
