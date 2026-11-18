@@ -19,7 +19,7 @@
   border-bottom-color: var(--border);
 }
 
-.header a {
+.header a:not(:global(.btn)) {
   color: var(--fg);
   text-decoration: none;
 }

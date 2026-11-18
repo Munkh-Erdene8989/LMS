@@ -42,18 +42,6 @@
   color: #fff;
 }
 
-.fallbackText {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  text-wrap: balance;
-}
-
 .g0 { background: linear-gradient(135deg, #0a58ca, #6f42c1); }
 .g1 { background: linear-gradient(135deg, #0f766e, #1d4ed8); }
 .g2 { background: linear-gradient(135deg, #b4236c, #c2410c); }

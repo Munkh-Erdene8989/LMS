@@ -29,9 +29,7 @@ export function CourseCard({ course, owned = false }: { course: CatalogCourseCar
         // eslint-disable-next-line @next/next/no-img-element -- cover-ийн host тогтмол биш; width/height + aspect-ratio-оор CLS-гүй
         <img className={styles.cover} src={course.coverUrl} alt="" width={640} height={400} loading="lazy" decoding="async" />
       ) : (
-        <div className={`${styles.cover} ${styles.fallback} ${gradientFor(course.id) ?? ''}`} aria-hidden="true">
-          <span className={styles.fallbackText}>{course.title}</span>
-        </div>
+        <div className={`${styles.cover} ${styles.fallback} ${gradientFor(course.id) ?? ''}`} aria-hidden="true" />
       )}
       <div className={styles.body}>
         {course.hasFreePreview && <span className={styles.preview}>{t('catalog.hasPreview')}</span>}

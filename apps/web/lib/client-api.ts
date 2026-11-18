@@ -65,7 +65,15 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   }
 
   const text = await res.text();
-  const json = text ? (JSON.parse(text) as unknown) : null;
+  // Proxy/gateway алдаа HTML буцааж болно — JSON биш бол body-гүй гэж үзнэ (SyntaxError шидэхгүй).
+  let json: unknown = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+  }
   if (isGet && (!res.ok || isEmptyPayload(json))) {
     const demo = await demoFallback<T>(path);
     if (demo !== undefined) return { status: 200, data: demo };
