@@ -6,9 +6,7 @@ import { withSentryConfig } from '@sentry/nextjs/config';
 // Local хөгжүүлэлтэд monorepo-ийн root `.env`-ийг уншина. Vercel дээр env-ийг платформ өгнө.
 config({ path: resolve(__dirname, '../../.env'), quiet: true });
 
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
-
-// Vercel (preview/production) дээр API_URL заавал — rewrite build үед шингэдэг тул дутвал `/api/*` localhost руу явна.
+// Vercel (preview/production) дээр API_URL заавал — дутвал server render ба `/api/*` proxy localhost руу явна.
 if (process.env.VERCEL_ENV && !process.env.API_URL) {
   throw new Error('API_URL тохируулаагүй байна (Vercel → Settings → Environment Variables; жишээ: https://api.example.mn). Build-ийн өмнө заавал.');
 }
@@ -28,14 +26,9 @@ const nextConfig: NextConfig = {
   // тогтмол болгохгүй, demo модуль dead-code болж хасагдахгүй. Устгах заавар: .scratch/lms/issues/33b-demo-data.md.
   env: { NEXT_PUBLIC_DEMO_DATA: process.env.NEXT_PUBLIC_DEMO_DATA ?? '' },
   poweredByHeader: false,
-  /**
-   * Browser API руу шууд биш, web-ийн `/api/*`-аар хандана → auth cookie first-party.
-   * API-ийн `COOKIE_PATH_PREFIX` нь энэ угтвартай (`/api`) таарах ёстой.
-   * `API_URL` нь build үед rewrite-д шингэдэг тул Vercel дээр build-ийн өмнө тохируулсан байх ёстой.
-   */
-  async rewrites() {
-    return [{ source: '/api/:path*', destination: `${API_URL}/:path*` }];
-  },
+  // Browser API руу шууд биш, web-ийн `/api/*`-аар хандана → auth cookie first-party. Proxy нь
+  // `app/api/[...path]/route.ts` (function-ийн бүсээс дуудна; гадны rewrite Railway-д Европын edge-ээр ордог байсан).
+  // API-ийн `COOKIE_PATH_PREFIX` нь энэ угтвартай (`/api`) таарах ёстой.
   async headers() {
     return [
       // /api/* нь API-ийн (helmet) header-тэй; хуудсуудын CSP нь middleware-ээс.
