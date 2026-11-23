@@ -5,7 +5,7 @@ export const BRAND = {
   /** Кодонд ашиглах түр нэр */
   slug: 'lms',
   /** Хэрэглэгчид харагдах нэр */
-  name: 'LMS',
+  name: 'Суралц',
   /** Анхдагч хэл */
   defaultLocale: 'mn',
 } as const;

@@ -7,6 +7,9 @@ import MuxPlayer from '@mux/mux-player-react/lazy';
 import type { LessonProgressView, PlaybackGrant } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
+import { Button } from './ui/button';
+import { Skeleton } from './ui/skeleton';
+import styles from './video-player.module.css';
 
 const DEVICE_KEY = 'lms.deviceId';
 /** Үзсэн хувийг API руу илгээх давтамж (тоглуулж байх үед) */
@@ -46,7 +49,7 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
   const playerRef = useRef<MuxPlayerRefAttributes | null>(null);
   const [grant, setGrant] = useState<PlaybackGrant | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [spot, setSpot] = useState(randomSpot);
+  const watermarkRef = useRef<HTMLSpanElement | null>(null);
   const device = useRef<string>('');
   const maxPercent = useRef(0);
   const sentPercent = useRef(0);
@@ -143,7 +146,14 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
   // Хөдөлгөөнт watermark.
   useEffect(() => {
     if (!grant?.watermark) return;
-    const timer = setInterval(() => setSpot(randomSpot()), WATERMARK_MOVE_MS);
+    // Байрлалыг CSS хувьсагчаар (inline style-гүй) шинэчилнэ; CSS нь `transform: translate(%)`-аар хөдөлгөнө.
+    const move = () => {
+      const { top, left } = randomSpot();
+      watermarkRef.current?.style.setProperty('--wm-x', `${left}%`);
+      watermarkRef.current?.style.setProperty('--wm-y', `${top}%`);
+    };
+    move();
+    const timer = setInterval(move, WATERMARK_MOVE_MS);
     return () => clearInterval(timer);
   }, [grant?.watermark]);
 
@@ -181,22 +191,31 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
 
   if (!grant) {
     return error ? (
-      <div className="card" style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
-          {error}
-        </p>
-        <button type="button" className="btn btn-ghost" onClick={() => void load()}>
+      <div className={`${styles.frame} ${styles.problem}`}>
+        <p role="alert">{error}</p>
+        <Button variant="secondary" onClick={() => void load()}>
           {t('video.retry')}
-        </button>
+        </Button>
       </div>
     ) : (
-      <div className="video-frame video-loading">{t('video.loading')}</div>
+      <div className={`${styles.frame} ${styles.loading}`} role="status" aria-busy="true" aria-label={t('video.loading')}>
+        <Skeleton height="100%" />
+      </div>
+    );
+  }
+
+  // Playback id-гүй (жишээ нь demo хичээл) — тоглуулагч нээхгүй, тайван placeholder.
+  if (!grant.playbackId) {
+    return (
+      <div className={`${styles.frame} ${styles.problem}`}>
+        <p>{t('video.pending')}</p>
+      </div>
     );
   }
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      <div id={containerId} className="video-frame" onContextMenu={(e) => e.preventDefault()}>
+    <div className={styles.wrap}>
+      <div id={containerId} className={styles.frame} onContextMenu={(e) => e.preventDefault()}>
         <MuxPlayer
           ref={playerRef}
           playbackId={grant.playbackId}
@@ -205,8 +224,8 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
           metadata={grant.muxData.metadata}
           fullscreenElement={containerId}
           streamType="on-demand"
-          accentColor="#2563eb"
-          style={{ width: '100%', height: '100%' }}
+          accentColor="#0071e3"
+          className={styles.player}
           onPlay={onPlay}
           onPause={onPause}
           onEnded={onEnded}
@@ -215,13 +234,13 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
           onError={onError}
         />
         {grant.watermark && (
-          <span className="video-watermark" aria-hidden style={{ top: `${spot.top}%`, left: `${spot.left}%` }}>
-            {grant.watermark}
+          <span ref={watermarkRef} className={styles.watermark} aria-hidden>
+            <span>{grant.watermark}</span>
           </span>
         )}
       </div>
       {error && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+        <p role="alert" className={styles.notice}>
           {error}
         </p>
       )}

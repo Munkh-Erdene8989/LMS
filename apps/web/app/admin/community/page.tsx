@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AdminCommunityItem, AdminCommunityPage } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { ErrorLine, FilterTabs, LoadingRows, Pill, ReasonDialog, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 type Kind = 'post' | 'comment';
 type Status = 'ALL' | 'VISIBLE' | 'HIDDEN';
 const KINDS: Kind[] = ['post', 'comment'];
 const STATUSES: Status[] = ['ALL', 'VISIBLE', 'HIDDEN'];
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Community moderation: бүх багшийн сүүлийн нийтлэл/сэтгэгдлийг шалтгаантай нуух, сэргээх, устгах (audit-тай). */
 export default function AdminCommunityPage() {
@@ -54,32 +57,36 @@ export default function AdminCommunityPage() {
   const drop = (id: string) => setItems((prev) => prev?.filter((x) => x.id !== id) ?? null);
 
   return (
-    <main style={{ display: 'grid', gap: 12 }}>
-      <h1 style={{ margin: 0 }}>{t('communityAdmin.title')}</h1>
-      <p className="muted" style={{ margin: 0 }}>{t('communityAdmin.hint')}</p>
-      <div role="tablist" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {KINDS.map((k) => (
-          <button key={k} role="tab" aria-selected={k === kind} className={k === kind ? 'btn' : 'btn btn-ghost'} onClick={() => setKind(k)}>
-            {t(k === 'post' ? 'communityAdmin.tabPosts' : 'communityAdmin.tabComments')}
-          </button>
-        ))}
-        <span style={{ flex: 1 }} />
-        {STATUSES.map((s) => (
-          <button key={s} className={s === status ? 'btn btn-small' : 'btn btn-ghost btn-small'} aria-pressed={s === status} onClick={() => setStatus(s)}>
-            {t(`communityAdmin.status${s}` as MessageKey)}
-          </button>
-        ))}
+    <div className={styles.stack}>
+      <h1 className={styles.title}>{t('communityAdmin.title')}</h1>
+      <p className={styles.hint}>{t('communityAdmin.hint')}</p>
+      <div className={styles.toolbar}>
+        <FilterTabs
+          label={t('communityAdmin.title')}
+          value={kind}
+          onChange={setKind}
+          items={KINDS.map((k) => ({ key: k, label: t(k === 'post' ? 'communityAdmin.tabPosts' : 'communityAdmin.tabComments') }))}
+        />
+        <span className={styles.spacer} />
+        <FilterTabs
+          label={t('communityAdmin.title')}
+          value={status}
+          onChange={setStatus}
+          items={STATUSES.map((s) => ({ key: s, label: t(`communityAdmin.status${s}` as MessageKey) }))}
+        />
       </div>
-      {error && <p role="alert" style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {!items && !error && <p>{t('me.loading')}</p>}
-      {items?.length === 0 && <p>{t('communityAdmin.empty')}</p>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!items && !error && <LoadingRows />}
+      {items?.length === 0 && <EmptyState title={t('communityAdmin.empty')} />}
       {items?.map((i) => <ModerationRow key={i.id} item={i} onChange={replace} onDeleted={drop} />)}
       {cursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
-          {t('admin.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" onClick={() => void more()}>
+            {t('admin.loadMore')}
+          </Button>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 
@@ -94,6 +101,7 @@ function ModerationRow({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<'hide' | 'delete' | null>(null);
   const base = `/admin/community/${i.kind === 'post' ? 'posts' : 'comments'}/${i.id}`;
 
   async function run(fn: () => Promise<void>) {
@@ -108,39 +116,28 @@ function ModerationRow({
     }
   }
 
-  const hide = () => {
-    const reason = window.prompt(t('communityAdmin.hidePrompt'))?.trim();
-    if (!reason) return;
-    void run(async () => onChange((await api<AdminCommunityItem>(`${base}/hide`, { method: 'POST', body: { reason } })).data));
-  };
-  const unhide = () => void run(async () => onChange((await api<AdminCommunityItem>(`${base}/unhide`, { method: 'POST' })).data));
-  const remove = () => {
-    const reason = window.prompt(t('communityAdmin.deletePrompt'))?.trim();
-    if (!reason || !window.confirm(t('communityAdmin.deleteConfirm'))) return;
-    void run(async () => {
-      await api(`${base}/delete`, { method: 'POST', body: { reason } });
-      onDeleted(i.id);
-    });
-  };
+  const unhide = () => run(async () => onChange((await api<AdminCommunityItem>(`${base}/unhide`, { method: 'POST' })).data));
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 6, opacity: i.hidden ? 0.8 : 1 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <section className={`${styles.item} ${i.hidden ? styles.itemDim : ''}`}>
+      <div className={styles.toolbar}>
         <strong>{i.author.name ?? t('community.unnamed')}</strong>
-        <small className="muted">
+        <small className={styles.muted}>
           {formatDate(i.createdAt)}
           {i.editedAt && ` · ${t('community.edited', { date: formatDate(i.editedAt) })}`}
         </small>
-        {i.hasImage && <span className="pill">{t('communityAdmin.hasImage')}</span>}
-        {i.hidden && <span className="pill" style={{ color: 'var(--err)' }}>{t('communityAdmin.hiddenBadge')}</span>}
+        {i.hasImage && <Pill>{t('communityAdmin.hasImage')}</Pill>}
+        {i.hidden && <Pill tone="err">{t('communityAdmin.hiddenBadge')}</Pill>}
       </div>
       <small>
         {t('communityAdmin.community')}:{' '}
-        <Link href={`/communities/${i.teacher.id}?post=${i.postId}`}>{i.teacher.name ?? t('community.unnamed')}</Link>
+        <Link className={styles.anchor} href={`/communities/${i.teacher.id}?post=${i.postId}`}>
+          {i.teacher.name ?? t('community.unnamed')}
+        </Link>
       </small>
-      {i.body && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{i.body}</p>}
+      {i.body && <p className={`${styles.line} ${styles.pre}`}>{i.body}</p>}
       {i.hidden && (
-        <small className="muted">
+        <small className={styles.muted}>
           {t('communityAdmin.hiddenBy', {
             name: i.hidden.by?.name ?? t('admin.someone'),
             date: formatDate(i.hidden.at),
@@ -148,21 +145,46 @@ function ModerationRow({
           })}
         </small>
       )}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className={styles.rowActions}>
         {i.hidden ? (
-          <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={unhide}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => void unhide()}>
             {t('communityAdmin.unhide')}
-          </button>
+          </Button>
         ) : (
-          <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={hide}>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDialog('hide')}>
             {t('communityAdmin.hide')}
-          </button>
+          </Button>
         )}
-        <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={remove}>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDialog('delete')}>
           {t('communityAdmin.delete')}
-        </button>
+        </Button>
       </div>
-      {error && <small role="alert" style={{ color: 'var(--err)' }}>{error}</small>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      <ReasonDialog
+        open={dialog === 'hide'}
+        onClose={() => setDialog(null)}
+        title={t('communityAdmin.hide')}
+        label={t('communityAdmin.hidePrompt')}
+        confirmLabel={t('communityAdmin.hide')}
+        onSubmit={(reason) =>
+          run(async () => onChange((await api<AdminCommunityItem>(`${base}/hide`, { method: 'POST', body: { reason } })).data))
+        }
+      />
+      <ReasonDialog
+        open={dialog === 'delete'}
+        onClose={() => setDialog(null)}
+        title={t('communityAdmin.delete')}
+        description={t('communityAdmin.deleteConfirm')}
+        label={t('communityAdmin.deletePrompt')}
+        confirmLabel={t('communityAdmin.delete')}
+        danger
+        onSubmit={(reason) =>
+          run(async () => {
+            await api(`${base}/delete`, { method: 'POST', body: { reason } });
+            onDeleted(i.id);
+          })
+        }
+      />
     </section>
   );
 }

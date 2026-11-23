@@ -6,11 +6,13 @@ import {
   ASSIGNMENT_MAX_SCORE_LIMIT,
   AVAILABLE_LESSON_TYPES,
   COURSE_LEVELS,
+  COVER_MAX_BYTES,
   COVER_TYPES,
   isoToUbLocal,
   LIVE_DURATION_MAX,
   LIVE_DURATION_MIN,
   liveState,
+  PDF_MAX_BYTES,
   type CategoryNode,
   type CourseDetail,
   type LessonType,
@@ -26,17 +28,27 @@ import { t, type MessageKey } from '@/lib/i18n';
 import { uploadFile, uploadWithProgress } from '@/lib/upload';
 import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
 import { Markdown } from '../../../markdown';
+import { Button } from '../../../ui/button';
+import { useConfirm } from '../../../ui/confirm';
+import { FileDrop } from '../../../ui/file-drop';
+import { Skeleton } from '../../../ui/skeleton';
+import { useToast } from '../../../ui/toast';
+import { PromptDialog } from '../../prompt-dialog';
+import s from '../../teacher.module.css';
+import { useUnsavedWarning } from '../../use-unsaved';
 import { QuizEditor, quizInputFrom } from './quiz-editor';
+
+const MB = 1024 * 1024;
 
 type Run = (fn: () => Promise<{ data: CourseDetail } | void>) => Promise<boolean>;
 
 export default function CourseEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { toast } = useToast();
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     api<CourseDetail>(`/teacher/courses/${id}`)
@@ -51,7 +63,6 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
   /** API дуудаад шинэ курсийн төлөвийг хүлээн авна; алдааг харуулна. */
   const run: Run = useCallback(async (fn) => {
     setError(null);
-    setNotice(null);
     try {
       const r = await fn();
       if (r) setCourse(r.data);
@@ -62,65 +73,80 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
     }
   }, []);
 
-  if (!course) return <main className="page">{error ?? t('me.loading')}</main>;
+  if (!course) {
+    return (
+      <div className={s.page}>
+        {error ? (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={s.stack} aria-busy="true" aria-label={t('ui.loading')}>
+            <Skeleton height={36} width="50%" />
+            <Skeleton height={280} radius={22} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const locked = course.status === 'IN_REVIEW';
-  const pendingNew = course.sections.flatMap((s) => s.lessons).filter((l) => !l.archived && (l.reviewStatus === 'DRAFT' || l.reviewStatus === 'REJECTED'));
+  const pendingNew = course.sections.flatMap((x) => x.lessons).filter((l) => !l.archived && (l.reviewStatus === 'DRAFT' || l.reviewStatus === 'REJECTED'));
   const canSubmit = !locked && (course.status !== 'PUBLISHED' || pendingNew.length > 0);
 
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <h1 style={{ margin: 0 }}>{course.title}</h1>
+    <div className={s.page}>
+      <div className={s.pageHead}>
+        <h1 className={s.title}>{course.title}</h1>
         <StatusBadge status={course.status} />
       </div>
 
       {course.reviewNote && course.status === 'REJECTED' && (
-        <p className="card" style={{ borderColor: 'var(--err)', whiteSpace: 'pre-wrap', margin: 0 }}>
+        <p className={`card ${s.cardDanger} ${s.pre}`}>
           <strong>{t('course.reviewNote')}:</strong> {course.reviewNote}
         </p>
       )}
-      {locked && <p className="card" style={{ margin: 0 }}>{t('course.inReviewLocked')}</p>}
+      {locked && <p className="card">{t('course.inReviewLocked')}</p>}
       {error && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+        <p role="alert" className={s.error}>
           {error}
         </p>
       )}
-      {notice && <p style={{ color: 'var(--ok)', margin: 0 }}>{notice}</p>}
 
       <CourseInfo course={course} categories={categories} locked={locked} run={run} />
       <Curriculum course={course} locked={locked} run={run} />
 
       {canSubmit && (
-        <section className="card" style={{ display: 'grid', gap: 8 }}>
+        <section className={`card ${s.card}`}>
           {course.status !== 'PUBLISHED' && course.problems.length > 0 && (
             <div>
               <strong>{t('course.problems')}</strong>
-              <ul style={{ margin: '4px 0 0' }}>
+              <ul className={s.problems}>
                 {course.problems.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
               </ul>
             </div>
           )}
-          <button
-            className="btn"
+          <Button
+            className={s.startSelf}
             disabled={course.status !== 'PUBLISHED' && course.problems.length > 0}
             onClick={async () => {
               if (await run(() => api<CourseDetail>(`/teacher/courses/${id}/submit`, { method: 'POST' }))) {
-                setNotice(t('course.submitted'));
+                toast(t('course.submitted'));
               }
             }}
           >
             {course.status === 'PUBLISHED' ? t('course.submitNew') : t('course.submit')}
-          </button>
+          </Button>
         </section>
       )}
-    </main>
+    </div>
   );
 }
 
 function CourseInfo({ course, categories, locked, run }: { course: CourseDetail; categories: CategoryNode[]; locked: boolean; run: Run }) {
+  const { toast } = useToast();
   const [form, setForm] = useState({
     title: course.title,
     description: course.description,
@@ -129,11 +155,21 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
     priceCredits: course.priceCredits === null ? '' : String(course.priceCredits),
   });
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const dirty =
+    form.title !== course.title ||
+    form.description !== course.description ||
+    form.categoryId !== (course.categoryId ?? '') ||
+    form.level !== course.level ||
+    form.priceCredits !== (course.priceCredits === null ? '' : String(course.priceCredits));
+  useUnsavedWarning(dirty || uploading);
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    await run(() =>
+    setSaving(true);
+    const ok = await run(() =>
       api<CourseDetail>(`/teacher/courses/${course.id}`, {
         method: 'PATCH',
         body: {
@@ -145,6 +181,8 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
         },
       }),
     );
+    setSaving(false);
+    if (ok) toast(t('teacherUi.saved'));
   }
 
   async function uploadCover(file: File) {
@@ -159,33 +197,38 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
 
   return (
     <section className="card">
-      <form onSubmit={save} style={{ display: 'grid', gap: 12 }}>
-        <strong>{t('course.info')}</strong>
-        <fieldset disabled={locked} style={{ display: 'grid', gap: 12, border: 'none', padding: 0, margin: 0 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            {course.coverUrl ? <img src={course.coverUrl} alt="" className="cover-preview" /> : <div className="cover-preview cover-placeholder" />}
-            <label className="btn btn-ghost">
-              {uploading ? t('course.uploading') : t('course.uploadCover')}
-              <input
-                type="file"
-                accept={COVER_TYPES.join(',')}
-                hidden
-                onChange={(e) => e.target.files?.[0] && void uploadCover(e.target.files[0])}
-              />
-            </label>
+      <form onSubmit={save} className={s.form}>
+        <h2 className={s.sectionTitle}>{t('course.info')}</h2>
+        <fieldset disabled={locked} className={s.fieldset}>
+          <div className={s.row}>
+            {course.coverUrl ? (
+              <img src={course.coverUrl} alt="" className={s.coverPreview} width={240} height={135} />
+            ) : (
+              <div className={s.coverPreview} />
+            )}
+            <FileDrop
+              label={t('course.uploadCover')}
+              hint={t('ui.fileHint', { types: 'JPG/PNG/WEBP', max: COVER_MAX_BYTES / MB })}
+              accept={COVER_TYPES.join(',')}
+              maxBytes={COVER_MAX_BYTES}
+              disabled={locked}
+              progress={uploading || null}
+              progressLabel={t('course.uploading')}
+              onFile={(file) => void uploadCover(file)}
+            />
           </div>
-          <label style={{ display: 'grid', gap: 4 }}>
+          <label className={s.field}>
             {t('course.title')}
-            <input className="input" required maxLength={200} value={form.title} onChange={set('title')} />
+            <input className="input" name="title" autoComplete="off" required maxLength={200} value={form.title} onChange={set('title')} />
           </label>
-          <label style={{ display: 'grid', gap: 4 }}>
+          <label className={s.field}>
             {t('course.description')}
-            <textarea className="input" rows={5} maxLength={20000} value={form.description} onChange={set('description')} />
+            <textarea className="input" name="description" autoComplete="off" rows={5} maxLength={20000} value={form.description} onChange={set('description')} />
           </label>
           <div className="grid-2">
-            <label style={{ display: 'grid', gap: 4 }}>
+            <label className={s.field}>
               {t('course.category')}
-              <select className="input" value={form.categoryId} onChange={set('categoryId')}>
+              <select className="input" name="categoryId" value={form.categoryId} onChange={set('categoryId')}>
                 <option value="">{t('course.chooseCategory')}</option>
                 {categories.map((c) => (
                   <optgroup key={c.id} label={c.name}>
@@ -199,9 +242,9 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
                 ))}
               </select>
             </label>
-            <label style={{ display: 'grid', gap: 4 }}>
+            <label className={s.field}>
               {t('course.level')}
-              <select className="input" value={form.level} onChange={set('level')}>
+              <select className="input" name="level" value={form.level} onChange={set('level')}>
                 {COURSE_LEVELS.map((l) => (
                   <option key={l} value={l}>
                     {t(`course.level${l}` as MessageKey)}
@@ -210,14 +253,27 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
               </select>
             </label>
           </div>
-          <label style={{ display: 'grid', gap: 4 }}>
+          <label className={s.field}>
             {t('course.price')}
-            <input className="input" type="number" min={1} step={1} value={form.priceCredits} onChange={set('priceCredits')} style={{ maxWidth: 200 }} />
-            <span style={{ color: 'var(--muted)', fontSize: 14 }}>{t('course.lessonsTotal', { count: course.lessonsTotalCredits })}</span>
+            <input
+              className={`input ${s.narrowInput}`}
+              name="priceCredits"
+              type="number"
+              inputMode="numeric"
+              autoComplete="off"
+              min={1}
+              step={1}
+              value={form.priceCredits}
+              onChange={set('priceCredits')}
+            />
+            <span className={s.hint}>{t('course.lessonsTotal', { count: course.lessonsTotalCredits })}</span>
           </label>
-          <button className="btn" style={{ justifySelf: 'start' }}>
-            {t('course.save')}
-          </button>
+          <div className={s.row}>
+            <Button type="submit" loading={saving} loadingLabel={t('teacherUi.saving')}>
+              {t('course.save')}
+            </Button>
+            {dirty && <small className={s.dirty}>{t('teacherUi.unsaved')}</small>}
+          </div>
         </fieldset>
       </form>
     </section>
@@ -225,10 +281,11 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
 }
 
 function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boolean; run: Run }) {
+  const confirm = useConfirm();
   const [sectionTitle, setSectionTitle] = useState('');
   const [open, setOpen] = useState<string | null>(null);
 
-  const layout = (sections: SectionView[]) => sections.map((s) => ({ id: s.id, lessonIds: s.lessons.map((l) => l.id) }));
+  const layout = (sections: SectionView[]) => sections.map((x) => ({ id: x.id, lessonIds: x.lessons.map((l) => l.id) }));
   const reorder = (next: { id: string; lessonIds: string[] }[]) =>
     run(() => api<CourseDetail>(`/teacher/courses/${course.id}/curriculum`, { method: 'PUT', body: { sections: next } }));
 
@@ -250,51 +307,64 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
   }
 
   function moveToSection(lessonId: string, targetId: string) {
-    const next = layout(course.sections).map((s) => ({ ...s, lessonIds: s.lessonIds.filter((x) => x !== lessonId) }));
-    next.find((s) => s.id === targetId)!.lessonIds.push(lessonId);
+    const next = layout(course.sections).map((x) => ({ ...x, lessonIds: x.lessonIds.filter((y) => y !== lessonId) }));
+    next.find((x) => x.id === targetId)!.lessonIds.push(lessonId);
     void reorder(next);
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 12 }}>
-      <strong>{t('course.curriculum')}</strong>
-      {course.sections.map((s, si) => (
-        <div key={s.id} className="section-block">
+    <section className={`card ${s.card}`}>
+      <h2 className={s.sectionTitle}>{t('course.curriculum')}</h2>
+      {course.sections.map((sec, si) => (
+        <div key={sec.id} className={s.section}>
           <SectionHeader
-            section={s}
+            section={sec}
             locked={locked}
             run={run}
+            confirm={confirm}
             onUp={si > 0 ? () => moveSection(si, -1) : undefined}
             onDown={si < course.sections.length - 1 ? () => moveSection(si, 1) : undefined}
           />
-          <ul className="lesson-list">
-            {s.lessons.map((l, li) => (
+          <ul className={s.lessonList}>
+            {sec.lessons.map((l, li) => (
               <li key={l.id}>
-                <div className="lesson-row">
+                <div className={s.lessonRow}>
                   <span>
-                    {l.title} <small>· {t(`course.type${l.type}` as MessageKey)}</small>{' '}
-                    <small>· {t('course.credits', { count: l.priceCredits })}</small>
-                    {l.isFreePreview && <small> · preview</small>}
+                    {l.title} <small className={s.lessonMeta}>· {t(`course.type${l.type}` as MessageKey)}</small>{' '}
+                    <small className={s.lessonMeta}>· {t('course.credits', { count: l.priceCredits })}</small>
+                    {l.isFreePreview && <small className={s.lessonMeta}> · preview</small>}
                   </span>
-                  <span style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className={s.row}>
                     {l.archived ? <span className="badge-status">{t('course.archived')}</span> : <LessonStatusBadge status={l.reviewStatus} />}
                     {!locked && !l.archived && (
                       <>
-                        <button className="btn-icon" aria-label={t('course.up')} disabled={li === 0} onClick={() => moveLesson(si, li, -1)}>
+                        <button type="button" className="btn-icon" aria-label={t('course.up')} disabled={li === 0} onClick={() => moveLesson(si, li, -1)}>
                           ↑
                         </button>
-                        <button className="btn-icon" aria-label={t('course.down')} disabled={li === s.lessons.length - 1} onClick={() => moveLesson(si, li, 1)}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          aria-label={t('course.down')}
+                          disabled={li === sec.lessons.length - 1}
+                          onClick={() => moveLesson(si, li, 1)}
+                        >
                           ↓
                         </button>
                       </>
                     )}
-                    <button className="btn-icon" onClick={() => setOpen(open === l.id ? null : l.id)}>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      aria-expanded={open === l.id}
+                      aria-controls={`lesson-editor-${l.id}`}
+                      onClick={() => setOpen(open === l.id ? null : l.id)}
+                    >
                       {open === l.id ? t('course.close') : t('course.edit')}
                     </button>
                   </span>
                 </div>
                 {l.reviewNote && l.reviewStatus === 'REJECTED' && (
-                  <p style={{ color: 'var(--err)', margin: '4px 0' }}>
+                  <p className={s.error}>
                     {t('course.reviewNote')}: {l.reviewNote}
                   </p>
                 )}
@@ -305,18 +375,19 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
                     sections={course.sections}
                     locked={locked || l.archived || l.reviewStatus === 'IN_REVIEW'}
                     run={run}
+                    confirm={confirm}
                     onMove={(target) => moveToSection(l.id, target)}
                   />
                 )}
               </li>
             ))}
           </ul>
-          {!locked && <AddLesson sectionId={s.id} run={run} />}
+          {!locked && <AddLesson sectionId={sec.id} run={run} />}
         </div>
       ))}
       {!locked && (
         <form
-          style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
+          className={s.row}
           onSubmit={async (e) => {
             e.preventDefault();
             if (await run(() => api<CourseDetail>(`/teacher/courses/${course.id}/sections`, { method: 'POST', body: { title: sectionTitle } }))) {
@@ -325,8 +396,9 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
           }}
         >
           <input
-            className="input"
-            style={{ flex: '1 1 200px' }}
+            className={`input ${s.grow}`}
+            name="sectionTitle"
+            autoComplete="off"
             required
             maxLength={200}
             placeholder={t('course.sectionPlaceholder')}
@@ -334,7 +406,9 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
             value={sectionTitle}
             onChange={(e) => setSectionTitle(e.target.value)}
           />
-          <button className="btn btn-ghost">{t('course.addSection')}</button>
+          <Button type="submit" variant="secondary">
+            {t('course.addSection')}
+          </Button>
         </form>
       )}
     </section>
@@ -345,42 +419,64 @@ function SectionHeader({
   section,
   locked,
   run,
+  confirm,
   onUp,
   onDown,
 }: {
   section: SectionView;
   locked: boolean;
   run: Run;
+  confirm: ReturnType<typeof useConfirm>;
   onUp?: () => void;
   onDown?: () => void;
 }) {
+  const [renaming, setRenaming] = useState(false);
   return (
-    <div className="lesson-row" style={{ fontWeight: 700 }}>
+    <div className={`${s.sectionHead}`}>
       <span>{section.title}</span>
       {!locked && (
-        <span style={{ display: 'flex', gap: 4 }}>
-          <button className="btn-icon" aria-label={t('course.up')} disabled={!onUp} onClick={onUp}>
+        <span className={s.row}>
+          <button type="button" className="btn-icon" aria-label={t('course.up')} disabled={!onUp} onClick={onUp}>
             ↑
           </button>
-          <button className="btn-icon" aria-label={t('course.down')} disabled={!onDown} onClick={onDown}>
+          <button type="button" className="btn-icon" aria-label={t('course.down')} disabled={!onDown} onClick={onDown}>
             ↓
           </button>
-          <button
-            className="btn-icon"
-            onClick={() => {
-              const title = window.prompt(t('course.rename'), section.title);
-              if (title?.trim()) void run(() => api<CourseDetail>(`/teacher/sections/${section.id}`, { method: 'PATCH', body: { title } }));
-            }}
-          >
+          <button type="button" className="btn-icon" onClick={() => setRenaming(true)}>
             {t('course.rename')}
           </button>
           {section.lessons.length === 0 && (
-            <button className="btn-icon" onClick={() => void run(() => api<CourseDetail>(`/teacher/sections/${section.id}`, { method: 'DELETE' }))}>
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: t('teacherUi.removeSectionTitle'),
+                  body: section.title,
+                  confirmLabel: t('course.remove'),
+                  danger: true,
+                });
+                if (ok) void run(() => api<CourseDetail>(`/teacher/sections/${section.id}`, { method: 'DELETE' }));
+              }}
+            >
               {t('course.remove')}
             </button>
           )}
         </span>
       )}
+      <PromptDialog
+        open={renaming}
+        title={t('course.rename')}
+        label={t('course.title')}
+        initial={section.title}
+        required
+        maxLength={200}
+        onClose={() => setRenaming(false)}
+        onSubmit={(title) => {
+          setRenaming(false);
+          if (title) void run(() => api<CourseDetail>(`/teacher/sections/${section.id}`, { method: 'PATCH', body: { title } }));
+        }}
+      />
     </div>
   );
 }
@@ -388,17 +484,19 @@ function SectionHeader({
 function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<LessonType>('TEXT');
+  useUnsavedWarning(title.trim() !== '');
   return (
     <form
-      style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
+      className={s.row}
       onSubmit={async (e) => {
         e.preventDefault();
         if (await run(() => api<CourseDetail>(`/teacher/sections/${sectionId}/lessons`, { method: 'POST', body: { title, type } }))) setTitle('');
       }}
     >
       <input
-        className="input"
-        style={{ flex: '1 1 200px' }}
+        className={`input ${s.grow}`}
+        name="lessonTitle"
+        autoComplete="off"
         required
         maxLength={200}
         placeholder={t('course.lessonPlaceholder')}
@@ -406,14 +504,22 @@ function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
-      <select className="input" style={{ width: 'auto' }} value={type} onChange={(e) => setType(e.target.value as LessonType)} aria-label="type">
+      <select
+        className={`input ${s.autoWidth}`}
+        name="lessonType"
+        value={type}
+        onChange={(e) => setType(e.target.value as LessonType)}
+        aria-label={t('teacherUi.lessonType')}
+      >
         {AVAILABLE_LESSON_TYPES.map((ty) => (
           <option key={ty} value={ty}>
             {t(`course.type${ty}` as MessageKey)}
           </option>
         ))}
       </select>
-      <button className="btn btn-ghost">{t('course.addLesson')}</button>
+      <Button type="submit" variant="secondary">
+        {t('course.addLesson')}
+      </Button>
     </form>
   );
 }
@@ -423,14 +529,17 @@ function LessonEditor({
   sections,
   locked,
   run,
+  confirm,
   onMove,
 }: {
   lesson: LessonView;
   sections: SectionView[];
   locked: boolean;
   run: Run;
+  confirm: ReturnType<typeof useConfirm>;
   onMove: (sectionId: string) => void;
 }) {
+  const { toast } = useToast();
   // Live-ийн хуваарь, линк нийтлэгдсэн ч засагдана (ticket 14).
   const contentLocked = locked || (lesson.reviewStatus === 'APPROVED' && lesson.type !== 'LIVE');
   const live = lesson.content.type === 'LIVE' ? lesson.content : null;
@@ -445,18 +554,36 @@ function LessonEditor({
   const [title, setTitle] = useState(lesson.title);
   const [price, setPrice] = useState(String(lesson.priceCredits));
   const [preview, setPreview] = useState(lesson.isFreePreview);
-  const [markdown, setMarkdown] = useState(lesson.content.type === 'TEXT' ? lesson.content.markdown : '');
+  const markdownInitial = lesson.content.type === 'TEXT' ? lesson.content.markdown : '';
+  const [markdown, setMarkdown] = useState(markdownInitial);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [quiz, setQuiz] = useState(() => quizInputFrom(lesson.content));
   const assignment = lesson.content.type === 'ASSIGNMENT' ? lesson.content : null;
-  const [instructions, setInstructions] = useState(assignment?.instructions ?? '');
-  const [maxScore, setMaxScore] = useState(assignment?.maxScore ? String(assignment.maxScore) : '');
+  const instructionsInitial = assignment?.instructions ?? '';
+  const maxScoreInitial = assignment?.maxScore ? String(assignment.maxScore) : '';
+  const [instructions, setInstructions] = useState(instructionsInitial);
+  const [maxScore, setMaxScore] = useState(maxScoreInitial);
   // Хадгалсны дараа API-ийн өгсөн id-уудтай болгож синк хийнэ
   useEffect(() => setQuiz(quizInputFrom(lesson.content)), [lesson.content]);
 
+  const dirty =
+    !locked &&
+    (title !== lesson.title ||
+      price !== String(lesson.priceCredits) ||
+      preview !== lesson.isFreePreview ||
+      (!contentLocked &&
+        (markdown !== markdownInitial ||
+          instructions !== instructionsInitial ||
+          maxScore !== maxScoreInitial ||
+          liveChanged ||
+          (lesson.type === 'QUIZ' && JSON.stringify(quiz) !== JSON.stringify(quizInputFrom(lesson.content))))));
+  useUnsavedWarning(dirty || uploading);
+
   async function save(e: FormEvent) {
     e.preventDefault();
-    await run(() =>
+    setSaving(true);
+    const ok = await run(() =>
       api<CourseDetail>(`/teacher/lessons/${lesson.id}`, {
         method: 'PATCH',
         body: {
@@ -473,6 +600,8 @@ function LessonEditor({
         },
       }),
     );
+    setSaving(false);
+    if (ok) toast(t('teacherUi.saved'));
   }
 
   async function uploadPdf(file: File) {
@@ -486,81 +615,112 @@ function LessonEditor({
   }
 
   return (
-    <form onSubmit={save} className="lesson-editor">
-      <fieldset disabled={locked} style={{ display: 'grid', gap: 10, border: 'none', padding: 0, margin: 0 }}>
-        <label style={{ display: 'grid', gap: 4 }}>
+    <form onSubmit={save} className={s.lessonEditor} id={`lesson-editor-${lesson.id}`}>
+      <fieldset disabled={locked} className={s.fieldset}>
+        <label className={s.field}>
           {t('course.title')}
-          <input className="input" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="input" name="title" autoComplete="off" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ display: 'grid', gap: 4 }}>
+        <div className={s.rowEnd}>
+          <label className={s.field}>
             {t('course.lessonPrice')}
-            <input className="input" type="number" min={0} step={1} value={price} onChange={(e) => setPrice(e.target.value)} style={{ maxWidth: 140 }} />
+            <input
+              className={`input ${s.narrowInput}`}
+              name="price"
+              type="number"
+              inputMode="numeric"
+              autoComplete="off"
+              min={0}
+              step={1}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
           </label>
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <label className={s.inline}>
             <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
             {t('course.freePreview')}
           </label>
           {sections.length > 1 && (
-            <select className="input" style={{ width: 'auto' }} value={lesson.sectionId} onChange={(e) => onMove(e.target.value)} aria-label={t('course.curriculum')}>
-              {sections.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
+            <select
+              className={`input ${s.autoWidth}`}
+              name="sectionId"
+              value={lesson.sectionId}
+              onChange={(e) => onMove(e.target.value)}
+              aria-label={t('teacherUi.moveToSection')}
+            >
+              {sections.map((sec) => (
+                <option key={sec.id} value={sec.id}>
+                  {sec.title}
                 </option>
               ))}
             </select>
           )}
         </div>
 
-        {contentLocked && lesson.reviewStatus === 'APPROVED' && <p style={{ margin: 0, color: 'var(--muted)' }}>{t('course.contentLocked')}</p>}
+        {contentLocked && lesson.reviewStatus === 'APPROVED' && <p className={s.hint}>{t('course.contentLocked')}</p>}
 
         {lesson.type === 'TEXT' &&
           (contentLocked ? (
             <LessonContentPreview lesson={lesson} />
           ) : (
             <div className="grid-2">
-              <label style={{ display: 'grid', gap: 4 }}>
+              <label className={s.field}>
                 {t('course.markdown')}
-                <textarea className="input" rows={12} value={markdown} onChange={(e) => setMarkdown(e.target.value)} style={{ fontFamily: 'ui-monospace, monospace' }} />
+                <textarea
+                  className={`input ${s.mono}`}
+                  name="markdown"
+                  autoComplete="off"
+                  spellCheck={false}
+                  rows={12}
+                  value={markdown}
+                  onChange={(e) => setMarkdown(e.target.value)}
+                />
               </label>
-              <div className="card" style={{ overflow: 'auto', maxHeight: 360 }}>
+              <div className={`card ${s.preview}`} aria-label={t('teacherUi.preview')}>
                 <Markdown source={markdown} />
               </div>
             </div>
           ))}
 
         {lesson.type === 'LIVE' && (
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className={s.stack}>
             <LessonContentPreview lesson={lesson} />
             {!contentLocked && (
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
-                <label style={{ display: 'grid', gap: 4 }}>
+              <div className={s.rowEnd}>
+                <label className={s.field}>
                   {t('live.startsAt')}
                   <input
                     className="input"
+                    name="startsAt"
                     type="datetime-local"
                     value={liveForm.startsAt}
                     onChange={(e) => setLiveForm((f) => ({ ...f, startsAt: e.target.value }))}
                   />
                 </label>
-                <label style={{ display: 'grid', gap: 4 }}>
+                <label className={s.field}>
                   {t('live.duration')}
                   <input
-                    className="input"
+                    className={`input ${s.narrowInput}`}
+                    name="duration"
                     type="number"
+                    inputMode="numeric"
+                    autoComplete="off"
                     min={LIVE_DURATION_MIN}
                     max={LIVE_DURATION_MAX}
                     step={5}
-                    style={{ maxWidth: 140 }}
                     value={liveForm.duration}
                     onChange={(e) => setLiveForm((f) => ({ ...f, duration: e.target.value }))}
                   />
                 </label>
-                <label style={{ display: 'grid', gap: 4, flex: '1 1 260px' }}>
+                <label className={`${s.field} ${s.grow}`}>
                   {t('live.meetingUrl')}
                   <input
                     className="input"
+                    name="meetingUrl"
                     type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    spellCheck={false}
                     maxLength={500}
                     placeholder={t('live.meetingUrlPlaceholder')}
                     value={liveForm.meetingUrl}
@@ -571,19 +731,17 @@ function LessonEditor({
             )}
             {lesson.reviewStatus === 'APPROVED' && !locked && <small className="muted">{t('live.editableHint')}</small>}
             {liveEnded && !locked && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className={s.row}>
                 <small className="muted">{t('live.convertHint')}</small>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    if (window.confirm(t('live.convertConfirm'))) {
-                      void run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}/convert-to-video`, { method: 'POST' }));
-                    }
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    const ok = await confirm({ title: t('teacherUi.convertTitle'), body: t('live.convertConfirm'), confirmLabel: t('live.convert') });
+                    if (ok) void run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}/convert-to-video`, { method: 'POST' }));
                   }}
                 >
                   {t('live.convert')}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -592,13 +750,18 @@ function LessonEditor({
         {lesson.content.type === 'VIDEO' && <VideoUpload lesson={lesson} content={lesson.content} locked={locked} run={run} />}
 
         {lesson.type === 'PDF' && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className={s.row}>
             <LessonContentPreview lesson={lesson} />
             {!contentLocked && (
-              <label className="btn btn-ghost">
-                {uploading ? t('course.uploading') : t('course.uploadPdf')}
-                <input type="file" accept="application/pdf" hidden onChange={(e) => e.target.files?.[0] && void uploadPdf(e.target.files[0])} />
-              </label>
+              <FileDrop
+                label={t('course.uploadPdf')}
+                hint={t('ui.fileHint', { types: 'PDF', max: PDF_MAX_BYTES / MB })}
+                accept="application/pdf"
+                maxBytes={PDF_MAX_BYTES}
+                progress={uploading || null}
+                progressLabel={t('course.uploading')}
+                onFile={(file) => void uploadPdf(file)}
+              />
             )}
           </div>
         )}
@@ -610,26 +773,36 @@ function LessonEditor({
           (contentLocked ? (
             <LessonContentPreview lesson={lesson} />
           ) : (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <label style={{ display: 'grid', gap: 4 }}>
+            <div className={s.stack}>
+              <label className={s.field}>
                 {t('assignment.maxScore')}
                 <input
-                  className="input"
+                  className={`input ${s.narrowInput}`}
+                  name="maxScore"
                   type="number"
+                  inputMode="numeric"
+                  autoComplete="off"
                   min={1}
                   max={ASSIGNMENT_MAX_SCORE_LIMIT}
                   step={1}
-                  style={{ maxWidth: 140 }}
                   value={maxScore}
                   onChange={(e) => setMaxScore(e.target.value)}
                 />
               </label>
               <div className="grid-2">
-                <label style={{ display: 'grid', gap: 4 }}>
+                <label className={s.field}>
                   {t('assignment.instructions')}
-                  <textarea className="input" rows={10} value={instructions} onChange={(e) => setInstructions(e.target.value)} style={{ fontFamily: 'ui-monospace, monospace' }} />
+                  <textarea
+                    className={`input ${s.mono}`}
+                    name="instructions"
+                    autoComplete="off"
+                    spellCheck={false}
+                    rows={10}
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                  />
                 </label>
-                <div className="card" style={{ overflow: 'auto', maxHeight: 320 }}>
+                <div className={`card ${s.preview}`} aria-label={t('teacherUi.preview')}>
                   <Markdown source={instructions} />
                 </div>
               </div>
@@ -638,22 +811,30 @@ function LessonEditor({
           ))}
 
         {lesson.problems.length > 0 && !contentLocked && (
-          <p style={{ margin: 0, color: 'var(--err)' }}>
+          <p className={s.error}>
             {t('course.problems')} {lesson.problems.join('; ')}
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn">{t('course.save')}</button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => {
-              if (window.confirm(t('course.removeConfirm'))) void run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}`, { method: 'DELETE' }));
+        <div className={s.row}>
+          <Button type="submit" loading={saving} loadingLabel={t('teacherUi.saving')}>
+            {t('course.save')}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              const ok = await confirm({
+                title: t('teacherUi.removeLessonTitle'),
+                body: t('course.removeConfirm'),
+                confirmLabel: t('course.remove'),
+                danger: true,
+              });
+              if (ok) void run(() => api<CourseDetail>(`/teacher/lessons/${lesson.id}`, { method: 'DELETE' }));
             }}
           >
             {t('course.remove')}
-          </button>
+          </Button>
+          {dirty && <small className={s.dirty}>{t('teacherUi.unsaved')}</small>}
         </div>
       </fieldset>
     </form>
@@ -669,6 +850,7 @@ const VIDEO_POLL_MS = 10_000;
  */
 function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; content: VideoLessonContent; locked: boolean; run: Run }) {
   const [percent, setPercent] = useState<number | null>(null);
+  useUnsavedWarning(percent !== null);
   const allowed = !locked && videoUploadAllowed(lesson.reviewStatus, content);
   const pending = content.status === 'UPLOADING' || content.status === 'PROCESSING';
   const sync = useCallback(
@@ -693,30 +875,24 @@ function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; con
   }
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div className={s.stack}>
       <LessonContentPreview lesson={lesson} />
       {pending && <small className="muted">{t('video.processingHint')}</small>}
       {allowed && content.fromLive && lesson.reviewStatus === 'APPROVED' && <small className="muted">{t('video.recordingHint')}</small>}
       {allowed && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label className="btn btn-ghost">
-            {percent !== null ? t('video.uploadingPercent', { percent }) : content.status ? t('video.replace') : t('video.upload')}
-            <input
-              type="file"
-              accept="video/*"
-              hidden
-              disabled={percent !== null}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void upload(file);
-              }}
-            />
-          </label>
+        <div className={s.row}>
+          <FileDrop
+            label={content.status ? t('video.replace') : t('video.upload')}
+            hint={t('video.fileHint')}
+            accept="video/*"
+            progress={percent}
+            progressLabel={percent !== null ? t('video.uploadingPercent', { percent }) : undefined}
+            onFile={(file) => void upload(file)}
+          />
           {pending && percent === null && (
-            <button type="button" className="btn btn-ghost" onClick={() => void sync()}>
+            <Button variant="secondary" onClick={() => void sync()}>
               {t('video.check')}
-            </button>
+            </Button>
           )}
         </div>
       )}

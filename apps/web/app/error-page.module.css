@@ -1,0 +1,98 @@
+/* error.tsx, global-error.tsx, not-found.tsx. global-error нь root layout-гүй тул токен fallback-тай. */
+
+.root {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+  background: var(--bg, #ffffff);
+  color: var(--fg, #1d1d1f);
+  font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif);
+}
+
+.rootFull {
+  min-height: 100dvh;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rootFull {
+    --bg: #000000;
+    --fg: #f5f5f7;
+    --fg-2: #c7c7cc;
+    --muted: #98989d;
+    --accent: #2997ff;
+    --accent-fg: #ffffff;
+    --border: rgba(255, 255, 255, 0.14);
+  }
+}
+
+.box {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  max-width: 520px;
+}
+
+.code {
+  margin: 0;
+  color: var(--accent, #0071e3);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0;
+  color: var(--fg-2, #515154);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted, #6e6e73);
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent, #0071e3);
+  color: var(--accent-fg, #ffffff);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btnSecondary {
+  border-color: var(--border, rgba(0, 0, 0, 0.1));
+  background: transparent;
+  color: var(--fg, #1d1d1f);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent, #0071e3);
+  outline-offset: 2px;
+}

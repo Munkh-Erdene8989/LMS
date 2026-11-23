@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ASSIGNMENT_COMMENT_MAX,
@@ -13,12 +12,18 @@ import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { SubmissionFileLink } from '../../courses/[id]/lessons/[lessonId]/assignment-ui';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { Skeleton } from '../../ui/skeleton';
+import { useToast } from '../../ui/toast';
+import s from '../teacher.module.css';
 
 const STATUSES: AssignmentInboxStatus[] = ['UNREVIEWED', 'REVIEWED'];
 
 /** Багшийн даалгавар шалгах inbox: суралцагч × даалгавар бүрийн хамгийн сүүлийн илгээлт. */
 export default function AssignmentInboxPage() {
   const router = useRouter();
+  const uid = useId();
   const [status, setStatus] = useState<AssignmentInboxStatus>('UNREVIEWED');
   const [items, setItems] = useState<AssignmentInboxItem[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -54,47 +59,65 @@ export default function AssignmentInboxPage() {
     }
   }
 
+  /** Сум товчоор tab хооронд шилжих (roving tabindex). */
+  function onTabKey(e: KeyboardEvent<HTMLButtonElement>) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const next = STATUSES[(STATUSES.indexOf(status) + (e.key === 'ArrowRight' ? 1 : STATUSES.length - 1)) % STATUSES.length]!;
+    setStatus(next);
+    document.getElementById(`${uid}-tab-${next}`)?.focus();
+  }
+
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <Link href="/teacher/courses">{t('assignment.backToCourses')}</Link>
-      <h1 style={{ margin: 0 }}>{t('assignment.inboxTitle')}</h1>
-      <div role="tablist" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            type="button"
+    <div className={s.page}>
+      <h1 className={s.title}>{t('assignment.inboxTitle')}</h1>
+      <div role="tablist" aria-label={t('assignment.inboxTitle')} className={s.tabs}>
+        {STATUSES.map((st) => (
+          <Button
+            key={st}
+            id={`${uid}-tab-${st}`}
             role="tab"
-            aria-selected={status === s}
-            className={status === s ? 'btn' : 'btn btn-ghost'}
-            onClick={() => setStatus(s)}
+            aria-selected={status === st}
+            aria-controls={`${uid}-panel`}
+            tabIndex={status === st ? 0 : -1}
+            variant={status === st ? 'primary' : 'secondary'}
+            onClick={() => setStatus(st)}
+            onKeyDown={onTabKey}
           >
-            {s === 'UNREVIEWED' ? t('assignment.filterUnreviewed', { count: unreviewed ?? 0 }) : t('assignment.filterReviewed')}
-          </button>
+            {st === 'UNREVIEWED' ? t('assignment.filterUnreviewed', { count: unreviewed ?? 0 }) : t('assignment.filterReviewed')}
+          </Button>
         ))}
       </div>
-      {error && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
-          {error}
-        </p>
-      )}
-      {items?.length === 0 && (
-        <p className="muted" style={{ margin: 0 }}>
-          {status === 'UNREVIEWED' ? t('assignment.inboxEmpty') : t('assignment.inboxEmptyReviewed')}
-        </p>
-      )}
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div id={`${uid}-panel`} role="tabpanel" aria-labelledby={`${uid}-tab-${status}`} className={s.stack}>
+        {error && (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        )}
+        {!items && !error && (
+          <div className={s.stack} aria-busy="true" aria-label={t('ui.loading')}>
+            <Skeleton height={160} radius={22} />
+            <Skeleton height={160} radius={22} />
+          </div>
+        )}
+        {items?.length === 0 && (
+          <div className="card">
+            <EmptyState title={status === 'UNREVIEWED' ? t('assignment.inboxEmpty') : t('assignment.inboxEmptyReviewed')} />
+          </div>
+        )}
         {items?.map((item) => <InboxCard key={item.id} item={item} onReviewed={reviewed} />)}
+        {cursor && (
+          <Button variant="secondary" className={s.startSelf} onClick={() => void load(cursor)}>
+            {t('assignment.loadMore')}
+          </Button>
+        )}
       </div>
-      {cursor && (
-        <button type="button" className="btn btn-ghost" style={{ justifySelf: 'start' }} onClick={() => void load(cursor)}>
-          {t('assignment.loadMore')}
-        </button>
-      )}
-    </main>
+    </div>
   );
 }
 
 function InboxCard({ item, onReviewed }: { item: AssignmentInboxItem; onReviewed: (item: AssignmentInboxItem) => void }) {
+  const { toast } = useToast();
   const [score, setScore] = useState(item.review ? String(item.review.score) : '');
   const [comment, setComment] = useState(item.review?.comment ?? '');
   const [busy, setBusy] = useState(false);
@@ -106,7 +129,9 @@ function InboxCard({ item, onReviewed }: { item: AssignmentInboxItem; onReviewed
     setError(null);
     try {
       const body = { score: Number(score), ...(comment.trim() ? { comment } : {}) };
-      onReviewed((await api<AssignmentInboxItem>(`/teacher/assignments/${item.id}/review`, { method: 'POST', body })).data);
+      const r = await api<AssignmentInboxItem>(`/teacher/assignments/${item.id}/review`, { method: 'POST', body });
+      toast(t('teacherUi.saved'));
+      onReviewed(r.data);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
     } finally {
@@ -115,8 +140,8 @@ function InboxCard({ item, onReviewed }: { item: AssignmentInboxItem; onReviewed
   }
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+    <section className={`card ${s.card}`}>
+      <div className={s.rowBetween}>
         <strong>{item.learner.name ?? t('assignment.unnamedLearner')}</strong>
         <small className="muted">
           {t('assignment.submittedAt', { date: formatDate(item.submittedAt) })}
@@ -126,41 +151,51 @@ function InboxCard({ item, onReviewed }: { item: AssignmentInboxItem; onReviewed
       <small className="muted">
         {item.course.title} · {item.lesson.title}
       </small>
-      {item.text && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{item.text}</p>}
+      {item.text && <p className={s.pre}>{item.text}</p>}
       {item.file && <SubmissionFileLink submissionId={item.id} file={item.file} />}
       {item.previousReview && (
         <small className="muted">
           {t('assignment.previousReview', { score: item.previousReview.score, max: item.previousReview.maxScore })}
         </small>
       )}
-      <form onSubmit={save} style={{ display: 'grid', gap: 8 }}>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <form onSubmit={save} className={s.form}>
+        <label className={s.inline}>
           {t('assignment.score')}
           <input
-            className="input"
+            className={`input ${s.scoreInput}`}
+            name="score"
             type="number"
+            inputMode="numeric"
+            autoComplete="off"
             required
             min={0}
             max={item.lesson.maxScore}
             step={1}
-            style={{ maxWidth: 110 }}
             value={score}
             onChange={(e) => setScore(e.target.value)}
           />
           <span className="muted">/ {item.lesson.maxScore}</span>
         </label>
-        <label style={{ display: 'grid', gap: 4 }}>
+        <label className={s.field}>
           {t('assignment.comment')}
-          <textarea className="input" rows={3} maxLength={ASSIGNMENT_COMMENT_MAX} value={comment} onChange={(e) => setComment(e.target.value)} />
+          <textarea
+            className="input"
+            name="comment"
+            autoComplete="off"
+            rows={3}
+            maxLength={ASSIGNMENT_COMMENT_MAX}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
         </label>
         {error && (
-          <small role="alert" style={{ color: 'var(--err)' }}>
+          <small role="alert" className={s.error}>
             {error}
           </small>
         )}
-        <button className="btn" disabled={busy} style={{ justifySelf: 'start' }}>
+        <Button type="submit" className={s.startSelf} loading={busy}>
           {item.review ? t('assignment.updateReview') : t('assignment.saveReview')}
-        </button>
+        </Button>
       </form>
     </section>
   );

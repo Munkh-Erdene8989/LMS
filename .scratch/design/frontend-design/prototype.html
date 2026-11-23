@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Суралц - Монгол багш нарын хичээл</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+/* ===== TOKENS (DESIGN.md-тэй ижил) ===== */
+:root {
+  --bg: #ffffff;
+  --bg-alt: #f5f5f7;
+  --surface: #ffffff;
+  --fg: #1d1d1f;
+  --fg-2: #515154;
+  --muted: #6e6e73;
+  --border: rgba(0, 0, 0, 0.1);
+  --accent: #0a62d6;
+  --accent-hover: #0852b5;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(10, 98, 214, 0.1);
+  --ok: #167a3e;
+  --err: #c4262e;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.05), 0 1px 1px rgba(0,0,0,.03);
+  --shadow-2: 0 8px 24px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-3: 0 24px 60px rgba(0,0,0,.14), 0 6px 16px rgba(0,0,0,.06);
+  --glass: rgba(255,255,255,.72);
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif;
+
+  --fs-display: clamp(2.5rem, 1.4rem + 5.6vw, 5.5rem);
+  --fs-h1: clamp(2rem, 1.3rem + 3.2vw, 3.5rem);
+  --fs-h2: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
+  --fs-h3: 1.25rem;
+  --fs-lead: clamp(1.125rem, 1rem + .6vw, 1.5rem);
+  --fs-body: 1.0625rem;
+  --fs-small: .875rem;
+  --fs-micro: .75rem;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px;
+  --s-6: 32px; --s-7: 48px; --s-8: 64px; --s-9: 96px; --s-10: 144px;
+
+  --r-sm: 8px; --r-md: 14px; --r-lg: 22px; --r-pill: 999px;
+
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-inout: cubic-bezier(.65, 0, .35, 1);
+  --spring: linear(0, .0095 1.5%, .0386 3.1%, .1428 6.3%, .3029 9.7%, .4733 13%, .6416 16.4%, .7886 19.8%, .9065 23.2%, .9964 26.9%, 1.0581 30.9%, 1.0907 34.6%, 1.0997 38.4%, 1.0875 42.3%, 1.0613 46.7%, 1.0285 51.7%, 1.0006 57.3%, .9857 62.6%, .9812 67.9%, .9866 74.4%, .9975 82.5%, 1.0017 91%, 1);
+  --d-fast: 150ms; --d-base: 280ms; --d-slow: 600ms; --d-hero: 900ms;
+
+  --header-h: 52px;
+  --wrap: 1120px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --bg-alt: #111113; --surface: #1c1c1e;
+    --fg: #f5f5f7; --fg-2: #c7c7cc; --muted: #98989d;
+    --border: rgba(255,255,255,.14);
+    --accent: #4da3ff; --accent-hover: #75b8ff; --accent-fg: #00142e;
+    --accent-soft: rgba(77,163,255,.16);
+    --ok: #4cd37b; --err: #ff6b6b;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.5);
+    --shadow-2: 0 8px 24px rgba(0,0,0,.5);
+    --shadow-3: 0 24px 60px rgba(0,0,0,.7);
+    --glass: rgba(28,28,30,.72);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --bg-alt: #111113; --surface: #1c1c1e;
+  --fg: #f5f5f7; --fg-2: #c7c7cc; --muted: #98989d;
+  --border: rgba(255,255,255,.14);
+  --accent: #4da3ff; --accent-hover: #75b8ff; --accent-fg: #00142e;
+  --accent-soft: rgba(77,163,255,.16);
+  --ok: #4cd37b; --err: #ff6b6b;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-2: 0 8px 24px rgba(0,0,0,.5);
+  --shadow-3: 0 24px 60px rgba(0,0,0,.7);
+  --glass: rgba(28,28,30,.72);
+}
+
+/* ===== BASE ===== */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 16px); -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: var(--fs-body); line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { letter-spacing: -0.022em; text-wrap: balance; }
+p { text-wrap: pretty; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { width: min(100% - 32px, var(--wrap)); margin-inline: auto; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+section { padding-block: var(--s-9); }
+@media (max-width: 700px) { section { padding-block: var(--s-8); } }
+
+/* ===== HEADER ===== */
+.header { position: sticky; top: 0; z-index: 50; height: var(--header-h); display: flex; align-items: center;
+  background: var(--glass); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid transparent; transition: border-color var(--d-base) var(--ease-out); }
+.header.scrolled { border-bottom-color: var(--border); }
+.header .wrap { display: flex; align-items: center; gap: var(--s-5); }
+.brand { font-weight: 700; letter-spacing: -.03em; font-size: 1.125rem; }
+.nav { display: flex; gap: var(--s-5); margin-left: var(--s-5); font-size: var(--fs-small); color: var(--fg-2); }
+.nav a { transition: color var(--d-fast); }
+.nav a:hover { color: var(--fg); }
+.header .spacer { flex: 1; }
+@media (max-width: 700px) { .nav { display: none; } }
+
+/* ===== BUTTON ===== */
+.btn { --h: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: var(--h); padding: 0 22px;
+  border: 0; border-radius: var(--r-pill); font-weight: 500; font-size: 1rem; cursor: pointer; white-space: nowrap;
+  transition: transform var(--d-base) var(--spring), background var(--d-fast), box-shadow var(--d-base) var(--ease-out); }
+.btn:active { transform: scale(.96); }
+.btn-primary { background: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-2); }
+.btn-secondary { background: var(--accent-soft); color: var(--accent); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.btn-ghost { background: transparent; color: var(--accent); padding: 0 8px; }
+.btn-ghost:hover { text-decoration: underline; text-underline-offset: 4px; }
+.btn-sm { --h: 34px; padding: 0 16px; font-size: var(--fs-small); }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+/* ===== CREDIT PILL ===== */
+.credit { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 10px; border-radius: var(--r-pill);
+  background: var(--bg-alt); border: 1px solid var(--border); font-size: var(--fs-small); font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: transform var(--d-base) var(--spring); }
+.credit:active { transform: scale(.95); }
+.credit .coin { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 11px; }
+.credit.bump { animation: bump var(--d-slow) var(--spring); }
+@keyframes bump { 0% { transform: scale(1); } 30% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+/* ===== HERO ===== */
+.hero { padding-block: var(--s-9) var(--s-8); text-align: center; }
+.hero h1 { font-size: var(--fs-display); font-weight: 700; line-height: 1.04; letter-spacing: -0.04em; max-width: 16ch; margin-inline: auto; }
+.hero h1 .w { display: inline-block; opacity: 0; transform: translateY(.4em); filter: blur(8px);
+  animation: wordIn var(--d-hero) var(--ease-out) forwards; animation-delay: calc(var(--i) * 70ms + 100ms); }
+@keyframes wordIn { to { opacity: 1; transform: none; filter: none; } }
+.hero .lead { margin: var(--s-5) auto 0; max-width: 34ch; font-size: var(--fs-lead); color: var(--fg-2); line-height: 1.35;
+  opacity: 0; animation: fadeIn var(--d-hero) var(--ease-out) 700ms forwards; }
+.hero .cta { margin-top: var(--s-6); display: flex; gap: var(--s-4); justify-content: center; align-items: center; flex-wrap: wrap;
+  opacity: 0; animation: fadeIn var(--d-hero) var(--ease-out) 850ms forwards; }
+@keyframes fadeIn { to { opacity: 1; } }
+
+/* hero visual: ширхэгээр худалдаж авах - lesson стек, scroll-ээр задарна */
+.stage { margin-top: var(--s-8); height: 130vh; position: relative; }
+.stage-sticky { position: sticky; top: calc(var(--header-h) + 24px); height: min(78vh, 640px); display: grid; place-items: center; }
+.device { width: min(100%, 880px); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-3); border: 1px solid var(--border);
+  padding: var(--s-5); display: grid; gap: var(--s-4); text-align: left;
+  transform: scale(calc(.82 + var(--p, 0) * .18)); transform-origin: center top; will-change: transform; }
+.device-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); }
+.device-title { font-weight: 600; font-size: 1.125rem; letter-spacing: -.02em; }
+.device-sub { color: var(--muted); font-size: var(--fs-small); }
+.rows { display: grid; gap: 10px; }
+.row { display: flex; align-items: center; gap: var(--s-4); padding: 14px 16px; border-radius: var(--r-md); background: var(--bg-alt);
+  opacity: calc(.35 + var(--p, 0) * .65); transform: translateY(calc((1 - var(--p, 0)) * (var(--k) * 14px))); }
+.row .dot { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; box-shadow: var(--shadow-1); font-size: 14px; flex: none; }
+.row .t { flex: 1; min-width: 0; font-weight: 500; }
+.row .t small { display: block; color: var(--muted); font-weight: 400; font-size: var(--fs-small); }
+.row .price { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); white-space: nowrap; }
+.row.locked .price { color: var(--muted); }
+
+/* ===== STATEMENT (scroll word reveal) ===== */
+.statement { background: var(--bg-alt); }
+.statement p { font-size: var(--fs-h1); font-weight: 600; letter-spacing: -.03em; line-height: 1.12; max-width: 22ch; }
+.statement .sw { color: color-mix(in srgb, var(--fg) 22%, transparent); transition: color var(--d-base) var(--ease-out); }
+.statement .sw.on { color: var(--fg); }
+
+/* ===== SECTION HEAD ===== */
+.head { display: flex; align-items: end; justify-content: space-between; gap: var(--s-5); margin-bottom: var(--s-7); flex-wrap: wrap; }
+.head h2 { font-size: var(--fs-h1); font-weight: 700; letter-spacing: -.035em; line-height: 1.08; }
+.head p { color: var(--fg-2); margin-top: var(--s-3); max-width: 44ch; }
+
+/* ===== CHIPS ===== */
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-bottom: var(--s-6); }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 36px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: var(--fs-small);
+  transition: background var(--d-fast), color var(--d-fast), transform var(--d-base) var(--spring); }
+.chip:active { transform: scale(.94); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+/* ===== COURSE CARD ===== */
+.grid { display: grid; gap: var(--s-5); grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 980px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+.course { display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--border);
+  box-shadow: var(--shadow-1); transition: transform var(--d-slow) var(--spring), box-shadow var(--d-base) var(--ease-out); }
+.course:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); }
+.course:active { transform: scale(.985); }
+.cover { aspect-ratio: 16/10; position: relative; display: grid; place-items: end start; padding: var(--s-4); overflow: hidden; }
+.cover::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.28), transparent 60%); }
+.cover span { position: relative; z-index: 1; font-weight: 700; letter-spacing: -.03em; font-size: 1.5rem; color: #fff; text-shadow: 0 1px 12px rgba(0,0,0,.25); }
+.c1 { background: linear-gradient(135deg, #1f6feb, #0b3d91); } .c2 { background: linear-gradient(135deg, #2b2b30, #5b5b66); }
+.c3 { background: linear-gradient(135deg, #0f8a8a, #0a4d6e); } .c4 { background: linear-gradient(135deg, #5a4bd1, #2d2a7a); }
+.c5 { background: linear-gradient(135deg, #6b7280, #1f2937); } .c6 { background: linear-gradient(135deg, #1d7a5a, #0d3b2e); }
+.course-body { padding: var(--s-5); display: grid; gap: 6px; flex: 1; }
+.course-body h3 { font-size: 1.125rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.25; }
+.teacher { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--fs-small); }
+.avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--bg-alt); border: 1px solid var(--border); display: grid; place-items: center; font-size: 10px; font-weight: 600; color: var(--fg-2); }
+.course-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--s-3); font-size: var(--fs-small); color: var(--muted); }
+.price-tag { font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+
+/* ===== HOW (3 steps, real sequence) ===== */
+.how { background: var(--bg-alt); }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-7); counter-reset: s; }
+@media (max-width: 800px) { .steps { grid-template-columns: 1fr; gap: var(--s-6); } }
+.step { counter-increment: s; padding-top: var(--s-5); border-top: 2px solid var(--fg); }
+.step::before { content: counter(s); display: block; font-size: var(--fs-small); font-weight: 600; color: var(--muted); margin-bottom: var(--s-3); }
+.step h3 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -.03em; line-height: 1.12; }
+.step p { margin-top: var(--s-3); color: var(--fg-2); }
+
+/* ===== COURSE DETAIL ===== */
+.detail { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--s-8); align-items: start; }
+@media (max-width: 980px) { .detail { grid-template-columns: 1fr; gap: var(--s-6); } }
+.detail h2 { font-size: var(--fs-h1); font-weight: 700; letter-spacing: -.035em; line-height: 1.08; }
+.meta { margin-top: var(--s-4); display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); color: var(--fg-2); font-size: var(--fs-small); }
+.desc { margin-top: var(--s-5); color: var(--fg-2); max-width: 60ch; }
+.lessons { margin-top: var(--s-7); border-top: 1px solid var(--border); }
+.lesson { display: flex; align-items: center; gap: var(--s-4); width: 100%; padding: 16px 4px; background: none; border: 0; border-bottom: 1px solid var(--border); text-align: left; cursor: pointer;
+  transition: padding var(--d-base) var(--ease-out), background var(--d-fast); }
+.lesson:hover { padding-left: 12px; }
+.lesson .ico { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--bg-alt); font-size: 12px; }
+.lesson.free .ico { background: var(--accent-soft); color: var(--accent); }
+.lesson .t { flex: 1; min-width: 0; font-weight: 500; }
+.lesson .t small { display: block; font-weight: 400; color: var(--muted); font-size: var(--fs-small); }
+.lesson .p { font-weight: 600; font-size: var(--fs-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lesson .p.owned { color: var(--ok); }
+.buybox { position: sticky; top: calc(var(--header-h) + 24px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--s-6); box-shadow: var(--shadow-2); display: grid; gap: var(--s-4); }
+.buybox .big { font-size: 2.5rem; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+.buybox .big small { font-size: 1rem; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 4px; }
+.buybox .note { color: var(--muted); font-size: var(--fs-small); }
+.buybox .btn { width: 100%; }
+@media (max-width: 980px) { .buybox { position: static; } }
+
+/* ===== OTP (form spec) ===== */
+.otp { display: flex; gap: 8px; }
+.otp input { width: 100%; max-width: 48px; height: 56px; text-align: center; font: inherit; font-size: 1.5rem; font-weight: 600; background: var(--bg-alt); color: var(--fg);
+  border: 1.5px solid transparent; border-radius: var(--r-md); transition: border-color var(--d-fast), background var(--d-fast), transform var(--d-base) var(--spring); }
+.otp input:focus { outline: none; border-color: var(--accent); background: var(--surface); transform: scale(1.05); }
+.field label { display: block; font-size: var(--fs-small); font-weight: 500; margin-bottom: 8px; }
+
+/* ===== MODAL ===== */
+.scrim { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.4); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px;
+  opacity: 0; pointer-events: none; transition: opacity var(--d-base) var(--ease-out); }
+.scrim.open { opacity: 1; pointer-events: auto; }
+.modal { width: min(100%, 440px); background: var(--surface); border-radius: var(--r-lg); padding: var(--s-6); box-shadow: var(--shadow-3); display: grid; gap: var(--s-4);
+  transform: scale(.92) translateY(12px); opacity: 0; transition: transform var(--d-slow) var(--spring), opacity var(--d-base) var(--ease-out); }
+.scrim.open .modal { transform: none; opacity: 1; }
+.modal h3 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: -.03em; }
+.modal p { color: var(--fg-2); }
+.modal .sum { display: grid; gap: 8px; padding: var(--s-4); background: var(--bg-alt); border-radius: var(--r-md); font-size: var(--fs-small); }
+.modal .sum div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.modal .actions { display: flex; gap: var(--s-3); justify-content: flex-end; flex-wrap: wrap; }
+
+/* ===== TOAST ===== */
+.toasts { position: fixed; z-index: 100; left: 50%; bottom: 24px; transform: translateX(-50%); display: grid; gap: 8px; width: min(calc(100% - 32px), 380px); pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: var(--r-md); background: var(--fg); color: var(--bg); font-size: var(--fs-small); font-weight: 500; box-shadow: var(--shadow-3);
+  animation: toastIn var(--d-slow) var(--spring) both; }
+.toast.out { animation: toastOut var(--d-base) var(--ease-inout) forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(24px) scale(.92); } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(12px) scale(.96); } }
+
+/* ===== FOOTER ===== */
+footer { padding-block: var(--s-7); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--fs-small); }
+footer .wrap { display: flex; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap; align-items: center; }
+.theme { background: none; border: 1px solid var(--border); border-radius: var(--r-pill); height: 32px; padding: 0 14px; cursor: pointer; color: var(--fg-2); }
+
+/* ===== REVEAL (зөвхөн нэг удаа, IntersectionObserver) ===== */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity var(--d-hero) var(--ease-out), transform var(--d-hero) var(--ease-out); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal.d1 { transition-delay: 80ms; } .reveal.d2 { transition-delay: 160ms; }
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0ms !important; transition-duration: .001ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important; }
+  .hero h1 .w, .hero .lead, .hero .cta, .reveal { opacity: 1; transform: none; filter: none; }
+  .stage { height: auto; } .stage-sticky { position: static; height: auto; }
+  .device { transform: none; } .row { opacity: 1; transform: none; }
+  .statement .sw { color: var(--fg); }
+}
+</style>
+</head>
+<body>
+
+<header class="header" id="hdr">
+  <div class="wrap">
+    <a href="#top" class="brand">Суралц</a>
+    <nav class="nav" aria-label="Үндсэн цэс">
+      <a href="#courses">Сургалтууд</a>
+      <a href="#how">Хэрхэн ажилладаг</a>
+      <a href="#detail">Багш болох</a>
+    </nav>
+    <span class="spacer"></span>
+    <button class="credit" id="credit" aria-label="Кредитийн үлдэгдэл: 120"><span class="coin" aria-hidden="true">₵</span><span id="creditN">120</span></button>
+    <a href="#" class="btn btn-primary btn-sm">Нэвтрэх</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <h1 id="h1">Хичээлээ сонго. Ширхэгээр нь ав.</h1>
+      <p class="lead">Монгол шилдэг багш нарын хичээлийг кредитээр, QPay-аар шууд худалдаж аваарай.</p>
+      <div class="cta">
+        <a href="#courses" class="btn btn-primary">Сургалт үзэх</a>
+        <a href="#how" class="btn btn-ghost">Хэрхэн ажилладаг вэ</a>
+      </div>
+    </div>
+
+    <div class="wrap stage" id="stage">
+      <div class="stage-sticky">
+        <div class="device" id="device" aria-label="Сургалтын жишээ">
+          <div class="device-top">
+            <div>
+              <div class="device-title">Өгөгдлийн шинжилгээ: эхлэгчдэд</div>
+              <div class="device-sub">Б. Номин-Эрдэнэ · 12 хичээл</div>
+            </div>
+            <span class="credit" style="cursor:default"><span class="coin" aria-hidden="true">₵</span>120</span>
+          </div>
+          <div class="rows">
+            <div class="row" style="--k:1"><span class="dot">▶</span><span class="t">Танилцуулга<small>6 мин · үнэгүй</small></span><span class="price">Үнэгүй</span></div>
+            <div class="row" style="--k:2"><span class="dot">▶</span><span class="t">Хүснэгтээс өгөгдөл унших<small>18 мин</small></span><span class="price">15 кр</span></div>
+            <div class="row" style="--k:3"><span class="dot">▶</span><span class="t">Цэвэрлэгээ ба хэвийн болгох<small>24 мин</small></span><span class="price">20 кр</span></div>
+            <div class="row locked" style="--k:4"><span class="dot">○</span><span class="t">График болон дүгнэлт<small>31 мин</small></span><span class="price">25 кр</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="statement">
+    <div class="wrap">
+      <p id="statement">Бүтэн курс худалдаж авах шаардлагагүй. Хэрэгтэй хичээлээ л ав, үлдсэнийг нь дараа нь.</p>
+    </div>
+  </section>
+
+  <section id="courses">
+    <div class="wrap">
+      <div class="head reveal">
+        <div>
+          <h2>Эрэлттэй сургалтууд</h2>
+          <p>Багш бүр өөрийн нийгэмлэгтэй. Худалдан авсны дараа асуулт асууж, бусадтай санал солилцоорой.</p>
+        </div>
+        <a href="#" class="btn btn-secondary">Бүгдийг үзэх</a>
+      </div>
+      <div class="chips" role="group" aria-label="Ангилал">
+        <button class="chip" aria-pressed="true">Бүгд</button>
+        <button class="chip" aria-pressed="false">Программчлал</button>
+        <button class="chip" aria-pressed="false">Бизнес</button>
+        <button class="chip" aria-pressed="false">Хэл</button>
+        <button class="chip" aria-pressed="false">Дизайн</button>
+        <button class="chip" aria-pressed="false">Санхүү</button>
+      </div>
+      <div class="grid">
+        <a href="#detail" class="course"><div class="cover c1"><span>Өгөгдөл</span></div><div class="course-body"><h3>Өгөгдлийн шинжилгээ: эхлэгчдэд</h3><div class="teacher"><span class="avatar">БН</span>Б. Номин-Эрдэнэ</div><div class="course-foot"><span>12 хичээл · 4.8 ★</span><span class="price-tag">60 кр</span></div></div></a>
+        <a href="#detail" class="course"><div class="cover c2"><span>UX</span></div><div class="course-body"><h3>Хэрэглэгчийн туршлагын үндэс</h3><div class="teacher"><span class="avatar">ЭД</span>Э. Дөлгөөн</div><div class="course-foot"><span>9 хичээл · 4.9 ★</span><span class="price-tag">45 кр</span></div></div></a>
+        <a href="#detail" class="course"><div class="cover c3"><span>English</span></div><div class="course-body"><h3>IELTS 7+: бичих чадвар</h3><div class="teacher"><span class="avatar">ТА</span>Т. Анхбаяр</div><div class="course-foot"><span>16 хичээл · 4.7 ★</span><span class="price-tag">90 кр</span></div></div></a>
+        <a href="#detail" class="course"><div class="cover c4"><span>Бизнес</span></div><div class="course-body"><h3>Жижиг бизнесийн санхүү</h3><div class="teacher"><span class="avatar">ГС</span>Г. Сараа</div><div class="course-foot"><span>10 хичээл · 4.6 ★</span><span class="price-tag">55 кр</span></div></div></a>
+        <a href="#detail" class="course"><div class="cover c5"><span>Python</span></div><div class="course-body"><h3>Python: нэгээс нь эхэлье</h3><div class="teacher"><span class="avatar">ӨБ</span>Ө. Баттулга</div><div class="course-foot"><span>20 хичээл · 4.9 ★</span><span class="price-tag">110 кр</span></div></div></a>
+        <a href="#detail" class="course"><div class="cover c6"><span>Хөрөнгө</span></div><div class="course-body"><h3>Хөрөнгө оруулалтын суурь</h3><div class="teacher"><span class="avatar">ДЦ</span>Д. Цэцгээ</div><div class="course-foot"><span>8 хичээл · 4.5 ★</span><span class="price-tag">40 кр</span></div></div></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="how" id="how">
+    <div class="wrap">
+      <div class="head reveal"><div><h2>Гурван алхам</h2></div></div>
+      <div class="steps">
+        <div class="step reveal"><h3>Кредит цэнэглэ</h3><p>QPay-аар хэдэн секундэд. Кредит дуусах хугацаагүй.</p></div>
+        <div class="step reveal d1"><h3>Хичээлээ сонго</h3><p>Нэг хичээл эсвэл бүтэн курс. Эхний хичээлийг үнэгүй үзнэ.</p></div>
+        <div class="step reveal d2"><h3>Суралцаж эхэл</h3><p>Хэзээ ч, хаанаас ч үз. Ахиц чинь хадгалагдана.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="detail">
+    <div class="wrap detail">
+      <div>
+        <h2 class="reveal">Өгөгдлийн шинжилгээ: эхлэгчдэд</h2>
+        <div class="meta"><span>Б. Номин-Эрдэнэ</span><span>12 хичээл</span><span>4 цаг 20 мин</span><span>4.8 ★ (214)</span></div>
+        <p class="desc">Excel-ээс эхлээд график, дүгнэлт хүртэл. Бодит жишээн дээр суурилсан, програмчлалын мэдлэг шаардахгүй курс.</p>
+        <div class="lessons" role="list">
+          <button class="lesson free" data-buy="0" role="listitem"><span class="ico">▶</span><span class="t">1. Танилцуулга<small>6 мин</small></span><span class="p">Үнэгүй</span></button>
+          <button class="lesson owned" role="listitem"><span class="ico">✓</span><span class="t">2. Хүснэгтээс өгөгдөл унших<small>18 мин</small></span><span class="p owned">Авсан</span></button>
+          <button class="lesson" data-buy="20" data-name="Цэвэрлэгээ ба хэвийн болгох" role="listitem"><span class="ico">○</span><span class="t">3. Цэвэрлэгээ ба хэвийн болгох<small>24 мин</small></span><span class="p">20 кр</span></button>
+          <button class="lesson" data-buy="25" data-name="График болон дүгнэлт" role="listitem"><span class="ico">○</span><span class="t">4. График болон дүгнэлт<small>31 мин</small></span><span class="p">25 кр</span></button>
+          <button class="lesson" data-buy="15" data-name="Тайлан бэлтгэх" role="listitem"><span class="ico">○</span><span class="t">5. Тайлан бэлтгэх<small>14 мин</small></span><span class="p">15 кр</span></button>
+        </div>
+      </div>
+
+      <aside class="buybox" aria-label="Худалдан авах">
+        <div class="big">60<small>кредит</small></div>
+        <p class="note">Бүтэн курс. Ширхэгээр авбал 75 кр.</p>
+        <button class="btn btn-primary" data-buy="60" data-name="Бүтэн курс">Курс авах</button>
+        <div class="field">
+          <label for="otp0">Баталгаажуулах код</label>
+          <div class="otp" id="otp" role="group" aria-label="6 оронтой код">
+            <input id="otp0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="1">
+            <input inputmode="numeric" maxlength="1" aria-label="2"><input inputmode="numeric" maxlength="1" aria-label="3">
+            <input inputmode="numeric" maxlength="1" aria-label="4"><input inputmode="numeric" maxlength="1" aria-label="5"><input inputmode="numeric" maxlength="1" aria-label="6">
+          </div>
+        </div>
+        <p class="note">Үлдэгдэл: <strong id="bal2">120</strong> кр</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap"><span>© 2026 Суралц</span><button class="theme" id="theme" type="button">Харанхуй горим</button></div>
+</footer>
+
+<div class="scrim" id="scrim" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <h3 id="mt">Хичээл авах уу?</h3>
+    <p id="mp"></p>
+    <div class="sum"><div><span>Үнэ</span><span id="mPrice">0 кр</span></div><div><span>Үлдэгдэл</span><span id="mAfter">0 кр</span></div></div>
+    <div class="actions"><button class="btn btn-secondary" id="mCancel">Болих</button><button class="btn btn-primary" id="mOk">Авах</button></div>
+  </div>
+</div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  // Hero headline -> words
+  var h1 = $('#h1');
+  h1.innerHTML = h1.textContent.split(' ').map(function (w, i) { return '<span class="w" style="--i:' + i + '">' + w + '</span>'; }).join(' ');
+
+  // Statement -> words
+  var st = $('#statement');
+  st.innerHTML = st.textContent.split(' ').map(function (w) { return '<span class="sw">' + w + '</span>'; }).join(' ');
+  var sw = $$('.sw');
+
+  // Header border + stage progress + statement reveal (single rAF scroll handler)
+  var hdr = $('#hdr'), stage = $('#stage'), device = $('#device'), ticking = false;
+  function onScroll() {
+    hdr.classList.toggle('scrolled', scrollY > 8);
+    if (!reduce) {
+      var r = stage.getBoundingClientRect(), vh = innerHeight;
+      var p = Math.min(1, Math.max(0, (vh * 0.9 - r.top) / (vh * 0.7)));
+      device.style.setProperty('--p', p.toFixed(3));
+      var sr = st.getBoundingClientRect();
+      var q = Math.min(1, Math.max(0, (vh * 0.85 - sr.top) / (vh * 0.55)));
+      var n = Math.round(q * sw.length);
+      sw.forEach(function (el, i) { el.classList.toggle('on', i < n); });
+    }
+    ticking = false;
+  }
+  addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+  if (reduce) { device.style.setProperty('--p', 1); }
+  onScroll();
+
+  // One-time reveals
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  $$('.reveal').forEach(function (el) { reduce ? el.classList.add('in') : io.observe(el); });
+
+  // Chips
+  $$('.chip').forEach(function (c) {
+    c.addEventListener('click', function () {
+      $$('.chip').forEach(function (x) { x.setAttribute('aria-pressed', x === c ? 'true' : 'false'); });
+    });
+  });
+
+  // Credit state
+  var balance = 120;
+  function setBalance(v) {
+    balance = v;
+    $('#creditN').textContent = v; $('#bal2').textContent = v;
+    $('#credit').setAttribute('aria-label', 'Кредитийн үлдэгдэл: ' + v);
+    var c = $('#credit'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+  }
+
+  // Toast
+  function toast(msg) {
+    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; $('#toasts').appendChild(t);
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 300); }, 3200);
+  }
+
+  // Modal (focus trap + Esc)
+  var scrim = $('#scrim'), pending = null, lastFocus = null;
+  function openModal(price, name) {
+    if (price === 0) { toast('Үнэгүй хичээл нээгдлээ'); return; }
+    pending = { price: price, name: name }; lastFocus = document.activeElement;
+    $('#mt').textContent = name + ' авах уу?';
+    $('#mp').textContent = 'Кредит хасагдсаны дараа хичээл шууд нээгдэнэ.';
+    $('#mPrice').textContent = price + ' кр'; $('#mAfter').textContent = (balance - price) + ' кр';
+    scrim.classList.add('open'); scrim.setAttribute('aria-hidden', 'false'); $('#mOk').focus();
+    if (balance < price) { $('#mOk').textContent = 'Кредит цэнэглэх'; } else { $('#mOk').textContent = 'Авах'; }
+  }
+  function closeModal() { scrim.classList.remove('open'); scrim.setAttribute('aria-hidden', 'true'); if (lastFocus) lastFocus.focus(); }
+  $$('[data-buy]').forEach(function (b) { b.addEventListener('click', function () { openModal(+b.dataset.buy, b.dataset.name || ''); }); });
+  $('#mCancel').addEventListener('click', closeModal);
+  scrim.addEventListener('click', function (e) { if (e.target === scrim) closeModal(); });
+  $('#mOk').addEventListener('click', function () {
+    if (!pending) return;
+    if (balance < pending.price) { closeModal(); toast('Кредит хүрэлцэхгүй байна. Цэнэглээд дахин оролдоно уу.'); return; }
+    setBalance(balance - pending.price); closeModal(); toast('Авлаа: ' + pending.name); pending = null;
+  });
+  addEventListener('keydown', function (e) {
+    if (!scrim.classList.contains('open')) return;
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Tab') {
+      var f = $$('button', scrim), first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // OTP
+  var otp = $$('#otp input');
+  otp.forEach(function (inp, i) {
+    inp.addEventListener('input', function () { inp.value = inp.value.replace(/\D/g, ''); if (inp.value && otp[i + 1]) otp[i + 1].focus(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Backspace' && !inp.value && otp[i - 1]) otp[i - 1].focus(); });
+    inp.addEventListener('paste', function (e) {
+      var d = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6); if (!d) return; e.preventDefault();
+      d.split('').forEach(function (ch, k) { otp[k].value = ch; }); otp[Math.min(d.length, 5)].focus();
+    });
+  });
+
+  // Theme toggle
+  var tb = $('#theme');
+  tb.addEventListener('click', function () {
+    var root = document.documentElement, cur = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark'; root.dataset.theme = next;
+    tb.textContent = next === 'dark' ? 'Гэрэл горим' : 'Харанхуй горим';
+  });
+  $('#credit').addEventListener('click', function () { toast('Кредит цэнэглэх хуудас руу шилжинэ'); });
+})();
+</script>
+</body>
+</html>

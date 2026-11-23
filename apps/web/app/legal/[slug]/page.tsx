@@ -1,14 +1,21 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { LEGAL_SLUGS, type LegalDocType, type LegalDocView } from '@lms/shared';
+import { BRAND, LEGAL_SLUGS, type LegalDocType, type LegalDocView } from '@lms/shared';
 import { API_URL } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { AcceptLegal } from './accept';
+import s from './legal.module.css';
 
 export const dynamic = 'force-dynamic';
 
 function typeOf(slug: string): LegalDocType | null {
-  return (Object.entries(LEGAL_SLUGS).find(([, s]) => s === slug)?.[0] as LegalDocType | undefined) ?? null;
+  return (Object.entries(LEGAL_SLUGS).find(([, x]) => x === slug)?.[0] as LegalDocType | undefined) ?? null;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const type = typeOf((await params).slug);
+  return { title: type ? `${t(`legal.${type}`)} — ${BRAND.name}` : BRAND.name };
 }
 
 /** Нийтэд харагдах хууль эрх зүйн баримт (одоогийн, эсвэл `?version=N`). */
@@ -29,18 +36,18 @@ export default async function LegalPage({
   const doc = res?.ok ? ((await res.json()) as LegalDocView) : null;
 
   return (
-    <main className="page">
-      <h1 style={{ marginTop: 0 }}>{doc?.title ?? t(`legal.${type}`)}</h1>
-      {!doc && <p style={{ color: 'var(--muted)' }}>{t('legal.notPublished')}</p>}
-      {doc && (
-        <>
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-            {t('legal.versionInfo', { version: doc.version, date: formatDate(doc.publishedAt!) })}
-          </p>
-          <article style={{ whiteSpace: 'pre-wrap' }}>{doc.body}</article>
-          {!version && <AcceptLegal slug={slug} type={type} version={doc.version} />}
-        </>
-      )}
-    </main>
+    <div className="page">
+      <div className={s.doc}>
+        <h1 className={s.title}>{doc?.title ?? t(`legal.${type}`)}</h1>
+        {!doc && <p className={s.empty}>{t('legal.notPublished')}</p>}
+        {doc && (
+          <>
+            <p className={s.meta}>{t('legal.versionInfo', { version: doc.version, date: formatDate(doc.publishedAt!) })}</p>
+            <article className={s.body}>{doc.body}</article>
+            {!version && <AcceptLegal slug={slug} type={type} version={doc.version} />}
+          </>
+        )}
+      </div>
+    </div>
   );
 }

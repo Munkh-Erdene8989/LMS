@@ -2,6 +2,8 @@
 
 import { QUIZ_MAX_OPTIONS, QUIZ_MAX_QUESTIONS, type LessonContent, type QuizContentInput } from '@lms/shared';
 import { t } from '@/lib/i18n';
+import { Button } from '../../../ui/button';
+import s from '../../teacher.module.css';
 
 type Question = QuizContentInput['questions'][number];
 
@@ -44,13 +46,16 @@ export function QuizEditor({ value, onChange }: { value: QuizContentInput; onCha
   }
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div className={s.stack}>
       <strong>{t('quiz.editorTitle')}</strong>
-      <label style={{ display: 'grid', gap: 4, maxWidth: 200 }}>
+      <label className={`${s.field} ${s.maxW200}`}>
         {t('quiz.editorPass')}
         <input
           className="input"
+          name="passPercent"
           type="number"
+          inputMode="numeric"
+          autoComplete="off"
           min={0}
           max={100}
           step={1}
@@ -59,16 +64,24 @@ export function QuizEditor({ value, onChange }: { value: QuizContentInput; onCha
         />
       </label>
 
-      {value.questions.length === 0 && <p className="muted" style={{ margin: 0 }}>{t('quiz.editorEmpty')}</p>}
+      {value.questions.length === 0 && <p className={s.hint}>{t('quiz.editorEmpty')}</p>}
 
       {value.questions.map((q, qi) => (
-        <fieldset key={q.id ?? `new-${qi}`} className="quiz-question">
+        <fieldset key={q.id ?? `new-${qi}`} className={s.quizQuestion}>
           <legend>{t('quiz.editorQuestion', { n: qi + 1 })}</legend>
-          <label style={{ display: 'grid', gap: 4 }}>
+          <label className={s.field}>
             {t('quiz.editorQuestionText')}
-            <textarea className="input" rows={2} maxLength={2000} value={q.text} onChange={(e) => setQuestion(qi, { text: e.target.value })} />
+            <textarea
+              className="input"
+              name={`question-${qi}`}
+              autoComplete="off"
+              rows={2}
+              maxLength={2000}
+              value={q.text}
+              onChange={(e) => setQuestion(qi, { text: e.target.value })}
+            />
           </label>
-          <label className="quiz-option">
+          <label className={s.inline}>
             <input
               type="checkbox"
               checked={q.multiple}
@@ -85,7 +98,7 @@ export function QuizEditor({ value, onChange }: { value: QuizContentInput; onCha
             {t('quiz.editorMultiple')}
           </label>
           {q.options.map((o, oi) => (
-            <div key={o.id ?? `new-${oi}`} className="quiz-option">
+            <div key={o.id ?? `new-${oi}`} className={s.quizOption}>
               <input
                 type={q.multiple ? 'checkbox' : 'radio'}
                 name={`correct-${qi}`}
@@ -96,51 +109,48 @@ export function QuizEditor({ value, onChange }: { value: QuizContentInput; onCha
               />
               <input
                 className="input"
+                name={`option-${qi}-${oi}`}
+                autoComplete="off"
                 maxLength={500}
                 placeholder={t('quiz.editorOption')}
                 aria-label={t('quiz.editorOption')}
                 value={o.text}
                 onChange={(e) => setQuestion(qi, { options: q.options.map((x, j) => (j === oi ? { ...x, text: e.target.value } : x)) })}
               />
-              <button
-                type="button"
-                className="btn-icon"
+              <Button
+                variant="ghost"
+                size="sm"
                 disabled={q.options.length <= 2}
                 onClick={() => setQuestion(qi, { options: q.options.filter((_, j) => j !== oi) })}
               >
                 {t('quiz.editorRemove')}
-              </button>
+              </Button>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-ghost btn-small"
+          <div className={s.row}>
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={q.options.length >= QUIZ_MAX_OPTIONS}
               onClick={() => setQuestion(qi, { options: [...q.options, { text: '', correct: false }] })}
             >
               {t('quiz.editorAddOption')}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-small"
-              onClick={() => onChange({ ...value, questions: value.questions.filter((_, j) => j !== qi) })}
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onChange({ ...value, questions: value.questions.filter((_, j) => j !== qi) })}>
               {t('quiz.editorRemove')}
-            </button>
+            </Button>
           </div>
         </fieldset>
       ))}
 
-      <button
-        type="button"
-        className="btn btn-ghost"
-        style={{ justifySelf: 'start' }}
+      <Button
+        variant="secondary"
+        className={s.startSelf}
         disabled={value.questions.length >= QUIZ_MAX_QUESTIONS}
         onClick={() => onChange({ ...value, questions: [...value.questions, blankQuestion()] })}
       >
         {t('quiz.editorAddQuestion')}
-      </button>
+      </Button>
     </div>
   );
 }

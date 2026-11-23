@@ -6,7 +6,11 @@ import { useRouter } from 'next/navigation';
 import type { MyCourseDetail, MyCourseLesson } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
+import { LinkButton } from '../../ui/button';
+import { Skeleton } from '../../ui/skeleton';
+import { ArrowLeftIcon, CheckIcon, LockIcon, PlayIcon } from '../icons';
 import { ProgressBar } from '../learning-ui';
+import styles from '../learning.module.css';
 import { CertificateCard } from './certificate-card';
 
 /** Эзэмшсэн курсийн хөтөлбөр: lesson бүрийн дууссан эсэх, видеоны хувь, quiz-ийн оноо. */
@@ -25,66 +29,112 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
       });
   }, [courseId, router]);
 
+  const back = (
+    <Link href="/learning" className={styles.back}>
+      <ArrowLeftIcon />
+      {t('learningUi.backToLearning')}
+    </Link>
+  );
+
   if (!course) {
     return (
-      <main className="page">
-        <Link href="/learning">{t('learning.backToLearning')}</Link>
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className={`page-narrow ${styles.page}`}>
+        {back}
+        {error ? (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={styles.hero} aria-busy="true" aria-label={t('me.loading')}>
+            <Skeleton height="2.2em" width="70%" />
+            <Skeleton height="0.9em" width="40%" />
+            <Skeleton height="4px" radius={999} />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <Link href="/learning">{t('learning.backToLearning')}</Link>
-      <div style={{ display: 'grid', gap: 6 }}>
-        <h1 style={{ margin: 0 }}>{course.title}</h1>
-        <small className="muted">{t('learning.teacher', { name: course.teacher.name })}</small>
+    <div className={`page-narrow ${styles.page}`}>
+      {back}
+      <header className={styles.hero}>
+        <h1 className={styles.h1}>{course.title}</h1>
+        <p className={styles.meta}>{t('learning.teacher', { name: course.teacher.name })}</p>
         <ProgressBar percent={course.progressPercent} />
-        <small>
-          {t('learning.progress', { completed: course.completedLessonCount, owned: course.ownedLessonCount, percent: course.progressPercent })}
-        </small>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <p className={styles.progressText}>
+          {t('learning.progress', {
+            completed: course.completedLessonCount,
+            owned: course.ownedLessonCount,
+            percent: course.progressPercent,
+          })}
+        </p>
+        <div className={styles.heroActions}>
           {course.continueLessonId ? (
-            <Link className="btn" href={`/courses/${course.id}/lessons/${course.continueLessonId}`}>
+            <LinkButton href={`/courses/${course.id}/lessons/${course.continueLessonId}`}>
               {course.lastViewedAt ? t('learning.continue') : t('learning.start')}
-            </Link>
+            </LinkButton>
           ) : (
-            <span className="done-mark">{t('learning.allDone')}</span>
+            <span className={styles.doneMark}>
+              <CheckIcon />
+              {t('learning.allDone')}
+            </span>
           )}
-          <Link className="btn btn-ghost" href={`/courses/${course.id}`}>
+          <LinkButton variant="secondary" href={`/courses/${course.id}`}>
             {t('learning.openCourse')}
-          </Link>
+          </LinkButton>
         </div>
-      </div>
+      </header>
 
       <CertificateCard courseId={course.id} />
 
-      <section className="card" style={{ display: 'grid', gap: 12 }}>
-        <strong>{t('learning.curriculum')}</strong>
+      <section className={styles.curriculum} aria-labelledby="curriculum">
+        <h2 id="curriculum" className={styles.panelTitle}>
+          {t('learning.curriculum')}
+        </h2>
         {course.sections.map((s) => (
-          <div key={s.id} className="section-block">
-            <div style={{ fontWeight: 700 }}>{s.title}</div>
-            <ul className="lesson-list">
+          <div key={s.id}>
+            <h3 className={styles.sectionTitle}>{s.title}</h3>
+            <ul className={styles.rows}>
               {s.lessons.map((l) => (
-                <li key={l.id} className="lesson-row">
-                  <span>
-                    {l.progress?.completed && (
-                      <span className="done-mark" aria-label={t('learning.completed')}>
-                        ✓{' '}
-                      </span>
-                    )}
-                    {l.owned || l.isFreePreview ? <Link href={`/courses/${course.id}/lessons/${l.id}`}>{l.title}</Link> : l.title}{' '}
-                    <small>· {t(`course.type${l.type}` as MessageKey)}</small>
-                  </span>
-                  <small className="muted">{lessonStatus(l)}</small>
-                </li>
+                <LessonRow key={l.id} courseId={course.id} lesson={l} />
               ))}
             </ul>
           </div>
         ))}
       </section>
-    </main>
+    </div>
+  );
+}
+
+function LessonRow({ courseId, lesson: l }: { courseId: string; lesson: MyCourseLesson }) {
+  const done = !!l.progress?.completed;
+  const accessible = l.owned || l.isFreePreview;
+  const body = (
+    <span className={styles.rowBody}>
+      <span className={`${styles.icon} ${done ? styles.iconDone : accessible ? styles.iconOpen : ''}`}>
+        {done ? <CheckIcon /> : accessible ? <PlayIcon /> : <LockIcon />}
+      </span>
+      <span className={styles.rowText}>
+        <span className={styles.rowTitle}>{l.title}</span>
+        <span className={styles.rowMeta}>{t(`course.type${l.type}` as MessageKey)}</span>
+      </span>
+    </span>
+  );
+  return (
+    <li>
+      {accessible ? (
+        <Link href={`/courses/${courseId}/lessons/${l.id}`} className={styles.row}>
+          {body}
+          <span className={styles.rowEnd}>{lessonStatus(l)}</span>
+        </Link>
+      ) : (
+        <div className={styles.row}>
+          {body}
+          <span className={styles.rowEnd}>{lessonStatus(l)}</span>
+        </div>
+      )}
+    </li>
   );
 }
 

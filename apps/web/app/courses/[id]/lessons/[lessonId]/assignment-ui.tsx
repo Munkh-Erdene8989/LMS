@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import {
   ASSIGNMENT_FILE_MAX_BYTES,
   ASSIGNMENT_TEXT_MAX,
@@ -14,6 +14,11 @@ import { api, ApiRequestError } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
+import { Button } from '../../../../ui/button';
+import { FileDrop } from '../../../../ui/file-drop';
+import { useToast } from '../../../../ui/toast';
+import { LESSON_PROGRESS_EVENT } from './lesson-frame';
+import styles from './lesson.module.css';
 
 const MB = 1024 * 1024;
 
@@ -21,10 +26,10 @@ const MB = 1024 * 1024;
 export function SubmissionFileLink({ submissionId, file }: { submissionId: string; file: SubmissionFileView }) {
   const [error, setError] = useState<string | null>(null);
   return (
-    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <button
-        type="button"
-        className="btn btn-ghost"
+    <span className={styles.fileLink}>
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={async () => {
           setError(null);
           // Popup blocker-оос сэргийлж цонхыг эхлээд нээнэ
@@ -39,10 +44,13 @@ export function SubmissionFileLink({ submissionId, file }: { submissionId: strin
           }
         }}
       >
-        {t('assignment.openFile', { name: file.name, size: Math.max(1, Math.round(file.size / 1024)) })}
-      </button>
+        {t('assignment.openFile', {
+          name: file.name,
+          size: Math.max(1, Math.round(file.size / 1024)),
+        })}
+      </Button>
       {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
+        <small role="alert" className={styles.error}>
           {error}
         </small>
       )}
@@ -52,19 +60,19 @@ export function SubmissionFileLink({ submissionId, file }: { submissionId: strin
 
 /** Суралцагч: даалгавар илгээх (текст ба/эсвэл файл ≤ 50MB), дахин илгээх, үнэлгээ харах. */
 export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initial: AssignmentState }) {
+  const { toast } = useToast();
+  const errorId = useId();
   const [state, setState] = useState(initial);
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const current = state.submissions[0] ?? null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setSent(false);
     if (!text.trim() && !file) return setError(t('assignment.emptyError'));
     if (file && file.size > ASSIGNMENT_FILE_MAX_BYTES) return setError(t('assignment.tooLarge'));
     setBusy(true);
@@ -72,17 +80,24 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
       let uploaded: { key: string; name: string } | undefined;
       if (file) {
         const ticket = (
-          await api<UploadTicket>(`/learning/lessons/${lessonId}/assignment/upload`, { method: 'POST', body: { fileName: file.name, size: file.size } })
+          await api<UploadTicket>(`/learning/lessons/${lessonId}/assignment/upload`, {
+            method: 'POST',
+            body: { fileName: file.name, size: file.size },
+          })
         ).data;
         await uploadFile(ticket, file);
         uploaded = { key: ticket.key, name: file.name };
       }
-      const body = { ...(text.trim() ? { text } : {}), ...(uploaded ? { file: uploaded } : {}) };
+      const body = {
+        ...(text.trim() ? { text } : {}),
+        ...(uploaded ? { file: uploaded } : {}),
+      };
       setState((await api<AssignmentState>(`/learning/lessons/${lessonId}/assignment/submissions`, { method: 'POST', body })).data);
       setText('');
       setFile(null);
       setFormKey((k) => k + 1);
-      setSent(true);
+      toast(t('assignment.sent'));
+      window.dispatchEvent(new Event(LESSON_PROGRESS_EVENT));
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
     } finally {
@@ -91,8 +106,8 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
   }
 
   return (
-    <section style={{ display: 'grid', gap: 12 }}>
-      <p className="muted" style={{ margin: 0 }}>
+    <section className={styles.quiz}>
+      <p className={styles.meta}>
         {t('assignment.maxScoreLabel', { max: state.maxScore })}
         {current && ` · ${current.review ? t('assignment.statusReviewed') : t('assignment.statusPending')}`}
       </p>
@@ -100,35 +115,48 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
       {current?.review && <ReviewBox review={current.review} />}
 
       {state.canSubmit ? (
-        <form key={formKey} onSubmit={submit} className="card" style={{ display: 'grid', gap: 8 }}>
+        <form key={formKey} onSubmit={submit} className={styles.form} noValidate>
           <strong>{current ? t('assignment.resubmitTitle') : t('assignment.submitTitle')}</strong>
-          <label style={{ display: 'grid', gap: 4 }}>
+          <label className={styles.field}>
             {t('assignment.textLabel')}
-            <textarea className="input" rows={6} maxLength={ASSIGNMENT_TEXT_MAX} value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea
+              className="input"
+              rows={6}
+              maxLength={ASSIGNMENT_TEXT_MAX}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+            />
           </label>
-          <label style={{ display: 'grid', gap: 4 }}>
-            {t('assignment.fileLabel', { max: ASSIGNMENT_FILE_MAX_BYTES / MB })}
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </label>
-          {current && <small className="muted">{t('assignment.resubmitHint')}</small>}
+          <FileDrop
+            label={t('assignment.fileAttach')}
+            hint={t('assignment.fileLabel', { max: ASSIGNMENT_FILE_MAX_BYTES / MB })}
+            maxBytes={ASSIGNMENT_FILE_MAX_BYTES}
+            progress={busy && file ? true : null}
+            progressLabel={t('assignment.submitting')}
+            file={file}
+            onClear={() => setFile(null)}
+            onFile={setFile}
+          />
+          {current && <p className={styles.meta}>{t('assignment.resubmitHint')}</p>}
           {error && (
-            <small role="alert" style={{ color: 'var(--err)' }}>
+            <p id={errorId} role="alert" className={styles.error}>
               {error}
-            </small>
+            </p>
           )}
-          {sent && <small style={{ color: 'var(--ok)' }}>{t('assignment.sent')}</small>}
-          <button className="btn" disabled={busy} style={{ justifySelf: 'start' }}>
-            {busy ? t('assignment.submitting') : current ? t('assignment.resubmit') : t('assignment.submit')}
-          </button>
+          <div>
+            <Button type="submit" loading={busy} loadingLabel={t('assignment.submitting')}>
+              {current ? t('assignment.resubmit') : t('assignment.submit')}
+            </Button>
+          </div>
         </form>
       ) : (
-        <p className="muted" style={{ margin: 0 }}>
-          {t('assignment.ownersOnly')}
-        </p>
+        <p className={styles.meta}>{t('assignment.ownersOnly')}</p>
       )}
 
       {state.submissions.length > 0 && (
-        <div style={{ display: 'grid', gap: 8 }}>
+        <div className={styles.history}>
           <strong>{t('assignment.history')}</strong>
           {state.submissions.map((s) => (
             <SubmissionRow key={s.id} submission={s} />
@@ -141,22 +169,32 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
 
 function ReviewBox({ review }: { review: NonNullable<SubmissionView['review']> }) {
   return (
-    <div className="card" style={{ display: 'grid', gap: 4 }}>
-      <strong>{t('assignment.reviewScore', { score: review.score, max: review.maxScore })}</strong>
-      {review.comment && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{review.comment}</p>}
-      <small className="muted">{t('assignment.reviewedAt', { date: formatDate(review.reviewedAt) })}</small>
+    <div className={styles.panel}>
+      <strong>
+        {t('assignment.reviewScore', {
+          score: review.score,
+          max: review.maxScore,
+        })}
+      </strong>
+      {review.comment && <p className={styles.comment}>{review.comment}</p>}
+      <small className={styles.meta}>{t('assignment.reviewedAt', { date: formatDate(review.reviewedAt) })}</small>
     </div>
   );
 }
 
 function SubmissionRow({ submission: s }: { submission: SubmissionView }) {
   return (
-    <div className="card" style={{ display: 'grid', gap: 6 }}>
-      <small className="muted">
+    <div className={styles.panel}>
+      <small className={styles.meta}>
         {t('assignment.submittedAt', { date: formatDate(s.submittedAt) })} ·{' '}
-        {s.review ? t('assignment.reviewScore', { score: s.review.score, max: s.review.maxScore }) : t('assignment.statusPending')}
+        {s.review
+          ? t('assignment.reviewScore', {
+              score: s.review.score,
+              max: s.review.maxScore,
+            })
+          : t('assignment.statusPending')}
       </small>
-      {s.text && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{s.text}</p>}
+      {s.text && <p className={styles.comment}>{s.text}</p>}
       {s.file && <SubmissionFileLink submissionId={s.id} file={s.file} />}
     </div>
   );

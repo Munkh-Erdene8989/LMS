@@ -8,11 +8,16 @@ import { api, ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '../../course-ui';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { Skeleton } from '../../ui/skeleton';
+import s from '../teacher.module.css';
 
 export default function TeacherCoursesPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<CourseSummary[] | null>(null);
   const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,32 +31,31 @@ export default function TeacherCoursesPage() {
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    const r = await api<CourseDetail>('/teacher/courses', { method: 'POST', body: { title } });
-    router.push(`/teacher/courses/${r.data.id}`);
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<CourseDetail>('/teacher/courses', { method: 'POST', body: { title } });
+      router.push(`/teacher/courses/${r.data.id}`);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setBusy(false);
+    }
   }
 
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0 }}>{t('course.myCourses')}</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link className="btn btn-ghost" href="/teacher/community">
-            {t('community.myCommunity')}
-          </Link>
-          <Link className="btn btn-ghost" href="/teacher/assignments">
-            {t('assignment.inboxTitle')}
-          </Link>
-          <Link className="btn btn-ghost" href="/teacher/live">
-            {t('live.calendarLink')}
-          </Link>
-        </div>
-      </div>
-      {error && <p style={{ color: 'var(--err)' }}>{error}</p>}
+    <div className={s.page}>
+      <h1 className={s.title}>{t('course.myCourses')}</h1>
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
       {courses && (
-        <form onSubmit={create} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <form onSubmit={create} className={`card ${s.row}`}>
           <input
-            className="input"
-            style={{ flex: '1 1 240px' }}
+            className={`input ${s.grow}`}
+            name="title"
+            autoComplete="off"
             required
             maxLength={200}
             placeholder={t('course.newCoursePlaceholder')}
@@ -59,25 +63,61 @@ export default function TeacherCoursesPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <button className="btn">{t('course.newCourse')}</button>
+          <Button type="submit" loading={busy}>
+            {t('course.newCourse')}
+          </Button>
         </form>
       )}
-      {courses?.length === 0 && <p style={{ color: 'var(--muted)' }}>{t('course.empty')}</p>}
-      <div style={{ display: 'grid', gap: 8 }}>
-        {courses?.map((c) => (
-          <Link key={c.id} href={`/teacher/courses/${c.id}`} className="card course-row">
-            {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <div className="cover-placeholder" />}
-            <div style={{ display: 'grid', gap: 4 }}>
-              <strong>{c.title}</strong>
-              <span style={{ color: 'var(--muted)', fontSize: 14 }}>
-                <StatusBadge status={c.status} /> · {t('course.lessons', { count: c.lessonCount })}
-                {c.pendingLessonCount > 0 && ` · ${t('course.pending', { count: c.pendingLessonCount })}`} · {formatDate(c.updatedAt)}
-              </span>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </main>
+      {!courses && !error && (
+        <div className={`card ${s.stack}`} aria-busy="true" aria-label={t('ui.loading')}>
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+        </div>
+      )}
+      {courses?.length === 0 && (
+        <div className="card">
+          <EmptyState title={t('course.empty')} />
+        </div>
+      )}
+      {courses && courses.length > 0 && (
+        <div className={`card ${s.tableWrap}`}>
+          <table className={s.table}>
+            <thead>
+              <tr>
+                <th scope="col">{t('teacherUi.colCourse')}</th>
+                <th scope="col">{t('teacherUi.colStatus')}</th>
+                <th scope="col" className={s.num}>
+                  {t('teacherUi.colLessons')}
+                </th>
+                <th scope="col">{t('teacherUi.colUpdated')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {courses.map((c) => (
+                <tr key={c.id} className={s.rowLink}>
+                  <td>
+                    <div className={s.courseCell}>
+                      {c.coverUrl ? <img className={s.courseThumb} src={c.coverUrl} alt="" width={72} height={40} loading="lazy" /> : <div className={s.courseThumb} />}
+                      <Link className={s.courseLink} href={`/teacher/courses/${c.id}`}>
+                        {c.title}
+                      </Link>
+                    </div>
+                  </td>
+                  <td>
+                    <StatusBadge status={c.status} />
+                  </td>
+                  <td className={s.num}>
+                    {c.lessonCount}
+                    {c.pendingLessonCount > 0 && <small className="muted"> · {t('course.pending', { count: c.pendingLessonCount })}</small>}
+                  </td>
+                  <td>{formatDate(c.updatedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
-

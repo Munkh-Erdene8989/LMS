@@ -24,6 +24,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@lms/shared'],
+  // Түр demo (ticket 33b): флаг тохируулаагүй үед ч хоосон тэмдэгт болгон шингээнэ — тэгэхгүй бол bundler `process.env.NEXT_PUBLIC_DEMO_DATA`-г
+  // тогтмол болгохгүй, demo модуль dead-code болж хасагдахгүй. Устгах заавар: .scratch/lms/issues/33b-demo-data.md.
+  env: { NEXT_PUBLIC_DEMO_DATA: process.env.NEXT_PUBLIC_DEMO_DATA ?? '' },
   poweredByHeader: false,
   /**
    * Browser API руу шууд биш, web-ийн `/api/*`-аар хандана → auth cookie first-party.

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   COMMUNITY_COMMENT_MAX,
   COMMUNITY_IMAGE_MAX_BYTES,
+  COMMUNITY_IMAGE_TYPES,
   COMMUNITY_POST_MAX,
   formatUbDateTime,
   liveState,
@@ -19,10 +20,17 @@ import {
   type UploadTicket,
 } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatRelative } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
 import { Markdown } from '../../markdown';
+import { useUnsavedWarning } from '../../teacher/use-unsaved';
+import { Button, LinkButton } from '../../ui/button';
+import { useConfirm } from '../../ui/confirm';
+import { EmptyState } from '../../ui/empty-state';
+import { FileDrop } from '../../ui/file-drop';
+import { Skeleton, SkeletonText } from '../../ui/skeleton';
+import s from '../communities.module.css';
 
 const MB = 1024 * 1024;
 const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
@@ -101,99 +109,135 @@ export default function CommunityPage({ params }: { params: Promise<{ teacherId:
 
   if (denied) {
     return (
-      <main className="page" style={{ display: 'grid', gap: 12 }}>
-        <Link href="/communities">{t('community.back')}</Link>
-        <p role="alert" style={{ margin: 0 }}>
-          {denied === 'COMMUNITY_REMOVED' ? t('community.removed') : t('community.membersOnly')}
-        </p>
-        {denied === 'COMMUNITY_MEMBERS_ONLY' && (
-          <Link className="btn" style={{ justifySelf: 'start' }} href={`/teachers/${teacherId}`}>
-            {t('community.seeCourses')}
+      <div className="page-narrow">
+        <div className={s.stack}>
+          <Link href="/communities" className={s.back}>
+            {t('community.back')}
           </Link>
-        )}
-      </main>
+          <div role="alert" className={s.denied}>
+            <p>{denied === 'COMMUNITY_REMOVED' ? t('community.removed') : t('community.membersOnly')}</p>
+            {denied === 'COMMUNITY_MEMBERS_ONLY' && (
+              <LinkButton href={`/teachers/${teacherId}`}>{t('community.seeCourses')}</LinkButton>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (!overview) {
     return (
-      <main className="page">
-        <Link href="/communities">{t('community.back')}</Link>
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className="page-narrow">
+        <div className={s.stack}>
+          <Link href="/communities" className={s.back}>
+            {t('community.back')}
+          </Link>
+          {error ? (
+            <p role="alert" className={s.error}>
+              {error}
+            </p>
+          ) : (
+            <div className={s.head} aria-busy="true" aria-label={t('me.loading')}>
+              <Skeleton width={80} height={80} radius="50%" />
+              <span className={s.headText}>
+                <Skeleton width={220} height="1.5em" />
+                <Skeleton width={140} height="0.9em" />
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   const isTeacher = overview.role === 'TEACHER';
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 16 }}>
-      <Link href="/communities">{t('community.back')}</Link>
-      <div className="teacher-box">
-        {overview.teacher.avatarUrl ? <img className="avatar avatar-lg" src={overview.teacher.avatarUrl} alt="" /> : <div className="avatar avatar-lg" />}
-        <div style={{ display: 'grid', gap: 4 }}>
-          <h1 style={{ margin: 0 }}>{t('community.heading', { name: overview.teacher.name ?? '' })}</h1>
-          <small className="muted">
-            {t('community.memberCount', { count: overview.memberCount })} · {t(`community.role${overview.role}`)}
-          </small>
-        </div>
-        {isTeacher && (
-          <Link className="btn btn-ghost" style={{ marginLeft: 'auto' }} href="/teacher/community">
-            {t('community.membersLink')}
-          </Link>
-        )}
-      </div>
-      {error && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
-          {error}
-        </p>
-      )}
-      <div className="community-layout">
-        <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
-          <Composer teacherId={teacherId} onPosted={(p) => setPosts((prev) => [p, ...(prev ?? [])])} />
-          {[...pinned, ...(posts ?? [])].map((p) => (
-            <PostCard
-              key={p.id}
-              post={p}
-              canPin={isTeacher}
-              initiallyOpen={p.id === focusPost}
-              onChange={replace}
-              onDeleted={() => removed(p.id)}
-            />
-          ))}
-          {posts?.length === 0 && pinned.length === 0 && <p className="muted">{t('community.noPosts')}</p>}
-          {cursor && (
-            <button type="button" className="btn btn-ghost" style={{ justifySelf: 'start' }} onClick={() => void loadPosts(cursor)}>
-              {t('community.loadMore')}
-            </button>
+    <div className="page wide">
+      <div className={s.stack}>
+        <Link href="/communities" className={s.back}>
+          {t('community.back')}
+        </Link>
+        <div className={s.head}>
+          {overview.teacher.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={`${s.avatar} ${s.avatarLg}`} src={overview.teacher.avatarUrl} alt="" width={80} height={80} />
+          ) : (
+            <span className={`${s.avatar} ${s.avatarLg}`} aria-hidden="true" />
+          )}
+          <div className={s.headText}>
+            <h1>{t('community.heading', { name: overview.teacher.name ?? '' })}</h1>
+            <span className={s.meta}>
+              {t('community.memberCount', { count: overview.memberCount })} · {t(`community.role${overview.role}`)}
+            </span>
+          </div>
+          {isTeacher && (
+            <LinkButton variant="ghost" className={s.headAction} href="/teacher/community">
+              {t('community.membersLink')}
+            </LinkButton>
           )}
         </div>
-        <LiveCalendar items={overview.upcomingLive} />
+        {error && (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        )}
+        <div className={s.layout}>
+          <div className={s.feed}>
+            <Composer teacherId={teacherId} onPosted={(p) => setPosts((prev) => [p, ...(prev ?? [])])} />
+            {posts === null && !error && (
+              <div className="card" aria-busy="true" aria-label={t('me.loading')}>
+                <SkeletonText lines={3} />
+              </div>
+            )}
+            {[...pinned, ...(posts ?? [])].map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                canPin={isTeacher}
+                initiallyOpen={p.id === focusPost}
+                onChange={replace}
+                onDeleted={() => removed(p.id)}
+              />
+            ))}
+            {posts?.length === 0 && pinned.length === 0 && <EmptyState title={t('community.noPosts')} />}
+            {cursor && (
+              <Button variant="secondary" onClick={() => void loadPosts(cursor)}>
+                {t('community.loadMore')}
+              </Button>
+            )}
+          </div>
+          <LiveCalendar items={overview.upcomingLive} />
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
 
 function LiveCalendar({ items }: { items: CommunityLiveItem[] }) {
   return (
-    <aside className="card" style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
-      <strong>{t('community.liveTitle')}</strong>
-      {items.length === 0 && <small className="muted">{t('community.liveEmpty')}</small>}
+    <aside className={`card ${s.live}`} aria-labelledby="community-live-title">
+      <h2 id="community-live-title" className={s.liveTitle}>
+        {t('community.liveTitle')}
+      </h2>
+      {items.length === 0 && <span className={s.meta}>{t('community.liveEmpty')}</span>}
       {items.map((l) => {
         const state = liveState(l.startsAt, l.durationMinutes);
         return (
-          <div key={l.lessonId} style={{ display: 'grid', gap: 2 }}>
+          <div key={l.lessonId} className={s.liveItem}>
             <span>
-              <strong>{formatUbDateTime(l.startsAt)}</strong>
-              {state === 'LIVE' && <span className="pill" style={{ marginLeft: 6 }}>{t('live.stateLIVE')}</span>}
+              <strong>{formatUbDateTime(l.startsAt)}</strong>{' '}
+              {state === 'LIVE' && <span className={`${s.pill} ${s.pillAccent}`}>{t('live.stateLIVE')}</span>}
             </span>
             <span>{l.title}</span>
-            <small className="muted">
+            <span className={s.meta}>
               {l.courseTitle} · {t('live.when', { startsAt: formatUbDateTime(l.startsAt), duration: l.durationMinutes })}
-            </small>
+            </span>
             {l.canJoin ? (
-              <Link href={`/courses/${l.courseId}/lessons/${l.lessonId}`}>{t('community.liveOpen')}</Link>
+              <Link className={s.liveLink} href={`/courses/${l.courseId}/lessons/${l.lessonId}`}>
+                {t('community.liveOpen')}
+              </Link>
             ) : (
-              <Link className="muted" href={`/courses/${l.courseId}`}>
+              <Link className={s.liveLocked} href={`/courses/${l.courseId}`}>
                 {t('community.liveLocked')}
               </Link>
             )}
@@ -207,9 +251,22 @@ function LiveCalendar({ items }: { items: CommunityLiveItem[] }) {
 function Composer({ teacherId, onPosted }: { teacherId: string; onPosted: (p: CommunityPostView) => void }) {
   const [body, setBody] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+
+  useUnsavedWarning(!busy && (body.trim() !== '' || file !== null));
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -242,42 +299,67 @@ function Composer({ teacherId, onPosted }: { teacherId: string; onPosted: (p: Co
   }
 
   return (
-    <form key={formKey} onSubmit={submit} className="card" style={{ display: 'grid', gap: 8 }}>
-      <label style={{ display: 'grid', gap: 4 }}>
+    <form key={formKey} onSubmit={submit} className={`card ${s.composer}`}>
+      <label className={s.field}>
         {t('community.composerLabel')}
         <textarea
-          className="input"
+          className={`input ${s.textarea}`}
           rows={4}
           maxLength={COMMUNITY_POST_MAX}
           placeholder={t('community.composerPlaceholder')}
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
+        <span className={s.counter} aria-hidden="true">
+          {body.length}/{COMMUNITY_POST_MAX}
+        </span>
       </label>
-      <label style={{ display: 'grid', gap: 4 }}>
-        <small className="muted">{t('community.imageLabel', { max: COMMUNITY_IMAGE_MAX_BYTES / MB })}</small>
-        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-      </label>
-      {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
-          {error}
-        </small>
+      <FileDrop
+        label={t('community.imageAttach')}
+        hint={t('community.imageLabel', { max: COMMUNITY_IMAGE_MAX_BYTES / MB })}
+        accept={COMMUNITY_IMAGE_TYPES.join(',')}
+        maxBytes={COMMUNITY_IMAGE_MAX_BYTES}
+        progress={busy && file ? true : null}
+        progressLabel={t('community.publishing')}
+        file={file}
+        onClear={() => setFile(null)}
+        onFile={setFile}
+      />
+      {preview && (
+        <div className={s.preview}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={s.previewImg} src={preview} alt="" width={64} height={64} />
+        </div>
       )}
-      <button className="btn" disabled={busy} style={{ justifySelf: 'start' }}>
-        {busy ? t('community.publishing') : t('community.publish')}
-      </button>
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
+      <div>
+        <Button type="submit" loading={busy} loadingLabel={t('community.publishing')}>
+          {t('community.publish')}
+        </Button>
+      </div>
     </form>
   );
 }
 
 function AuthorLine({ author, at, editedAt }: { author: CommunityPostView['author']; at: string; editedAt?: string | null }) {
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      {author.avatarUrl ? <img className="avatar" src={author.avatarUrl} alt="" /> : <div className="avatar" />}
-      <strong>{author.name ?? t('community.unnamed')}</strong>
-      {author.isTeacher && <span className="pill">{t('community.teacherBadge')}</span>}
-      <small className="muted">{formatDate(at)}</small>
-      {editedAt && <small className="muted">· {t('community.edited', { date: formatDate(editedAt) })}</small>}
+    <div className={s.author}>
+      {author.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={s.authorAvatar} src={author.avatarUrl} alt="" width={36} height={36} loading="lazy" />
+      ) : (
+        <span className={s.authorAvatar} aria-hidden="true" />
+      )}
+      <span className={s.authorName}>{author.name ?? t('community.unnamed')}</span>
+      {author.isTeacher && <span className={s.pill}>{t('community.teacherBadge')}</span>}
+      <time className={s.time} dateTime={at} title={formatDate(at)}>
+        {formatRelative(at)}
+      </time>
+      {editedAt && <span className={s.time}>· {t('community.edited', { date: formatRelative(editedAt) })}</span>}
     </div>
   );
 }
@@ -298,6 +380,8 @@ function InlineEdit({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useUnsavedWarning(!busy && value !== initial);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -311,20 +395,27 @@ function InlineEdit({
   }
 
   return (
-    <form onSubmit={submit} style={{ display: 'grid', gap: 6 }}>
-      <textarea className="input" rows={3} maxLength={max} value={value} aria-label={t('community.edit')} onChange={(e) => setValue(e.target.value)} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn-small" disabled={busy}>
-          {busy ? t('community.saving') : t('community.save')}
-        </button>
-        <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={onCancel}>
+    <form onSubmit={submit} className={s.inlineEdit}>
+      <textarea
+        className={`input ${s.textarea}`}
+        rows={3}
+        maxLength={max}
+        value={value}
+        aria-label={t('community.edit')}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <div className={s.actions}>
+        <Button type="submit" size="sm" loading={busy} loadingLabel={t('community.saving')}>
+          {t('community.save')}
+        </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={onCancel}>
           {t('community.cancel')}
-        </button>
+        </Button>
       </div>
       {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
+        <p role="alert" className={s.error}>
           {error}
-        </small>
+        </p>
       )}
     </form>
   );
@@ -333,9 +424,9 @@ function InlineEdit({
 function HiddenNotice({ hidden, reason, staff }: { hidden: boolean; reason: string | null; staff: boolean }) {
   if (!hidden) return null;
   return (
-    <small role="status" style={{ color: 'var(--err)' }}>
+    <p role="status" className={s.hidden}>
       {t(staff ? 'community.hiddenNoticeStaff' : 'community.hiddenNotice', { reason: reason ?? '' })}
-    </small>
+    </p>
   );
 }
 
@@ -352,6 +443,7 @@ function PostCard({
   onChange: (p: CommunityPostView) => void;
   onDeleted: () => void;
 }) {
+  const confirm = useConfirm();
   const [open, setOpen] = useState(initiallyOpen);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -380,14 +472,20 @@ function PostCard({
     });
   const remove = () =>
     act(async () => {
-      if (!window.confirm(t('community.deletePostConfirm'))) return;
+      const ok = await confirm({
+        title: t('miscUi.deletePostTitle'),
+        body: t('community.deletePostConfirm'),
+        confirmLabel: t('community.delete'),
+        danger: true,
+      });
+      if (!ok) return;
       await api(`/community/posts/${post.id}`, { method: 'DELETE' });
       onDeleted();
     });
 
   return (
-    <article id={`post-${post.id}`} className="card" style={{ display: 'grid', gap: 8 }}>
-      {post.pinned && <small className="pill" style={{ justifySelf: 'start' }}>{t('community.pinned')}</small>}
+    <article id={`post-${post.id}`} className={`card ${s.post} ${post.pinned ? s.postPinned : ''}`}>
+      {post.pinned && <span className={`${s.pill} ${s.pillAccent}`}>{t('community.pinned')}</span>}
       <AuthorLine author={post.author} at={post.createdAt} editedAt={post.editedAt} />
       <HiddenNotice hidden={post.hidden} reason={post.hiddenReason} staff={post.body !== '' || post.imageUrl !== null} />
       {editing ? (
@@ -403,34 +501,37 @@ function PostCard({
       ) : (
         post.body && <Markdown source={post.body} />
       )}
-      {post.imageUrl && <img src={post.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8 }} />}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" className={post.likedByMe ? 'btn btn-small' : 'btn btn-ghost btn-small'} aria-pressed={post.likedByMe} onClick={() => void toggleLike()}>
+      {post.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={s.postImage} src={post.imageUrl} alt={t('miscUi.postImageAlt')} width={720} height={480} loading="lazy" decoding="async" />
+      )}
+      <div className={s.actions}>
+        <Button variant={post.likedByMe ? 'primary' : 'ghost'} size="sm" aria-pressed={post.likedByMe} onClick={() => void toggleLike()}>
           {post.likedByMe ? t('community.unlike', { count: post.likeCount }) : t('community.like', { count: post.likeCount })}
-        </button>
-        <button type="button" className="btn btn-ghost btn-small" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        </Button>
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {open ? t('community.hideComments') : t('community.comments', { count: post.commentCount })}
-        </button>
+        </Button>
         {canPin && (
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => void togglePin()}>
+          <Button variant="ghost" size="sm" onClick={() => void togglePin()}>
             {post.pinned ? t('community.unpin') : t('community.pin')}
-          </button>
+          </Button>
         )}
         {post.canEdit && !editing && (
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
             {t('community.edit')}
-          </button>
+          </Button>
         )}
         {post.canDelete && (
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => void remove()}>
+          <Button variant="ghost" size="sm" onClick={() => void remove()}>
             {t('community.delete')}
-          </button>
+          </Button>
         )}
       </div>
       {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
+        <p role="alert" className={s.error}>
           {error}
-        </small>
+        </p>
       )}
       {open && <Comments post={post} onCountChange={(n) => onChange({ ...post, commentCount: n })} />}
     </article>
@@ -438,12 +539,15 @@ function PostCard({
 }
 
 function Comments({ post, onCountChange }: { post: CommunityPostView; onCountChange: (n: number) => void }) {
+  const confirm = useConfirm();
   const [items, setItems] = useState<CommunityCommentView[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useUnsavedWarning(!busy && body.trim() !== '');
 
   const load = useCallback(
     async (after?: string) => {
@@ -480,7 +584,13 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t('community.deleteCommentConfirm'))) return;
+    const ok = await confirm({
+      title: t('miscUi.deleteCommentTitle'),
+      body: t('community.deleteCommentConfirm'),
+      confirmLabel: t('community.delete'),
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api(`/community/comments/${id}`, { method: 'DELETE' });
@@ -492,9 +602,14 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
   }
 
   return (
-    <div style={{ display: 'grid', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+    <div className={s.comments}>
+      {items === null && !error && (
+        <div aria-busy="true" aria-label={t('me.loading')}>
+          <SkeletonText lines={2} />
+        </div>
+      )}
       {items?.map((c) => (
-        <div key={c.id} style={{ display: 'grid', gap: 4 }}>
+        <div key={c.id} className={s.comment}>
           <AuthorLine author={c.author} at={c.createdAt} editedAt={c.editedAt} />
           <HiddenNotice hidden={c.hidden} reason={c.hiddenReason} staff={c.body !== ''} />
           {editingId === c.id ? (
@@ -509,46 +624,51 @@ function Comments({ post, onCountChange }: { post: CommunityPostView; onCountCha
               }}
             />
           ) : (
-            c.body && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.body}</p>
+            c.body && <p className={s.commentBody}>{c.body}</p>
           )}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className={s.actions}>
             {c.canEdit && editingId !== c.id && (
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditingId(c.id)}>
+              <Button variant="ghost" size="sm" onClick={() => setEditingId(c.id)}>
                 {t('community.edit')}
-              </button>
+              </Button>
             )}
             {c.canDelete && (
-              <button type="button" className="btn btn-ghost btn-small" onClick={() => void remove(c.id)}>
+              <Button variant="ghost" size="sm" onClick={() => void remove(c.id)}>
                 {t('community.delete')}
-              </button>
+              </Button>
             )}
           </div>
         </div>
       ))}
       {cursor && (
-        <button type="button" className="btn btn-ghost btn-small" style={{ justifySelf: 'start' }} onClick={() => void load(cursor)}>
-          {t('community.loadMore')}
-        </button>
+        <div>
+          <Button variant="secondary" size="sm" onClick={() => void load(cursor)}>
+            {t('community.loadMore')}
+          </Button>
+        </div>
       )}
-      <form onSubmit={send} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <textarea
-          className="input"
-          rows={2}
-          style={{ flex: '1 1 240px' }}
-          maxLength={COMMUNITY_COMMENT_MAX}
-          placeholder={t('community.commentPlaceholder')}
-          aria-label={t('community.commentPlaceholder')}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-        />
-        <button className="btn" disabled={busy || !body.trim()}>
-          {t('community.sendComment')}
-        </button>
-      </form>
+      {post.hidden ? (
+        <p className={s.meta}>{t('community.commentsLocked')}</p>
+      ) : (
+        <form onSubmit={send} className={s.commentForm}>
+          <textarea
+            className={`input ${s.commentInput}`}
+            rows={2}
+            maxLength={COMMUNITY_COMMENT_MAX}
+            placeholder={t('community.commentPlaceholder')}
+            aria-label={t('community.commentPlaceholder')}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+          <Button type="submit" disabled={!body.trim()} loading={busy}>
+            {t('community.sendComment')}
+          </Button>
+        </form>
+      )}
       {error && (
-        <small role="alert" style={{ color: 'var(--err)' }}>
+        <p role="alert" className={s.error}>
           {error}
-        </small>
+        </p>
       )}
     </div>
   );

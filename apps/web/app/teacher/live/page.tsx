@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { formatUbDateTime, isoToUbLocal, type TeacherLiveItem } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
+import { EmptyState } from '../../ui/empty-state';
+import { Skeleton } from '../../ui/skeleton';
+import s from '../teacher.module.css';
 
 /** Улаанбаатарын өдөр (YYYY-MM-DD) бүрээр бүлэглэнэ. */
 function groupByDay(items: TeacherLiveItem[]): [string, TeacherLiveItem[]][] {
@@ -33,28 +36,35 @@ export default function TeacherLiveCalendarPage() {
   }, [router]);
 
   return (
-    <main className="page" style={{ display: 'grid', gap: 16 }}>
-      <Link href="/teacher/courses">{t('assignment.backToCourses')}</Link>
-      <h1 style={{ margin: 0 }}>{t('live.calendarTitle')}</h1>
-      <p className="muted" style={{ margin: 0 }}>
-        {t('live.calendarHint')}
-      </p>
+    <div className={s.page}>
+      <div className={s.stack}>
+        <h1 className={s.title}>{t('live.calendarTitle')}</h1>
+        <p className={s.lead}>{t('live.calendarHint')}</p>
+      </div>
       {error && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+        <p role="alert" className={s.error}>
           {error}
         </p>
       )}
+      {!items && !error && (
+        <div className={s.stack} aria-busy="true" aria-label={t('ui.loading')}>
+          <Skeleton height={96} radius={22} />
+          <Skeleton height={96} radius={22} />
+        </div>
+      )}
       {items?.length === 0 && (
-        <p className="muted" style={{ margin: 0 }}>
-          {t('live.calendarEmpty')}
-        </p>
+        <div className="card">
+          <EmptyState title={t('live.calendarEmpty')} />
+        </div>
       )}
       {items &&
         groupByDay(items).map(([day, dayItems]) => (
-          <section key={day} style={{ display: 'grid', gap: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>{day}</h2>
+          <section key={day} className={s.stack} aria-labelledby={`day-${day}`}>
+            <h2 id={`day-${day}`} className={s.sectionTitle}>
+              {day}
+            </h2>
             {dayItems.map((item) => (
-              <article key={item.lessonId} className="card" style={{ display: 'grid', gap: 4, padding: 12 }}>
+              <article key={item.lessonId} className={`card ${s.liveItem}`}>
                 <strong>{item.lessonTitle}</strong>
                 <span className="muted">{item.courseTitle}</span>
                 <span>{t('live.when', { startsAt: formatUbDateTime(item.startsAt), duration: item.durationMinutes })}</span>
@@ -62,7 +72,7 @@ export default function TeacherLiveCalendarPage() {
                   {t(item.state === 'LIVE' ? 'live.stateLIVE' : 'live.stateSCHEDULED')}
                   {!item.published && ` · ${t('live.calendarUnpublished')}`}
                 </span>
-                <span style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <span className={s.links}>
                   <Link href={`/teacher/courses/${item.courseId}`}>{t('live.calendarEdit')}</Link>
                   {item.meetingUrl && (
                     <a href={item.meetingUrl} target="_blank" rel="noopener noreferrer">
@@ -74,6 +84,6 @@ export default function TeacherLiveCalendarPage() {
             ))}
           </section>
         ))}
-    </main>
+    </div>
   );
 }

@@ -25,3 +25,8 @@ Thumbs.db
 
 # dev файл хадгалалт (Supabase-гүй үед)
 apps/api/.storage/
+
+# design skill артефактууд (том kit, screenshot)
+.scratch/design/taste-skill/assets/
+.scratch/design/taste-skill/shots/
+.scratch/design/**/.taste-skill/

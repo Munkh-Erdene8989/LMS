@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { AdminReportSummary, ExpiredCreditsReport, ReportSection } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { api } from '@/lib/client-api';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
-
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+import { Button } from '../../ui/button';
+import { ErrorLine, LoadingRows, Pill, errorText } from '../admin-ui';
+import styles from '../admin.module.css';
 
 /** Тайлан: орлого, кредит, борлуулалт, шилдэг курс/багш; test гүйлгээ тусад нь; дууссан кредит. */
 export default function AdminReportsPage() {
@@ -49,60 +49,95 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <main style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('adminOps.reportsTitle')}</h1>
-      <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <label>{t('adminOps.from')} <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label>{t('adminOps.to')} <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        <button type="submit" className="btn">{t('adminOps.show')}</button>
+    <div className={styles.stackLg}>
+      <h1 className={styles.title}>{t('adminOps.reportsTitle')}</h1>
+      <form onSubmit={submit} className={styles.dateRow}>
+        <label className={styles.field}>
+          {t('adminOps.from')}
+          <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className={styles.field}>
+          {t('adminOps.to')}
+          <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        <Button type="submit">{t('adminOps.show')}</Button>
       </form>
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
-      {!summary && !error && <p>{t('me.loading')}</p>}
+      {error && <ErrorLine>{error}</ErrorLine>}
+      {!summary && !error && <LoadingRows />}
       {summary && (
         <>
-          <h2 style={{ margin: 0 }}>{t('adminOps.liveSection')}</h2>
-          <SectionView s={summary.live} />
-          <p style={{ margin: 0 }}><strong>{t('adminOps.payoutsPaid', { amount: formatNumber(summary.payoutsPaidMnt) })}</strong></p>
+          <section className={styles.stack} aria-labelledby="rep-live">
+            <h2 id="rep-live" className={styles.subtitle}>
+              {t('adminOps.liveSection')}
+            </h2>
+            <SectionView s={summary.live} />
+            <p className={styles.line}>
+              <strong>{t('adminOps.payoutsPaid', { amount: formatMnt(summary.payoutsPaidMnt) })}</strong>
+            </p>
+          </section>
 
-          <h2 style={{ margin: 0 }}>{t('adminOps.topCourses')}</h2>
-          {summary.topCourses.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('adminOps.noRows')}</p> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead><tr><th>{t('adminOps.colCourse')}</th><th>{t('adminOps.colTeacher')}</th><th>{t('adminOps.colPurchases')}</th><th>{t('adminOps.colCredits')}</th><th>{t('adminOps.colGross')}</th></tr></thead>
-                <tbody>
-                  {summary.topCourses.map((c) => (
-                    <tr key={c.courseId}><td>{c.title}</td><td>{c.teacher.name ?? t('admin.someone')}</td><td>{formatNumber(c.purchases)}</td><td>{formatNumber(c.credits)}</td><td>{formatNumber(c.grossMnt)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <section className={styles.stack} aria-labelledby="rep-courses">
+            <h2 id="rep-courses" className={styles.subtitle}>
+              {t('adminOps.topCourses')}
+            </h2>
+            {summary.topCourses.length === 0 ? (
+              <p className={styles.hint}>{t('adminOps.noRows')}</p>
+            ) : (
+              <DataTable
+                title={t('adminOps.topCourses')}
+                head={[
+                  { label: t('adminOps.colCourse') },
+                  { label: t('adminOps.colTeacher') },
+                  { label: t('adminOps.colPurchases'), num: true },
+                  { label: t('adminOps.colCredits'), num: true },
+                  { label: t('adminOps.colGross'), num: true },
+                ]}
+                rows={summary.topCourses.map((c) => ({
+                  key: c.courseId,
+                  cells: [c.title, c.teacher.name ?? t('admin.someone'), formatNumber(c.purchases), formatNumber(c.credits), formatMnt(c.grossMnt)],
+                }))}
+              />
+            )}
+          </section>
 
-          <h2 style={{ margin: 0 }}>{t('adminOps.topTeachers')}</h2>
-          {summary.topTeachers.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('adminOps.noRows')}</p> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead><tr><th>{t('adminOps.colTeacher')}</th><th>{t('adminOps.colSales')}</th><th>{t('adminOps.colGross')}</th><th>{t('adminOps.colEarnings')}</th></tr></thead>
-                <tbody>
-                  {summary.topTeachers.map((x) => (
-                    <tr key={x.teacher.id}><td>{x.teacher.name ?? t('admin.someone')}</td><td>{formatNumber(x.sales)}</td><td>{formatNumber(x.grossMnt)}</td><td>{formatNumber(x.earningsMnt)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <section className={styles.stack} aria-labelledby="rep-teachers">
+            <h2 id="rep-teachers" className={styles.subtitle}>
+              {t('adminOps.topTeachers')}
+            </h2>
+            {summary.topTeachers.length === 0 ? (
+              <p className={styles.hint}>{t('adminOps.noRows')}</p>
+            ) : (
+              <DataTable
+                title={t('adminOps.topTeachers')}
+                head={[
+                  { label: t('adminOps.colTeacher') },
+                  { label: t('adminOps.colSales'), num: true },
+                  { label: t('adminOps.colGross'), num: true },
+                  { label: t('adminOps.colEarnings'), num: true },
+                ]}
+                rows={summary.topTeachers.map((x) => ({
+                  key: x.teacher.id,
+                  cells: [x.teacher.name ?? t('admin.someone'), formatNumber(x.sales), formatMnt(x.grossMnt), formatMnt(x.earningsMnt)],
+                }))}
+              />
+            )}
+          </section>
 
-          <section className="card" style={{ display: 'grid', gap: 12, borderStyle: 'dashed' }}>
-            <h2 style={{ margin: 0 }}>{t('adminOps.testSection')}</h2>
+          <section className={`${styles.item} ${styles.dashed}`} aria-labelledby="rep-test">
+            <h2 id="rep-test" className={styles.subtitle}>
+              {t('adminOps.testSection')}
+            </h2>
             <SectionView s={summary.test} />
           </section>
         </>
       )}
 
       {expired && (
-        <>
-          <h2 style={{ margin: 0 }}>{t('adminOps.expiredTitle')}</h2>
-          <p style={{ margin: 0 }}>
+        <section className={styles.stack} aria-labelledby="rep-expired">
+          <h2 id="rep-expired" className={styles.subtitle}>
+            {t('adminOps.expiredTitle')}
+          </h2>
+          <p className={styles.line}>
             {t('adminOps.expiredTotals', {
               credits: formatNumber(expired.live.credits),
               lots: formatNumber(expired.live.lots),
@@ -110,43 +145,93 @@ export default function AdminReportsPage() {
               testLots: formatNumber(expired.test.lots),
             })}
           </p>
-          <p className="muted" style={{ margin: 0 }}>
+          <p className={styles.hint}>
             {t('adminOps.upcoming', { live: formatNumber(expired.upcoming30d.live), test: formatNumber(expired.upcoming30d.test) })}
           </p>
-          {expired.items.length === 0 ? <p>{t('adminOps.noExpired')}</p> : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead><tr><th>{t('adminOps.colUser')}</th><th>{t('adminOps.colSource')}</th><th>{t('adminOps.colInitial')}</th><th>{t('adminOps.colExpired')}</th><th>{t('adminOps.colExpiresAt')}</th></tr></thead>
-                <tbody>
-                  {expired.items.map((r) => (
-                    <tr key={r.lotId}>
-                      <td>{[r.user.name ?? t('admin.someone'), r.user.phone, r.user.email].filter(Boolean).join(' · ')}{r.isTest && <span className="pill" style={{ marginLeft: 6 }}>{t('adminOps.testPill')}</span>}</td>
-                      <td>{t(`adminOps.entry${r.source}` as MessageKey)}</td>
-                      <td>{formatNumber(r.initial)}</td>
-                      <td>{formatNumber(r.expiredCredits)}</td>
-                      <td>{formatDate(r.expiresAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {expired.items.length === 0 ? (
+            <p className={styles.hint}>{t('adminOps.noExpired')}</p>
+          ) : (
+            <DataTable
+              title={t('adminOps.expiredTitle')}
+              head={[
+                { label: t('adminOps.colUser') },
+                { label: t('adminOps.colSource') },
+                { label: t('adminOps.colInitial'), num: true },
+                { label: t('adminOps.colExpired'), num: true },
+                { label: t('adminOps.colExpiresAt') },
+              ]}
+              rows={expired.items.map((r) => ({
+                key: r.lotId,
+                cells: [
+                  <>
+                    {[r.user.name ?? t('admin.someone'), r.user.phone, r.user.email].filter(Boolean).join(' · ')}
+                    {r.isTest && (
+                      <span className={styles.pills}>
+                        <Pill tone="neutral">{t('adminOps.testPill')}</Pill>
+                      </span>
+                    )}
+                  </>,
+                  t(`adminOps.entry${r.source}` as MessageKey),
+                  formatNumber(r.initial),
+                  formatNumber(r.expiredCredits),
+                  formatDate(r.expiresAt),
+                ],
+              }))}
+            />
           )}
-        </>
+        </section>
       )}
-    </main>
+    </div>
+  );
+}
+
+interface TableHead {
+  label: string;
+  num?: boolean;
+}
+
+function DataTable({ title, head, rows }: { title: string; head: TableHead[]; rows: { key: string; cells: ReactNode[] }[] }) {
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <caption>{title}</caption>
+        <thead>
+          <tr>
+            {head.map((h) => (
+              <th key={h.label} scope="col" className={h.num ? styles.num : undefined}>
+                {h.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              {r.cells.map((c, i) => (
+                <td key={i} className={head[i]?.num ? styles.num : i === 0 ? styles.wrap : undefined}>
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 function Stats({ title, rows }: { title: string; rows: [label: string, value: string][] }) {
   return (
-    <div className="card" style={{ display: 'grid', gap: 4, flex: '1 1 240px' }}>
+    <div className={styles.stat}>
       <strong>{title}</strong>
-      {rows.map(([l, v]) => (
-        <div key={l} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <span className="muted">{l}</span>
-          <span>{v}</span>
-        </div>
-      ))}
+      <dl className={styles.statList}>
+        {rows.map(([l, v]) => (
+          <div key={l} className={styles.statRow}>
+            <dt>{l}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -154,13 +239,13 @@ function Stats({ title, rows }: { title: string; rows: [label: string, value: st
 function SectionView({ s }: { s: ReportSection }) {
   const n = formatNumber;
   return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+    <div className={styles.stats}>
       <Stats
         title={t('adminOps.revenueTitle')}
         rows={[
-          [t('adminOps.revenueTotal'), mnt(s.revenue.totalMnt)],
-          [t('adminOps.revenueTopup'), mnt(s.revenue.topupMnt)],
-          [t('adminOps.revenueSubscription'), mnt(s.revenue.subscriptionMnt)],
+          [t('adminOps.revenueTotal'), formatMnt(s.revenue.totalMnt)],
+          [t('adminOps.revenueTopup'), formatMnt(s.revenue.topupMnt)],
+          [t('adminOps.revenueSubscription'), formatMnt(s.revenue.subscriptionMnt)],
           [t('adminOps.revenuePayments'), n(s.revenue.payments)],
         ]}
       />
@@ -180,9 +265,9 @@ function SectionView({ s }: { s: ReportSection }) {
         rows={[
           [t('adminOps.salesPurchases'), n(s.sales.purchases)],
           [t('adminOps.salesCredits'), n(s.sales.credits)],
-          [t('adminOps.salesGross'), mnt(s.sales.grossMnt)],
-          [t('adminOps.salesTeacher'), mnt(s.sales.teacherEarningsMnt)],
-          [t('adminOps.salesPlatform'), mnt(s.sales.platformMnt)],
+          [t('adminOps.salesGross'), formatMnt(s.sales.grossMnt)],
+          [t('adminOps.salesTeacher'), formatMnt(s.sales.teacherEarningsMnt)],
+          [t('adminOps.salesPlatform'), formatMnt(s.sales.platformMnt)],
         ]}
       />
     </div>

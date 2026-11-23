@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BRAND } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { fetchTeacher } from '@/lib/catalog';
+import { LinkButton } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
 import { CourseGrid } from '../../courses/catalog-ui';
+import s from './teachers.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,23 +32,34 @@ export default async function TeacherPage({ params }: { params: Params }) {
   if (!teacher) notFound();
 
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 24 }}>
-      <div className="teacher-box">
-        {teacher.avatarUrl ? <img className="avatar avatar-lg" src={teacher.avatarUrl} alt="" /> : <div className="avatar avatar-lg" />}
-        <div style={{ display: 'grid', gap: 4 }}>
-          <h1 style={{ margin: 0 }}>{teacher.name}</h1>
-          {teacher.expertise && <span className="muted">{teacher.expertise}</span>}
+    <div className="page wide">
+      <div className={s.stack}>
+        <div className={s.head}>
+          {teacher.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={s.avatar} src={teacher.avatarUrl} alt="" width={96} height={96} />
+          ) : (
+            <span className={`${s.avatar} ${s.initial}`} aria-hidden="true">
+              {teacher.name.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <div className={s.headText}>
+            <h1 className={s.name}>{teacher.name}</h1>
+            {teacher.expertise && <span className={s.expertise}>{teacher.expertise}</span>}
+          </div>
+          {/* Гишүүн эсэхийг community хуудас өөрөө шалгаж тайлбарлана */}
+          <LinkButton variant="secondary" className={s.action} href={`/communities/${teacher.id}`}>
+            {t('community.open')}
+          </LinkButton>
         </div>
-        {/* Гишүүн эсэхийг community хуудас өөрөө шалгаж тайлбарлана */}
-        <Link className="btn btn-ghost" style={{ marginLeft: 'auto' }} href={`/communities/${teacher.id}`}>
-          {t('community.open')}
-        </Link>
+        {teacher.bio && <p className={s.bio}>{teacher.bio}</p>}
+        <section aria-labelledby="teacher-courses">
+          <h2 id="teacher-courses" className={s.sectionTitle}>
+            {t('catalog.teacherCourses')}
+          </h2>
+          {teacher.courses.length === 0 ? <EmptyState title={t('catalog.noCourses')} /> : <CourseGrid courses={teacher.courses} />}
+        </section>
       </div>
-      {teacher.bio && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{teacher.bio}</p>}
-      <section>
-        <h2>{t('catalog.teacherCourses')}</h2>
-        {teacher.courses.length === 0 ? <p className="muted">{t('catalog.noCourses')}</p> : <CourseGrid courses={teacher.courses} />}
-      </section>
-    </main>
+    </div>
   );
 }

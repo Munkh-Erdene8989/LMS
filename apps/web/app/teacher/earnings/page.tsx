@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TeacherEarningEntryView, TeacherEarningsView } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
+import { Button } from '../../ui/button';
+import { EmptyState } from '../../ui/empty-state';
+import { Skeleton } from '../../ui/skeleton';
+import s from '../teacher.module.css';
 import { PayoutSection } from './payouts';
-
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
 
 /** Багшийн орлого: payout хийх боломжтой үлдэгдэл, борлуулалт бүрийн тооцоо (худалдах үеийн үнэ, шимтгэл). */
 export default function TeacherEarningsPage() {
@@ -49,45 +51,60 @@ export default function TeacherEarningsPage() {
 
   if (!view) {
     return (
-      <main className="page">
-        <p>{error ?? t('me.loading')}</p>
-      </main>
+      <div className={s.page}>
+        <h1 className={s.title}>{t('earnings.title')}</h1>
+        {error ? (
+          <p role="alert" className={s.error}>
+            {error}
+          </p>
+        ) : (
+          <div className={s.stats} aria-busy="true" aria-label={t('ui.loading')}>
+            <Skeleton height={88} radius={22} />
+            <Skeleton height={88} radius={22} />
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <main className="page wide" style={{ display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>{t('earnings.title')}</h1>
-      <div className="grid-2">
-        <section className="card credit-balance">
-          <span className="muted">{t('earnings.balance')}</span>
-          <strong>{mnt(view.balanceMnt)}</strong>
+    <div className={s.page}>
+      <h1 className={s.title}>{t('earnings.title')}</h1>
+      <div className={s.stats}>
+        <section className={`card ${s.stat}`}>
+          <span className={s.statLabel}>{t('earnings.balance')}</span>
+          <strong className={s.statValue}>{formatMnt(view.balanceMnt)}</strong>
         </section>
-        <section className="card credit-balance">
-          <span className="muted">{t('earnings.total')}</span>
-          <strong>{mnt(view.totalEarnedMnt)}</strong>
+        <section className={`card ${s.stat}`}>
+          <span className={s.statLabel}>{t('earnings.total')}</span>
+          <strong className={s.statValue}>{formatMnt(view.totalEarnedMnt)}</strong>
         </section>
       </div>
-      {view.testBalanceMnt !== 0 && <p className="muted" style={{ margin: 0 }}>{t('earnings.testBalance', { amount: formatNumber(view.testBalanceMnt) })}</p>}
-      <p className="muted" style={{ margin: 0 }}>
-        {t('earnings.formula')}
-      </p>
+      {view.testBalanceMnt !== 0 && <p className={s.hint}>{t('earnings.testBalance', { amount: formatMnt(view.testBalanceMnt) })}</p>}
+      <p className={s.hint}>{t('earnings.formula')}</p>
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
 
       <PayoutSection />
 
-      <section style={{ display: 'grid', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>{t('earnings.history')}</h2>
+      <section className={`card ${s.card}`}>
+        <h2 className={s.sectionTitle}>{t('earnings.history')}</h2>
         {items.length === 0 ? (
-          <p style={{ margin: 0 }}>{t('earnings.empty')}</p>
+          <EmptyState title={t('earnings.empty')} />
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table">
+          <div className={s.tableWrap}>
+            <table className={s.table}>
               <thead>
                 <tr>
-                  <th>{t('earnings.date')}</th>
-                  <th>{t('earnings.item')}</th>
-                  <th>{t('earnings.calc')}</th>
-                  <th style={{ textAlign: 'right' }}>{t('earnings.amount')}</th>
+                  <th scope="col">{t('earnings.date')}</th>
+                  <th scope="col">{t('earnings.item')}</th>
+                  <th scope="col">{t('earnings.calc')}</th>
+                  <th scope="col" className={s.num}>
+                    {t('earnings.amount')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -110,16 +127,16 @@ export default function TeacherEarningsPage() {
                         <small>
                           {t('earnings.calcValue', {
                             credits: formatNumber(e.credits),
-                            price: formatNumber(e.creditPriceMnt),
+                            price: formatMnt(e.creditPriceMnt),
                             commission: e.commissionPercent,
                           })}
                           {e.attribution && ` · ${t(`earnings.attribution${e.attribution}` as MessageKey)}`}
                         </small>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right', color: e.amountMnt < 0 ? 'var(--err)' : undefined }}>
+                    <td className={e.amountMnt < 0 ? `${s.num} ${s.neg}` : s.num}>
                       {e.amountMnt > 0 ? '+' : ''}
-                      {mnt(e.amountMnt)}
+                      {formatMnt(e.amountMnt)}
                     </td>
                   </tr>
                 ))}
@@ -128,11 +145,11 @@ export default function TeacherEarningsPage() {
           </div>
         )}
         {cursor && (
-          <button type="button" className="btn btn-ghost" onClick={() => void more()}>
+          <Button variant="secondary" className={s.startSelf} onClick={() => void more()}>
             {t('credits.loadMore')}
-          </button>
+          </Button>
         )}
       </section>
-    </main>
+    </div>
   );
 }

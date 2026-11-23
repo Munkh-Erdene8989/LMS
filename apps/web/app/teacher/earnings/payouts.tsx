@@ -1,15 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { PayoutView, TeacherPayoutsView } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
-
-const mnt = (n: number) => t('earnings.mnt', { amount: formatNumber(n) });
+import { Button } from '../../ui/button';
+import { useConfirm } from '../../ui/confirm';
+import { EmptyState } from '../../ui/empty-state';
+import { useToast } from '../../ui/toast';
+import s from '../teacher.module.css';
 
 /** Payout: боломжтой / түгжигдсэн үлдэгдэл, хүсэлт гаргах, хүсэлтийн түүх. */
 export function PayoutSection() {
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [view, setView] = useState<TeacherPayoutsView | null>(null);
   const [items, setItems] = useState<PayoutView[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -43,12 +49,19 @@ export function PayoutSection() {
   }
 
   async function request() {
-    if (!view || !window.confirm(t('payout.confirm', { amount: formatNumber(view.availableMnt) }))) return;
+    if (!view) return;
+    const ok = await confirm({
+      title: t('teacherUi.payoutConfirmTitle'),
+      body: t('payout.confirm', { amount: formatMnt(view.availableMnt) }),
+      confirmLabel: t('teacherUi.payoutConfirmLabel'),
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
       await api('/teacher/payouts', { method: 'POST' });
       await load();
+      toast(t('teacherUi.payoutRequested'));
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
     } finally {
@@ -56,58 +69,65 @@ export function PayoutSection() {
     }
   }
 
-  if (!view) return error ? <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p> : null;
+  if (!view)
+    return error ? (
+      <p role="alert" className={s.error}>
+        {error}
+      </p>
+    ) : null;
 
   return (
-    <section className="card" style={{ display: 'grid', gap: 12 }}>
-      <h2 style={{ margin: 0 }}>{t('payout.title')}</h2>
-      <div className="grid-2">
-        <div className="credit-balance">
-          <span className="muted">{t('payout.available')}</span>
-          <strong>{mnt(view.availableMnt)}</strong>
+    <section className={`card ${s.card}`}>
+      <h2 className={s.sectionTitle}>{t('payout.title')}</h2>
+      <div className={s.stats}>
+        <div className={s.stat}>
+          <span className={s.statLabel}>{t('payout.available')}</span>
+          <strong className={s.statValue}>{formatMnt(view.availableMnt)}</strong>
         </div>
         {view.lockedMnt > 0 && (
-          <div className="credit-balance">
-            <span className="muted">{t('payout.locked')}</span>
-            <strong>{mnt(view.lockedMnt)}</strong>
+          <div className={s.stat}>
+            <span className={s.statLabel}>{t('payout.locked')}</span>
+            <strong className={s.statValue}>{formatMnt(view.lockedMnt)}</strong>
           </div>
         )}
       </div>
-      <p className="muted" style={{ margin: 0 }}>
-        {t('payout.minimum', { amount: formatNumber(view.minimumMnt) })}
-      </p>
+      <p className={s.hint}>{t('payout.minimum', { amount: formatMnt(view.minimumMnt) })}</p>
 
       {view.blockReason ? (
-        <p style={{ margin: 0 }}>
-          {t(`payout.block${view.blockReason}` as MessageKey, { amount: formatNumber(view.minimumMnt) })}
+        <p className={s.lead}>
+          {t(`payout.block${view.blockReason}` as MessageKey, { amount: formatMnt(view.minimumMnt) })}
           {view.blockReason === 'NO_BANK_ACCOUNT' && (
             <>
               {' '}
-              <a href="/teacher/apply">{t('payout.addBank')}</a>
+              <Link href="/teacher/apply">{t('payout.addBank')}</Link>
             </>
           )}
         </p>
       ) : (
-        <div>
-          <button type="button" className="btn" disabled={busy} onClick={() => void request()}>
-            {t('payout.request', { amount: formatNumber(view.availableMnt) })}
-          </button>
-        </div>
+        <Button className={s.startSelf} loading={busy} onClick={() => void request()}>
+          {t('payout.request', { amount: formatMnt(view.availableMnt) })}
+        </Button>
       )}
-      {error && <p style={{ margin: 0, color: 'var(--err)' }}>{error}</p>}
+      {error && (
+        <p role="alert" className={s.error}>
+          {error}
+        </p>
+      )}
 
-      <h3 style={{ margin: 0 }}>{t('payout.history')}</h3>
+      <h3 className={s.sectionTitle}>{t('payout.history')}</h3>
       {items.length === 0 ? (
-        <p style={{ margin: 0 }}>{t('payout.empty')}</p>
+        <EmptyState title={t('payout.empty')} />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
+        <div className={s.tableWrap}>
+          <table className={s.table}>
             <thead>
               <tr>
-                <th>{t('payout.requestedAt')}</th>
-                <th>{t('payout.status')}</th>
-                <th>{t('payout.account')}</th>
-                <th style={{ textAlign: 'right' }}>{t('earnings.amount')}</th>
+                <th scope="col">{t('payout.requestedAt')}</th>
+                <th scope="col">{t('payout.status')}</th>
+                <th scope="col">{t('payout.account')}</th>
+                <th scope="col" className={s.num}>
+                  {t('earnings.amount')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -124,7 +144,7 @@ export function PayoutSection() {
                       {t(`banks.${p.bank}` as MessageKey)} · {p.accountNumber}
                     </small>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{mnt(p.amountMnt)}</td>
+                  <td className={s.num}>{formatMnt(p.amountMnt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -132,9 +152,9 @@ export function PayoutSection() {
         </div>
       )}
       {cursor && (
-        <button type="button" className="btn btn-ghost" onClick={() => void more()}>
+        <Button variant="secondary" className={s.startSelf} onClick={() => void more()}>
           {t('credits.loadMore')}
-        </button>
+        </Button>
       )}
     </section>
   );

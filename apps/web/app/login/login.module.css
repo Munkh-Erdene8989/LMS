@@ -1,0 +1,192 @@
+.page {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 48px 16px 64px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 6vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.card {
+  padding: 24px;
+}
+
+.flow {
+  display: grid;
+  gap: 16px;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--bg-alt);
+}
+
+.seg {
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--r-md) - 4px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color var(--d-fast) var(--ease),
+    color var(--d-fast) var(--ease);
+}
+
+.seg[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-1);
+}
+
+.seg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.invalid {
+  border-color: var(--err);
+}
+
+.error {
+  margin: 0;
+  color: var(--err);
+  font-size: 14px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.text {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.otp {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 48px);
+  justify-content: center;
+  gap: 8px;
+}
+
+.cell {
+  display: grid;
+  place-items: center;
+  height: 56px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--bg-alt);
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition:
+    transform var(--d-base) var(--spring),
+    border-color var(--d-fast) var(--ease),
+    background-color var(--d-fast) var(--ease);
+}
+
+.cellActive {
+  border-color: var(--accent);
+  background: var(--surface);
+  transform: scale(1.05);
+}
+
+.cellInvalid {
+  border-color: var(--err);
+}
+
+/* Жинхэнэ input нүднүүдийн дээр тунгалаг байрлана: paste, autofill, backspace бүгд эндээс. */
+.otpInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 24px;
+  opacity: 0.01;
+  cursor: text;
+}
+
+.smsCode {
+  margin: 0;
+  text-align: center;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .otp {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell,
+  .seg {
+    transition: none;
+  }
+  .cellActive {
+    transform: none;
+  }
+}

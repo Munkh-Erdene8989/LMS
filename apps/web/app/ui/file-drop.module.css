@@ -1,0 +1,159 @@
+.wrap {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.zone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 72px;
+  padding: var(--s-4);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-alt);
+  color: var(--fg-2);
+  cursor: pointer;
+  transition:
+    border-color var(--d-fast) var(--ease),
+    background-color var(--d-fast) var(--ease);
+}
+
+.zone:hover,
+.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.zone:focus-within {
+  box-shadow: var(--ring);
+}
+
+.off {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.off:hover {
+  border-color: var(--border);
+  background: var(--bg-alt);
+}
+
+.invalid {
+  border-color: var(--err);
+}
+
+/* Visually hidden, гэхдээ focus/screen reader-т хүрнэ. */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--fg);
+  font-weight: 600;
+  font-size: var(--fs-small);
+}
+
+.sub {
+  color: var(--muted);
+  font-size: var(--fs-micro);
+  font-weight: 400;
+}
+
+.progress {
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--bg-alt);
+  accent-color: var(--accent);
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--bg-alt);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.progress::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.selected {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-small);
+  font-weight: 400;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.size {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.clear {
+  flex: none;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.clear:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.error {
+  margin: 0;
+  color: var(--err);
+  font-size: var(--fs-small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone {
+    transition: none;
+  }
+}

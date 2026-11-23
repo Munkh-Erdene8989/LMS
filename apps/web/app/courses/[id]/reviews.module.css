@@ -1,0 +1,144 @@
+.root {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.stars {
+  color: var(--warn);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.starsOff {
+  color: var(--border);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.summaryNumber {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.form {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.label {
+  font-size: var(--fs-small);
+  font-weight: 500;
+}
+
+.starPicker {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.starBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--border);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--d-base) var(--spring),
+    color var(--d-fast) var(--ease);
+}
+
+.starBtn:active {
+  transform: scale(0.9);
+}
+
+.starOn {
+  color: var(--warn);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.review {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.reviewHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.replies {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+  padding-left: var(--s-3);
+  border-left: 3px solid var(--border);
+}
+
+.badge {
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+}
+
+.error,
+.errorText {
+  color: var(--err);
+}
+
+.error {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starBtn {
+    transition: none;
+  }
+}

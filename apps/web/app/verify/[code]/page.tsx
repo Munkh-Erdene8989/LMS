@@ -4,11 +4,13 @@ import { use, useEffect, useState } from 'react';
 import { formatCertificateCode, formatUbDateTime, type CertificateVerification } from '@lms/shared';
 import { api } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
+import { Skeleton } from '../../ui/skeleton';
 import { VerifyForm } from '../verify-form';
+import styles from '../verify.module.css';
 
 /**
  * Нийтийн verify хуудас (`/verify/<code>`, нэвтрэлтгүй) — сертификатын QR код энд заана. Ажил олгогч г.м
- * эзэмшигчийн нэр, курс, багш, огноог харж жинхэнэ эсэхийг шалгана.
+ * эзэмшигчийн нэр, курс, багш, огноог харж жинхэнэ эсэхийг шалгана. Layout өөрөө main-ийг өгнө.
  */
 export default function VerifyCertificatePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
@@ -21,37 +23,43 @@ export default function VerifyCertificatePage({ params }: { params: Promise<{ co
   }, [code]);
 
   return (
-    <main className="page" style={{ display: 'grid', gap: 16, maxWidth: 640 }}>
-      <h1 style={{ margin: 0 }}>{t('certificate.verifyTitle')}</h1>
-      {result === null && <p>{t('me.loading')}</p>}
+    <div className={`page-narrow ${styles.page}`}>
+      <h1 className={styles.title}>{t('certificate.verifyTitle')}</h1>
+      {result === null && (
+        <div className={styles.loading} aria-busy="true">
+          <span className={styles.srOnly}>{t('me.loading')}</span>
+          <Skeleton height="1.25rem" width="40%" />
+          <Skeleton height="6rem" radius="16px" />
+        </div>
+      )}
       {result === 'not-found' && (
-        <p role="alert" style={{ color: 'var(--err)', margin: 0 }}>
+        <p role="alert" className={styles.error}>
           {t('certificate.verifyNotFound')}
         </p>
       )}
       {result && result !== 'not-found' && (
-        <section className="card" style={{ display: 'grid', gap: 10 }}>
+        <section className={`card ${styles.result}`}>
           <strong className="done-mark">✓ {t('certificate.verifyValid')}</strong>
-          <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '6px 16px', margin: 0 }}>
+          <dl className={styles.list}>
             <dt className="muted">{t('certificate.verifyRecipient')}</dt>
-            <dd style={{ margin: 0, fontWeight: 700 }}>{result.recipientName}</dd>
+            <dd className={styles.strong}>{result.recipientName}</dd>
             <dt className="muted">{t('certificate.verifyCourse')}</dt>
-            <dd style={{ margin: 0 }}>{result.courseTitle}</dd>
+            <dd>{result.courseTitle}</dd>
             <dt className="muted">{t('certificate.verifyTeacher')}</dt>
-            <dd style={{ margin: 0 }}>{result.teacherName}</dd>
+            <dd>{result.teacherName}</dd>
             <dt className="muted">{t('certificate.verifyDate')}</dt>
-            <dd style={{ margin: 0 }}>{formatUbDateTime(result.issuedAt).slice(0, 10)}</dd>
+            <dd>{formatUbDateTime(result.issuedAt).slice(0, 10)}</dd>
             <dt className="muted">{t('certificate.verifyCode')}</dt>
-            <dd style={{ margin: 0, fontFamily: 'monospace' }}>{formatCertificateCode(result.code)}</dd>
+            <dd className={styles.mono}>{formatCertificateCode(result.code)}</dd>
           </dl>
         </section>
       )}
       {result !== null && (
-        <section style={{ display: 'grid', gap: 8 }}>
+        <section className={styles.again}>
           <small className="muted">{t('certificate.verifyAnother')}</small>
           <VerifyForm />
         </section>
       )}
-    </main>
+    </div>
   );
 }

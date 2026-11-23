@@ -50,6 +50,15 @@ describe('Deploy config', () => {
     expect(ci).toContain('schema=lms_test');
   });
 
+  it('Turbo (strict env mode): test task-д CI-ийн тестийн DB/Redis URL дамжина', () => {
+    const turbo = JSON.parse(read('turbo.json')) as {
+      tasks: { test: { passThroughEnv?: string[] } };
+    };
+    expect(turbo.tasks.test.passThroughEnv).toEqual(
+      expect.arrayContaining(['DATABASE_URL_TEST', 'REDIS_URL_TEST']),
+    );
+  });
+
   it('Vercel: web-ийн build shared-ийг хамт build хийнэ', () => {
     const vercel = JSON.parse(read('apps/web/vercel.json')) as { buildCommand: string };
     expect(vercel.buildCommand).toContain('@lms/web...');

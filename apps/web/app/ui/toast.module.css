@@ -1,0 +1,68 @@
+.region {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  width: min(calc(100% - 32px), 380px);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  box-shadow: var(--shadow-3);
+  overflow-wrap: anywhere;
+  animation: toast-in var(--d-slow) var(--spring) both;
+}
+
+.error {
+  background: var(--err);
+  color: var(--err-fg);
+}
+
+.out {
+  animation: toast-out var(--d-base) var(--ease-inout) forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.92);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+@keyframes toast-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes toast-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: toast-fade-in var(--d-fast) linear both;
+  }
+  .out {
+    animation: toast-fade-out var(--d-fast) linear forwards;
+  }
+}
