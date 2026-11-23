@@ -14,6 +14,7 @@ QPay / Mux ── callback / webhook ──────────────�
 
 - Browser API руу **зөвхөн web-ийн `/api/*` proxy-оор** хандана (auth cookie first-party). Тиймээс API-д `COOKIE_PATH_PREFIX=/api`.
 - Web-ийн server render API-г `API_URL`-ээр шууд дууддаг.
+- **Бүс (latency):** Supabase `ap-south-1` (Мумбай). Railway API ба Redis `asia-southeast1-eqsg3a` (Сингапур), Vercel function `sin1` (`apps/web/vercel.json` → `regions`). Бүгдийг нэг бүс орчим байлга — API ↔ DB хооронд query бүр round-trip хийдэг тул АНУ (`iad`) дээр ажиллуулахад хуудас бүр хэдэн секунд удааширдаг.
 - Railway дээр API нэг service: HTTP + BullMQ worker (`WORKERS_ENABLED=true`). Ирээдүйд тусдаа worker service болгохдоо нэгд нь `WORKERS_ENABLED=false`.
 
 ## 2. Орчнууд
@@ -47,8 +48,8 @@ Web талд Vercel build-д `API_URL` байхгүй бол build унана (`
 |---|---|---|
 | `NODE_ENV` | `production` (Dockerfile-д тохируулсан) | ✓ |
 | `PORT` | Railway өөрөө өгнө | — |
-| `DATABASE_URL` | Supabase → Project → Connect → **Transaction pooler** (port 6543) + `?pgbouncer=true` | ✓ |
-| `DIRECT_URL` | Supabase → Connect → **Session pooler** (port 5432). Зөвхөн migration (pre-deploy) ашиглана | ✓ |
+| `DATABASE_URL` | Railway дээр: `${{DIRECT_URL}}?connection_limit=8&pool_timeout=20` (Session pooler, 5432). API байнга ажилладаг процесс тул session pooler тохирно; transaction pooler + `pgbouncer=true` нь Prisma-д query бүрт ~5 round-trip (Мумбай DB-д ~0.7–1с) болдог. `connection_limit=1` бүү тавь — бүх хүсэлт ба BullMQ worker нэг холболтыг хүлээж P2024 timeout өгдөг. Supabase Free session pool нь ~15 холболт (prod + dev + migration нийлбэрээрээ) | ✓ |
+| `DIRECT_URL` | Supabase → Connect → **Session pooler** (port 5432). Migration (pre-deploy) ба `DATABASE_URL`-ийн суурь | ✓ |
 | `JWT_SECRET` | ≥ 32 тэмдэгт санамсаргүй: `openssl rand -base64 48`. Орчин бүрт өөр. Соливол бүх нэвтрэлт хүчингүй болно | ✓ |
 | `WEB_ORIGIN` | Web-ийн нийтийн хаяг, жишээ `https://lms.example.mn` (CORS + cookie) | ✓ |
 | `PUBLIC_WEB_URL` | Имэйл дэх линкийн суурь; ихэвчлэн `WEB_ORIGIN`-тай ижил | ✓ |
