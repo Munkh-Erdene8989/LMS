@@ -12,6 +12,7 @@ export async function DemoBadge() {
     <>
       <style
         nonce={nonce}
+        suppressHydrationWarning
         dangerouslySetInnerHTML={{
           __html:
             '.demo-badge{position:fixed;left:12px;bottom:12px;z-index:9999;padding:4px 10px;border-radius:999px;font:600 12px/1.4 var(--font-inter,system-ui,sans-serif);background:#1d1d1f;color:#fff;opacity:.85;pointer-events:none}',

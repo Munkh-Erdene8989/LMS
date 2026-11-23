@@ -1,9 +1,12 @@
 import { fetchHealth } from '@/lib/api';
 import { t } from '@/lib/i18n';
+import { pageMeta } from '@/lib/page-meta';
 import { SettingsPanel } from './settings-panel';
 import styles from './admin.module.css';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = pageMeta('admin.settingsTitle');
 
 export default async function AdminSettingsPage() {
   const health = await fetchHealth();

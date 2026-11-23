@@ -7,6 +7,7 @@ import { api } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { EmptyState } from '../../ui/empty-state';
+import { EmptyValue } from '../../ui/empty-value';
 import { ErrorLine, LoadingRows, Pill, errorText } from '../admin-ui';
 import styles from '../admin.module.css';
 
@@ -58,7 +59,7 @@ export default function CourseReviewQueuePage() {
                       ? t('course.pending', { count: i.course.pendingLessonCount })
                       : t('course.lessons', { count: i.course.lessonCount })}
                   </td>
-                  <td className={styles.nowrap}>{i.submittedAt ? formatDate(i.submittedAt) : '—'}</td>
+                  <td className={styles.nowrap}>{i.submittedAt ? formatDate(i.submittedAt) : <EmptyValue />}</td>
                 </tr>
               ))}
             </tbody>

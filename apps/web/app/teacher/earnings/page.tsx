@@ -102,7 +102,7 @@ export default function TeacherEarningsPage() {
                   <th scope="col">{t('earnings.date')}</th>
                   <th scope="col">{t('earnings.item')}</th>
                   <th scope="col">{t('earnings.calc')}</th>
-                  <th scope="col" className="num">
+                  <th scope="col" className={s.num}>
                     {t('earnings.amount')}
                   </th>
                 </tr>
@@ -134,7 +134,7 @@ export default function TeacherEarningsPage() {
                         </small>
                       )}
                     </td>
-                    <td className={e.amountMnt < 0 ? `num ${s.neg}` : 'num'}>
+                    <td className={e.amountMnt < 0 ? `${s.num} ${s.neg}` : s.num}>
                       {e.amountMnt > 0 ? '+' : ''}
                       {formatMnt(e.amountMnt)}
                     </td>

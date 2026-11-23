@@ -6,11 +6,13 @@ import {
   ASSIGNMENT_MAX_SCORE_LIMIT,
   AVAILABLE_LESSON_TYPES,
   COURSE_LEVELS,
+  COVER_MAX_BYTES,
   COVER_TYPES,
   isoToUbLocal,
   LIVE_DURATION_MAX,
   LIVE_DURATION_MIN,
   liveState,
+  PDF_MAX_BYTES,
   type CategoryNode,
   type CourseDetail,
   type LessonType,
@@ -28,12 +30,15 @@ import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../c
 import { Markdown } from '../../../markdown';
 import { Button } from '../../../ui/button';
 import { useConfirm } from '../../../ui/confirm';
+import { FileDrop } from '../../../ui/file-drop';
 import { Skeleton } from '../../../ui/skeleton';
 import { useToast } from '../../../ui/toast';
 import { PromptDialog } from '../../prompt-dialog';
 import s from '../../teacher.module.css';
 import { useUnsavedWarning } from '../../use-unsaved';
 import { QuizEditor, quizInputFrom } from './quiz-editor';
+
+const MB = 1024 * 1024;
 
 type Run = (fn: () => Promise<{ data: CourseDetail } | void>) => Promise<boolean>;
 
@@ -159,7 +164,7 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
     form.categoryId !== (course.categoryId ?? '') ||
     form.level !== course.level ||
     form.priceCredits !== (course.priceCredits === null ? '' : String(course.priceCredits));
-  useUnsavedWarning(dirty);
+  useUnsavedWarning(dirty || uploading);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -201,16 +206,16 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
             ) : (
               <div className={s.coverPreview} />
             )}
-            <label className={`btn btn-secondary ${s.fileBtn}`}>
-              {uploading ? t('course.uploading') : t('course.uploadCover')}
-              <input
-                className={s.srOnly}
-                type="file"
-                accept={COVER_TYPES.join(',')}
-                disabled={uploading}
-                onChange={(e) => e.target.files?.[0] && void uploadCover(e.target.files[0])}
-              />
-            </label>
+            <FileDrop
+              label={t('course.uploadCover')}
+              hint={t('ui.fileHint', { types: 'JPG/PNG/WEBP', max: COVER_MAX_BYTES / MB })}
+              accept={COVER_TYPES.join(',')}
+              maxBytes={COVER_MAX_BYTES}
+              disabled={locked}
+              progress={uploading || null}
+              progressLabel={t('course.uploading')}
+              onFile={(file) => void uploadCover(file)}
+            />
           </div>
           <label className={s.field}>
             {t('course.title')}
@@ -479,6 +484,7 @@ function SectionHeader({
 function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<LessonType>('TEXT');
+  useUnsavedWarning(title.trim() !== '');
   return (
     <form
       className={s.row}
@@ -572,7 +578,7 @@ function LessonEditor({
           maxScore !== maxScoreInitial ||
           liveChanged ||
           (lesson.type === 'QUIZ' && JSON.stringify(quiz) !== JSON.stringify(quizInputFrom(lesson.content))))));
-  useUnsavedWarning(dirty);
+  useUnsavedWarning(dirty || uploading);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -747,16 +753,15 @@ function LessonEditor({
           <div className={s.row}>
             <LessonContentPreview lesson={lesson} />
             {!contentLocked && (
-              <label className={`btn btn-secondary ${s.fileBtn}`}>
-                {uploading ? t('course.uploading') : t('course.uploadPdf')}
-                <input
-                  className={s.srOnly}
-                  type="file"
-                  accept="application/pdf"
-                  disabled={uploading}
-                  onChange={(e) => e.target.files?.[0] && void uploadPdf(e.target.files[0])}
-                />
-              </label>
+              <FileDrop
+                label={t('course.uploadPdf')}
+                hint={t('ui.fileHint', { types: 'PDF', max: PDF_MAX_BYTES / MB })}
+                accept="application/pdf"
+                maxBytes={PDF_MAX_BYTES}
+                progress={uploading || null}
+                progressLabel={t('course.uploading')}
+                onFile={(file) => void uploadPdf(file)}
+              />
             )}
           </div>
         )}
@@ -845,6 +850,7 @@ const VIDEO_POLL_MS = 10_000;
  */
 function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; content: VideoLessonContent; locked: boolean; run: Run }) {
   const [percent, setPercent] = useState<number | null>(null);
+  useUnsavedWarning(percent !== null);
   const allowed = !locked && videoUploadAllowed(lesson.reviewStatus, content);
   const pending = content.status === 'UPLOADING' || content.status === 'PROCESSING';
   const sync = useCallback(
@@ -875,20 +881,14 @@ function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; con
       {allowed && content.fromLive && lesson.reviewStatus === 'APPROVED' && <small className="muted">{t('video.recordingHint')}</small>}
       {allowed && (
         <div className={s.row}>
-          <label className={`btn btn-secondary ${s.fileBtn}`}>
-            {percent !== null ? t('video.uploadingPercent', { percent }) : content.status ? t('video.replace') : t('video.upload')}
-            <input
-              className={s.srOnly}
-              type="file"
-              accept="video/*"
-              disabled={percent !== null}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) void upload(file);
-              }}
-            />
-          </label>
+          <FileDrop
+            label={content.status ? t('video.replace') : t('video.upload')}
+            hint={t('video.fileHint')}
+            accept="video/*"
+            progress={percent}
+            progressLabel={percent !== null ? t('video.uploadingPercent', { percent }) : undefined}
+            onFile={(file) => void upload(file)}
+          />
           {pending && percent === null && (
             <Button variant="secondary" onClick={() => void sync()}>
               {t('video.check')}

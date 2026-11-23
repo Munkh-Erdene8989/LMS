@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
 import { Button } from '../../../../ui/button';
+import { FileDrop } from '../../../../ui/file-drop';
 import { useToast } from '../../../../ui/toast';
 import { LESSON_PROGRESS_EVENT } from './lesson-frame';
 import styles from './lesson.module.css';
@@ -128,10 +129,16 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
               aria-describedby={error ? errorId : undefined}
             />
           </label>
-          <label className={styles.field}>
-            {t('assignment.fileLabel', { max: ASSIGNMENT_FILE_MAX_BYTES / MB })}
-            <input type="file" className={styles.fileInput} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          </label>
+          <FileDrop
+            label={t('assignment.fileAttach')}
+            hint={t('assignment.fileLabel', { max: ASSIGNMENT_FILE_MAX_BYTES / MB })}
+            maxBytes={ASSIGNMENT_FILE_MAX_BYTES}
+            progress={busy && file ? true : null}
+            progressLabel={t('assignment.submitting')}
+            file={file}
+            onClear={() => setFile(null)}
+            onFile={setFile}
+          />
           {current && <p className={styles.meta}>{t('assignment.resubmitHint')}</p>}
           {error && (
             <p id={errorId} role="alert" className={styles.error}>

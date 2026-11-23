@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type {
@@ -15,6 +15,7 @@ import { formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../ui/button';
 import { Skeleton } from '../../ui/skeleton';
+import { EmptyValue } from '../../ui/empty-value';
 import s from '../teacher.module.css';
 
 type Metric = 'credits' | 'earningMnt' | 'sales';
@@ -27,8 +28,8 @@ const METRIC_LABEL: Record<Metric, MessageKey> = {
 const mnt = formatMnt;
 
 /** Секунд → `м:сс` (цаг бол `ц:мм:сс`) */
-function duration(sec: number | null): string {
-  if (sec === null) return '—';
+function duration(sec: number | null): ReactNode {
+  if (sec === null) return <EmptyValue />;
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const sc = String(Math.floor(sec % 60)).padStart(2, '0');
@@ -283,16 +284,16 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
             <thead>
               <tr>
                 <th scope="col">{t('analytics.period')}</th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.sales')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.credits')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.gross')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.earning')}
                 </th>
               </tr>
@@ -301,10 +302,10 @@ function SalesChart({ series, metric, onMetric }: { series: SalesPoint[]; metric
               {series.map((p) => (
                 <tr key={p.period}>
                   <td>{p.period}</td>
-                  <td className="num">{formatNumber(p.sales)}</td>
-                  <td className="num">{formatNumber(p.credits)}</td>
-                  <td className="num">{mnt(p.grossMnt)}</td>
-                  <td className="num">{mnt(p.earningMnt)}</td>
+                  <td className={s.num}>{formatNumber(p.sales)}</td>
+                  <td className={s.num}>{formatNumber(p.credits)}</td>
+                  <td className={s.num}>{mnt(p.grossMnt)}</td>
+                  <td className={s.num}>{mnt(p.earningMnt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -381,19 +382,19 @@ function Courses({ view }: { view: TeacherAnalyticsView }) {
             <thead>
               <tr>
                 <th scope="col">{t('analytics.course')}</th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.courseSales')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.lessonSales')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.credits')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.earning')}
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('analytics.completion')}
                 </th>
               </tr>
@@ -402,13 +403,13 @@ function Courses({ view }: { view: TeacherAnalyticsView }) {
               {view.courses.map((c) => (
                 <tr key={c.courseId}>
                   <td>{c.title}</td>
-                  <td className="num">{formatNumber(c.courseSales)}</td>
-                  <td className="num">{formatNumber(c.lessonSales)}</td>
-                  <td className="num">{formatNumber(c.credits)}</td>
-                  <td className="num">{mnt(c.earningMnt)}</td>
-                  <td className="num">
+                  <td className={s.num}>{formatNumber(c.courseSales)}</td>
+                  <td className={s.num}>{formatNumber(c.lessonSales)}</td>
+                  <td className={s.num}>{formatNumber(c.credits)}</td>
+                  <td className={s.num}>{mnt(c.earningMnt)}</td>
+                  <td className={s.num}>
                     {c.completionPercent === null
-                      ? '—'
+                      ? <EmptyValue />
                       : t('analytics.completionValue', {
                           percent: c.completionPercent,
                           done: formatNumber(c.completedLearners),
@@ -438,13 +439,13 @@ function Lessons({ view }: { view: TeacherAnalyticsView }) {
             <tr>
               <th scope="col">{t('analytics.lesson')}</th>
               <th scope="col">{t('analytics.course')}</th>
-              <th scope="col" className="num">
+              <th scope="col" className={s.num}>
                 {t('analytics.sales')}
               </th>
-              <th scope="col" className="num">
+              <th scope="col" className={s.num}>
                 {t('analytics.credits')}
               </th>
-              <th scope="col" className="num">
+              <th scope="col" className={s.num}>
                 {t('analytics.earning')}
               </th>
             </tr>
@@ -457,9 +458,9 @@ function Lessons({ view }: { view: TeacherAnalyticsView }) {
                   {l.archived && <small className="muted"> · {t('analytics.archived')}</small>}
                 </td>
                 <td>{titles.get(l.courseId) ?? ''}</td>
-                <td className="num">{formatNumber(l.sales)}</td>
-                <td className="num">{formatNumber(l.credits)}</td>
-                <td className="num">{mnt(l.earningMnt)}</td>
+                <td className={s.num}>{formatNumber(l.sales)}</td>
+                <td className={s.num}>{formatNumber(l.credits)}</td>
+                <td className={s.num}>{mnt(l.earningMnt)}</td>
               </tr>
             ))}
           </tbody>
@@ -529,19 +530,19 @@ function VideoSection({ view }: { view: TeacherAnalyticsView }) {
                 <thead>
                   <tr>
                     <th scope="col">{t('analytics.lesson')}</th>
-                    <th scope="col" className="num">
+                    <th scope="col" className={s.num}>
                       {t('analytics.duration')}
                     </th>
-                    <th scope="col" className="num">
+                    <th scope="col" className={s.num}>
                       {t('analytics.views')}
                     </th>
-                    <th scope="col" className="num">
+                    <th scope="col" className={s.num}>
                       {t('analytics.watchTime')}
                     </th>
-                    <th scope="col" className="num">
+                    <th scope="col" className={s.num}>
                       {t('analytics.avgWatch')}
                     </th>
-                    <th scope="col" className="num">
+                    <th scope="col" className={s.num}>
                       {t('analytics.learners')}
                     </th>
                     <th scope="col">{t('analytics.dropOff')}</th>
@@ -551,11 +552,11 @@ function VideoSection({ view }: { view: TeacherAnalyticsView }) {
                   {data.lessons.map((l) => (
                     <tr key={l.lessonId}>
                       <td>{l.title}</td>
-                      <td className="num">{duration(l.durationSeconds)}</td>
-                      <td className="num">{l.views === null ? '—' : formatNumber(l.views)}</td>
-                      <td className="num">{duration(l.watchTimeSeconds)}</td>
-                      <td className="num">{duration(l.avgWatchSecondsPerView)}</td>
-                      <td className="num">
+                      <td className={s.num}>{duration(l.durationSeconds)}</td>
+                      <td className={s.num}>{l.views === null ? <EmptyValue /> : formatNumber(l.views)}</td>
+                      <td className={s.num}>{duration(l.watchTimeSeconds)}</td>
+                      <td className={s.num}>{duration(l.avgWatchSecondsPerView)}</td>
+                      <td className={s.num}>
                         {formatNumber(l.learners)}
                         {l.learners > 0 && <small className="muted"> ({formatNumber(l.completedLearners)} ✓)</small>}
                       </td>
@@ -581,7 +582,7 @@ function DropOff({ buckets }: { buckets: DropOffBucket[] }) {
   const W = 120;
   const H = 28;
   const slot = W / buckets.length;
-  if (max === 0) return <span className="muted">—</span>;
+  if (max === 0) return <EmptyValue />;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={buckets.map((b) => `${b.fromPercent}%: ${b.learners}`).join(', ')}>
       <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} stroke="var(--border)" />

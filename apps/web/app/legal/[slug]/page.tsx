@@ -1,5 +1,6 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { LEGAL_SLUGS, type LegalDocType, type LegalDocView } from '@lms/shared';
+import { BRAND, LEGAL_SLUGS, type LegalDocType, type LegalDocView } from '@lms/shared';
 import { API_URL } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
@@ -10,6 +11,11 @@ export const dynamic = 'force-dynamic';
 
 function typeOf(slug: string): LegalDocType | null {
   return (Object.entries(LEGAL_SLUGS).find(([, x]) => x === slug)?.[0] as LegalDocType | undefined) ?? null;
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const type = typeOf((await params).slug);
+  return { title: type ? `${t(`legal.${type}`)} — ${BRAND.name}` : BRAND.name };
 }
 
 /** Нийтэд харагдах хууль эрх зүйн баримт (одоогийн, эсвэл `?version=N`). */

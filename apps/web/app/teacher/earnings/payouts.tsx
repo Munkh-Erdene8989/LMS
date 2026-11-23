@@ -125,7 +125,7 @@ export function PayoutSection() {
                 <th scope="col">{t('payout.requestedAt')}</th>
                 <th scope="col">{t('payout.status')}</th>
                 <th scope="col">{t('payout.account')}</th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('earnings.amount')}
                 </th>
               </tr>
@@ -144,7 +144,7 @@ export function PayoutSection() {
                       {t(`banks.${p.bank}` as MessageKey)} · {p.accountNumber}
                     </small>
                   </td>
-                  <td className="num">{formatMnt(p.amountMnt)}</td>
+                  <td className={s.num}>{formatMnt(p.amountMnt)}</td>
                 </tr>
               ))}
             </tbody>

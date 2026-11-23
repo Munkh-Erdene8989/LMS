@@ -4,7 +4,7 @@
 
 **Blocked by:** 34–42
 
-**Status:** done except browser QA (feat/43-polish-audit)
+**Status:** done; manual QA with API+DB pending (feat/43-polish-audit)
 
 ## Хийх
 - [x] Route бүрт `loading.tsx` (Skeleton), `aria-busy`; «Ачаалж байна…» зөвхөн screen-reader текст.
@@ -12,7 +12,8 @@
 - [x] Үлдсэн inline `style`, `type`-гүй `<button>`, `toFixed`, hard-code өнгө.
 - [x] Grep хаалга: `window.confirm` = 0, `type`-гүй `<button>` = 0, `transition: all` = 0, `outline: none` (ring-гүй) = 0, `#2563eb` = 0.
 - [x] `web-design-guidelines` skill-ээр `apps/web/app/**` дахин audit → `.scratch/design/web-guidelines/AUDIT-2.md`; HIGH 0, MEDIUM ≤ 5.
-- [ ] Browser QA (coordinator-д үлдсэн — энэ агент хийгээгүй) (integration дээр, `pnpm dev`): 390/768/1024/1440, light/dark, reduced-motion, keyboard-only: нэвтрэх → курс авах → lesson → кредит цэнэглэх. Demo флагтай ба флаггүй.
+- [x] Browser QA, хэсэгчлэн (2026-11-23, demo флагтай `pnpm dev` + headless Chrome): 390/768/1024/1440, light/dark, reduced-motion; catalog, course, lesson (assignment), learning. Олдсон: Chrome-д `mn-MN` Intl байхгүй тул огнооны hydration зөрөлт, nonce hydration анхааруулга, сунасан access pill. Бүгд засагдсан, console-д алдаа 0. AUDIT-2-ын MEDIUM 3, LOW 5 хаагдсан.
+- [ ] Үлдсэн гар QA (API + DB шаардлагатай, headless-д хийх боломжгүй): keyboard-only, нэвтрэх (OTP) → курс авах → кредит цэнэглэх (QPay), teacher editor дээрх FileDrop болон гарахад асуух dialog, demo флаггүй горим.
 
 ## Шалгах
 - typecheck, build, `pnpm test` ногоон.

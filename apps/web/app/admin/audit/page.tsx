@@ -7,6 +7,7 @@ import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { Button } from '../../ui/button';
 import { EmptyState } from '../../ui/empty-state';
+import { EmptyValue } from '../../ui/empty-value';
 import { ErrorLine, LoadingRows, errorText } from '../admin-ui';
 import styles from '../admin.module.css';
 
@@ -92,4 +93,4 @@ export default function AdminAuditPage() {
   );
 }
 
-const json = (v: unknown) => (v === null || v === undefined ? '—' : JSON.stringify(v));
+const json = (v: unknown) => (v === null || v === undefined ? <EmptyValue /> : JSON.stringify(v));

@@ -2,7 +2,9 @@
 
 import { formatUbDateTime, liveState, type LessonView, type LiveLessonContent, type VideoLessonContent } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
+
 import { Markdown } from './markdown';
+import { EmptyValue } from './ui/empty-value';
 import { VideoPlayer } from './video-player';
 import styles from './course-ui.module.css';
 
@@ -51,7 +53,7 @@ export function LessonContentPreview({ lesson }: { lesson: LessonView }) {
         {t('course.openPdf')}: {c.fileName} ({Math.round((c.size ?? 0) / 1024)} KB)
       </a>
     ) : (
-      <span className="muted">—</span>
+      <EmptyValue />
     );
   }
   if (c.type === 'QUIZ') {
@@ -59,7 +61,7 @@ export function LessonContentPreview({ lesson }: { lesson: LessonView }) {
     return (
       <div className={styles.stack}>
         <small className="muted">{t('quiz.passPercent', { percent: c.passPercent })}</small>
-        {c.questions.length === 0 && <span className="muted">—</span>}
+        {c.questions.length === 0 && <EmptyValue />}
         <ol className={styles.questions}>
           {c.questions.map((q) => {
             const correct = c.answerKey?.[q.id] ?? [];
@@ -100,8 +102,8 @@ export function LessonContentPreview({ lesson }: { lesson: LessonView }) {
   if (c.type === 'ASSIGNMENT') {
     return (
       <div className={styles.stackTight}>
-        <small className="muted">{c.maxScore ? t('assignment.maxScoreLabel', { max: c.maxScore }) : '—'}</small>
-        {c.instructions ? <Markdown source={c.instructions} /> : <span className="muted">—</span>}
+        <small className="muted">{c.maxScore ? t('assignment.maxScoreLabel', { max: c.maxScore }) : <EmptyValue />}</small>
+        {c.instructions ? <Markdown source={c.instructions} /> : <EmptyValue />}
       </div>
     );
   }

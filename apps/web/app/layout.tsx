@@ -43,7 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={BRAND.defaultLocale} className={inter.variable} suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
       <body>
         <ToastProvider>

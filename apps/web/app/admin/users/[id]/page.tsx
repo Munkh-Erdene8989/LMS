@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AdminUserDetail, CreditAdjustResult, EarningsAdjustResult } from '@lms/shared';
 import { api, ApiRequestError } from '@/lib/client-api';
-import { formatDate, formatDelta, formatMnt, formatNumber } from '@/lib/format';
+import { formatDate, formatDelta, formatMnt, formatMntDelta, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../../ui/button';
 import { useConfirm } from '../../../ui/confirm';
+import { EmptyValue } from '../../../ui/empty-value';
 import { ErrorLine, LoadingRows, Pill, errorText } from '../../admin-ui';
 import styles from '../../admin.module.css';
 
@@ -77,6 +78,7 @@ export default function AdminUserDetailPage() {
         <Table
           title={t('adminOps.ledger')}
           head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colType') }, { label: t('adminOps.colCredits'), num: true }, { label: t('adminOps.colReason') }]}
+          ids={u.ledger.map((x) => x.id)}
           rows={u.ledger.map((e) => [
             formatDate(e.createdAt),
             <>
@@ -84,7 +86,7 @@ export default function AdminUserDetailPage() {
               {e.isTest && test}
             </>,
             formatDelta(e.amount),
-            [e.reason, e.actor?.name].filter(Boolean).join(' · ') || '—',
+            [e.reason, e.actor?.name].filter(Boolean).join(' · ') || <EmptyValue />,
           ])}
         />
       </Section>
@@ -93,6 +95,7 @@ export default function AdminUserDetailPage() {
         <Table
           title={t('adminOps.purchases')}
           head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colItem') }, { label: t('adminOps.colCredits'), num: true }]}
+          ids={u.purchases.map((x) => x.id)}
           rows={u.purchases.map((p) => [
             formatDate(p.createdAt),
             <>
@@ -108,6 +111,7 @@ export default function AdminUserDetailPage() {
         <Table
           title={t('adminOps.payments')}
           head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colPurpose') }, { label: t('adminOps.colAmount'), num: true }, { label: t('adminOps.colStatus') }]}
+          ids={u.payments.map((x) => x.id)}
           rows={u.payments.map((p) => [
             formatDate(p.createdAt),
             <>
@@ -133,14 +137,15 @@ export default function AdminUserDetailPage() {
           <Table
             title={t('adminOps.earningsRecent')}
             head={[{ label: t('adminOps.colWhen') }, { label: t('adminOps.colType') }, { label: t('adminOps.colAmount'), num: true }, { label: t('adminOps.colReason') }]}
+            ids={u.earnings.recent.map((x) => x.id)}
             rows={u.earnings.recent.map((e) => [
               formatDate(e.createdAt),
               <>
                 {t(`adminOps.earn${e.type}` as MessageKey)}
                 {e.isTest && test}
               </>,
-              `${e.amountMnt > 0 ? '+' : ''}${formatMnt(e.amountMnt)}`,
-              e.reason ?? '—',
+              formatMntDelta(e.amountMnt),
+              e.reason ?? <EmptyValue />,
             ])}
           />
         </Section>
@@ -158,7 +163,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Table({ title, head, rows }: { title: string; head: { label: string; num?: boolean }[]; rows: ReactNode[][] }) {
+function Table({ title, head, ids, rows }: { title: string; head: { label: string; num?: boolean }[]; ids: string[]; rows: ReactNode[][] }) {
   if (rows.length === 0) return <p className={styles.hint}>{t('adminOps.noRows')}</p>;
   return (
     <div className={styles.tableWrap}>
@@ -175,7 +180,7 @@ function Table({ title, head, rows }: { title: string; head: { label: string; nu
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i}>
+            <tr key={ids[i]}>
               {r.map((c, j) => (
                 <td key={j} className={head[j]?.num ? styles.num : j === 0 ? styles.nowrap : styles.wrap}>
                   {c}
@@ -362,7 +367,7 @@ function EarningsAdjustForm({ user, onDone }: { user: AdminUserDetail; onDone: (
       deltaLabel={t('adminOps.earningsDelta')}
       path={`/admin/users/${user.id}/earnings/adjust`}
       bodyKey="amountMnt"
-      confirmText={(n) => t('adminOps.earningsConfirm', { amount: formatDelta(n) })}
+      confirmText={(n) => t('adminOps.earningsConfirm', { amount: formatMntDelta(n) })}
       doneText={(r) => t(r.replayed ? 'adminOps.adjustReplayed' : 'adminOps.adjustDone', { balance: formatMnt(r.balanceMnt) })}
       onDone={onDone}
       extra={

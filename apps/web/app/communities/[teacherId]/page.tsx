@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   COMMUNITY_COMMENT_MAX,
   COMMUNITY_IMAGE_MAX_BYTES,
+  COMMUNITY_IMAGE_TYPES,
   COMMUNITY_POST_MAX,
   formatUbDateTime,
   liveState,
@@ -27,6 +28,7 @@ import { useUnsavedWarning } from '../../teacher/use-unsaved';
 import { Button, LinkButton } from '../../ui/button';
 import { useConfirm } from '../../ui/confirm';
 import { EmptyState } from '../../ui/empty-state';
+import { FileDrop } from '../../ui/file-drop';
 import { Skeleton, SkeletonText } from '../../ui/skeleton';
 import s from '../communities.module.css';
 
@@ -312,20 +314,21 @@ function Composer({ teacherId, onPosted }: { teacherId: string; onPosted: (p: Co
           {body.length}/{COMMUNITY_POST_MAX}
         </span>
       </label>
-      <label className={s.field}>
-        <span className={s.hint}>{t('community.imageLabel', { max: COMMUNITY_IMAGE_MAX_BYTES / MB })}</span>
-        <input
-          className={s.fileInput}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-      </label>
+      <FileDrop
+        label={t('community.imageAttach')}
+        hint={t('community.imageLabel', { max: COMMUNITY_IMAGE_MAX_BYTES / MB })}
+        accept={COMMUNITY_IMAGE_TYPES.join(',')}
+        maxBytes={COMMUNITY_IMAGE_MAX_BYTES}
+        progress={busy && file ? true : null}
+        progressLabel={t('community.publishing')}
+        file={file}
+        onClear={() => setFile(null)}
+        onFile={setFile}
+      />
       {preview && (
         <div className={s.preview}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={s.previewImg} src={preview} alt="" width={64} height={64} />
-          <span>{file?.name}</span>
         </div>
       )}
       {error && (

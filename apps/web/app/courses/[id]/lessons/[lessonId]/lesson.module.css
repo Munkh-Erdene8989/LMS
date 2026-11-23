@@ -101,6 +101,7 @@
   display: grid;
   gap: var(--s-2);
   min-width: 0;
+  justify-items: start;
 }
 
 .title {
@@ -364,31 +365,6 @@
   gap: var(--s-1);
   font-size: var(--fs-small);
   font-weight: 500;
-}
-
-.fileInput {
-  font-size: var(--fs-small);
-  font-weight: 400;
-  color: var(--fg-2);
-}
-
-.fileInput::file-selector-button {
-  margin-right: var(--s-3);
-  min-height: 36px;
-  padding: 0 var(--s-4);
-  border: 1px solid var(--border);
-  border-radius: var(--r-pill);
-  background: var(--bg-alt);
-  color: var(--fg);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.fileInput:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-  border-radius: var(--r-sm);
 }
 
 .history {

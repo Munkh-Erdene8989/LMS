@@ -7,18 +7,22 @@ Method: grep + script sweeps over all of app/** (buttons incl. multi-line JSX, f
 None open. All 15 HIGH from AUDIT.md are resolved (focus-visible ring, reduced-motion, color-scheme + theme-color, shared Dialog/useConfirm with focus trap, OTP rewrite, nav aria-label/aria-current, skip link, single `<main id="main">`, visible labels, `type` on every button, 0 window.confirm, 44px targets, chart keyboard/tooltips).
 Verified gates: `<button` without type = 0 (script, multi-line aware); window.confirm/prompt = 0; `transition: all` = 0; `outline: none` without ring = 0 (remaining 10 are `:focus-visible` + `--ring` box-shadow, programmatic-focus containers `.main`/dialog, or `.card:has(:focus-visible)` for `.titleLink`); `#2563eb` = 0; own `<main` only in layout.tsx and global-error.tsx.
 
-## MEDIUM (open: 3)
-(many) - client pages have no per-route `<title>`; only layout.tsx:26 + generateMetadata in courses/page.tsx:31, courses/[id]/page.tsx:22, lessons/[lessonId]/page.tsx:20, teachers/[id]/page.tsx:15. admin/teacher/credits/me/etc. share the root title. Needs a server wrapper or `layout.tsx` metadata per segment.
-communities/[teacherId]/page.tsx:319, courses/[id]/lessons/[lessonId]/assignment-ui.tsx:133, teacher/courses/[id]/page.tsx:208,754,882 - raw `<input type="file">`: no drop zone / progress / size-type hint (preview exists only for avatar and community image).
-teacher/courses/[id]/page.tsx - long editor: unsaved-changes guard (`teacher/use-unsaved.ts`) covers 11 call sites but lesson sub-editors were not re-checked; confirm in browser QA.
+## MEDIUM (open: 0)
+All 3 closed in the follow-up pass below.
 
-## LOW (open: 6)
-globals.css:749 - `.num { text-align: right !important }`.
-course-ui.tsx:54,62,103, admin/users/[id]/page.tsx:143, admin/audit/page.tsx:95 - `-` placeholder as empty value, no accessible text.
-admin/users/[id]/page.tsx:178-180, admin/reports/page.tsx:211 - index keys on static table rows (stable data, no reorder).
-layout.tsx:24 - `force-dynamic` on whole app (CSP nonce); no static caching.
-site-header.tsx:75 - unread polling interval (throttling not re-audited).
-messages/mn.json - `adminOps.earningsConfirm` keeps `{amount}₮` (formatDelta needs the sign); label keys `credits.priceMnt`, `analytics.gross` etc. keep "(₮)" as unit headings; unused keys `earnings.mnt`, `adminOps.invoiceAmount` keep ₮. Not amounts rendered via NumberFormat.
+## LOW (open: 1, accepted)
+layout.tsx:24 - `force-dynamic` on whole app. Accepted: the CSP nonce differs per request (middleware.ts), so a static prerender would ship scripts without a nonce. Revisit only if CSP moves to hashes.
+
+## Follow-up pass (2026-11-23)
+- Per-route `<title>`: `lib/page-meta.ts` (`pageMeta(key)` -> «<title> — <brand>») + a server `layout.tsx` per client segment (31: admin/*, teacher/*, communities, credits, learning, login, me, notifications, r, subscription, verify); admin/page.tsx metadata; legal/[slug] generateMetadata. Verified via curl on the dev server.
+- File inputs: shared `ui/file-drop.tsx` (drop zone, sr-only focusable input, type/size hint, client type+size check with role=alert, selected name+size+remove, `<progress>` determinate/indeterminate). Used by community composer, assignment form, teacher cover/PDF/video.
+- Unsaved guard: `teacher/use-unsaved.ts` now also intercepts in-app link clicks (capture listener -> useConfirm, then router.push); one dialog even when several editors are dirty. Added for cover/PDF/video uploads in progress and the AddLesson draft title. The lesson sub-editor dirty check already covered title/price/preview/markdown/quiz/assignment/live.
+- `.num !important` removed: global `.num` deleted, teacher tables use module `s.num` (`.table .num` wins by specificity).
+- `—` placeholders -> `ui/empty-value.tsx` (aria-hidden dash + sr-only «Мэдээлэл алга»); global `.sr-only` utility added.
+- admin/users/[id] Table rows keyed by entity id (`ids` prop). reports cells keep column-index keys (fixed column order; rows already keyed).
+- site-header polling: interval skipped while `document.hidden`; route change / focus / visibilitychange share the 15s throttle.
+- ₮: `formatMntDelta` (signed + NBSP ₮) for earningsConfirm and earnings rows; unused `earnings.mnt`, `adminOps.invoiceAmount` deleted. Unit headings «(₮)» kept intentionally.
+- Found in browser QA: `formatDate`/`formatRelative` used Intl `mn-MN`, which Chrome's ICU lacks (falls back to en-US) -> server/client text mismatch (hydration error on course reviews) and device-timezone dates. Now locale-independent, Asia/Ulaanbaatar via `isoToUbLocal`. CSP nonce hydration warning suppressed on the two nonce tags. Lesson access pill no longer stretches (`justify-items: start`).
 
 ## Fixed in this pass
 - verify/page.tsx, verify/[code]/page.tsx, verify/verify-form.tsx: CSS module + `.page-narrow`, no own `<main>`, no inline style, visible `<label>`, `name`, `autoComplete="off"`, `enterKeyHint`, `aria-invalid`/`aria-describedby`, skeleton + aria-busy while loading (new keys certificate.verifyLabel/verifyPlaceholder).
@@ -38,8 +42,8 @@ messages/mn.json - `adminOps.earningsConfirm` keeps `{amount}₮` (formatDelta n
 | Severity | AUDIT.md | AUDIT-2.md | Notes |
 |---|---|---|---|
 | HIGH | 15 | 0 | all resolved |
-| MEDIUM | 28 | 3 | target was <= 5 |
-| LOW | 8 | 6 | |
-| Total | 51 | 9 | |
+| MEDIUM | 28 | 0 | 3 closed in follow-up pass |
+| LOW | 8 | 1 | force-dynamic accepted |
+| Total | 51 | 1 | |
 
 Pattern totals: `<button>` without type 103 -> 0; window.confirm 19 -> 0; form controls without id/label 88 -> 0 (script); `<img>` without dimensions 13 -> 0; inline `style` 100+ -> 0 non-variable (landing/skeleton only set custom props/size); `:focus-visible` 0 -> global + per-module; `prefers-reduced-motion` 0 -> global + module gates; `color-scheme` 0 -> set; skeleton/loading.tsx 0 -> 12 routes; toFixed in UI 0 (only use-scroll-progress `--p` CSS var).

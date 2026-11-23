@@ -87,7 +87,7 @@ export default function TeacherCoursesPage() {
               <tr>
                 <th scope="col">{t('teacherUi.colCourse')}</th>
                 <th scope="col">{t('teacherUi.colStatus')}</th>
-                <th scope="col" className="num">
+                <th scope="col" className={s.num}>
                   {t('teacherUi.colLessons')}
                 </th>
                 <th scope="col">{t('teacherUi.colUpdated')}</th>
@@ -107,7 +107,7 @@ export default function TeacherCoursesPage() {
                   <td>
                     <StatusBadge status={c.status} />
                   </td>
-                  <td className="num">
+                  <td className={s.num}>
                     {c.lessonCount}
                     {c.pendingLessonCount > 0 && <small className="muted"> · {t('course.pending', { count: c.pendingLessonCount })}</small>}
                   </td>

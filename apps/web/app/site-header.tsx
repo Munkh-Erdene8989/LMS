@@ -71,18 +71,23 @@ export function SiteHeader() {
 
   useEffect(() => {
     if (!authed) return;
-    poll();
-    const timer = setInterval(poll, POLL_MS);
+    // Route солих, focus, tab идэвхжих — бүгд throttle-той; далд tab-д interval хүсэлт явуулахгүй.
     const onFocus = () => {
-      if (Date.now() - lastPoll.current >= FOCUS_THROTTLE_MS) poll();
+      if (!document.hidden && Date.now() - lastPoll.current >= FOCUS_THROTTLE_MS) poll();
     };
+    onFocus();
+    const timer = setInterval(() => {
+      if (!document.hidden) poll();
+    }, POLL_MS);
     const onChanged = () => poll();
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
     window.addEventListener('notifications:changed', onChanged);
     window.addEventListener('credits:changed', onChanged);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('notifications:changed', onChanged);
       window.removeEventListener('credits:changed', onChanged);
     };
