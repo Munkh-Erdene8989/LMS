@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type {
   CardRegistrationStart,
   SubscriptionActionResult,
@@ -9,7 +8,7 @@ import type {
   SubscriptionPaymentView,
   SubscriptionPlanView,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '@/app/ui/button';
@@ -29,7 +28,7 @@ function creditsChanged(): void {
 }
 
 export default function SubscriptionPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const confirm = useConfirm();
   const { toast } = useToast();
   const [ov, setOv] = useState<SubscriptionOverview | null>(null);
@@ -43,10 +42,10 @@ export default function SubscriptionPage() {
 
   const onError = useCallback(
     (err: unknown) => {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-      else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      const msg = fail(err);
+      if (msg) setError(msg);
     },
-    [router],
+    [fail],
   );
 
   const reload = useCallback(async () => {

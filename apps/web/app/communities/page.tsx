@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { CommunitySummary } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatRelative } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button, LinkButton } from '../ui/button';
@@ -14,7 +13,7 @@ import s from './communities.module.css';
 
 /** Миний community-ууд: хичээлийг нь эзэмшдэг багш нарын community + өөрийнх (багш бол). */
 export default function CommunitiesPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [items, setItems] = useState<CommunitySummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -23,10 +22,10 @@ export default function CommunitiesPage() {
     api<CommunitySummary[]>('/communities')
       .then((r) => setItems(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/communities');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [router, attempt]);
+  }, [fail, attempt]);
 
   function retry() {
     setError(null);

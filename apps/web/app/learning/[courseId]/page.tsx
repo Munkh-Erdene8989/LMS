@@ -2,9 +2,8 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { MyCourseDetail, MyCourseLesson } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { LinkButton } from '../../ui/button';
 import { Skeleton } from '../../ui/skeleton';
@@ -16,7 +15,7 @@ import { CertificateCard } from './certificate-card';
 /** Эзэмшсэн курсийн хөтөлбөр: lesson бүрийн дууссан эсэх, видеоны хувь, quiz-ийн оноо. */
 export default function MyCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = use(params);
-  const router = useRouter();
+  const fail = useApiFailure();
   const [course, setCourse] = useState<MyCourseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,10 +23,10 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
     api<MyCourseDetail>(`/learning/courses/${courseId}`)
       .then((r) => setCourse(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace(`/login?next=/learning/${courseId}`);
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [courseId, router]);
+  }, [courseId, fail]);
 
   const back = (
     <Link href="/learning" className={styles.back}>

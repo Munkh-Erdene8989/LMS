@@ -5,7 +5,7 @@ import type { MuxPlayerRefAttributes } from '@mux/mux-player-react';
 // Lazy: player-ийн JS (~300 KB) зөвхөн видео харагдах үед ачаалагдана.
 import MuxPlayer from '@mux/mux-player-react/lazy';
 import type { LessonProgressView, PlaybackGrant } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, errorText } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
@@ -63,7 +63,7 @@ export function VideoPlayer({ lessonId, onProgress }: { lessonId: string; onProg
     try {
       setGrant((await api<PlaybackGrant>(`/media/lessons/${lessonId}/playback`, { method: 'POST', body: { deviceId: device.current } })).data);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     }
   }, [lessonId]);
 

@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { TeacherEarningEntryView, TeacherEarningsView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../ui/button';
@@ -14,7 +13,7 @@ import { PayoutSection } from './payouts';
 
 /** Багшийн орлого: payout хийх боломжтой үлдэгдэл, борлуулалт бүрийн тооцоо (худалдах үеийн үнэ, шимтгэл). */
 export default function TeacherEarningsPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [view, setView] = useState<TeacherEarningsView | null>(null);
   const [items, setItems] = useState<TeacherEarningEntryView[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -22,10 +21,10 @@ export default function TeacherEarningsPage() {
 
   const onError = useCallback(
     (err: unknown) => {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/earnings');
-      else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      const msg = fail(err);
+      if (msg) setError(msg);
     },
-    [router],
+    [fail],
   );
 
   useEffect(() => {

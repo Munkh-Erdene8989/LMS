@@ -1,6 +1,11 @@
 'use client';
 
 import type { ApiErrorBody } from '@lms/shared';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback } from 'react';
+import { demoMutationError, demoRead, isEmptyPayload, readJson } from './http';
+import { t } from './i18n';
+import { withNext } from './next-path';
 
 export class ApiRequestError extends Error {
   constructor(
@@ -58,58 +63,19 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     }
   } catch (err) {
     if (isGet) {
-      const demo = await demoFallback<T>(path);
+      const demo = await demoRead<T>(path);
       if (demo !== undefined) return { status: 200, data: demo };
     }
     throw err;
   }
 
-  const text = await res.text();
-  // Proxy/gateway алдаа HTML буцааж болно — JSON биш бол body-гүй гэж үзнэ (SyntaxError шидэхгүй).
-  let json: unknown = null;
-  if (text) {
-    try {
-      json = JSON.parse(text);
-    } catch {
-      json = null;
-    }
-  }
+  const json = await readJson(res);
   if (isGet && (!res.ok || isEmptyPayload(json))) {
-    const demo = await demoFallback<T>(path);
+    const demo = await demoRead<T>(path);
     if (demo !== undefined) return { status: 200, data: demo };
   }
   if (!res.ok) throw new ApiRequestError(res.status, json as ApiErrorBody | null);
   return { status: res.status, data: json as T };
-}
-
-/**
- * Түр demo (ticket 33b). Флагийг шууд `process.env.NEXT_PUBLIC_DEMO_DATA`-аар шалгана → флаггүй build-д салбар,
- * тэр дотрох динамик import (demo модуль бүхэлдээ) bundle-аас хасагдана.
- */
-async function demoFallback<T>(path: string): Promise<T | undefined> {
-  if (process.env.NEXT_PUBLIC_DEMO_DATA === '1') {
-    const { demoFor } = await import('./demo');
-    return demoFor(path) as T | undefined;
-  }
-  return undefined;
-}
-
-async function demoMutationError(path: string, body: unknown): Promise<ApiErrorBody | undefined> {
-  if (process.env.NEXT_PUBLIC_DEMO_DATA === '1') {
-    const { isDemoMutation, DEMO_MUTATION_MESSAGE } = await import('./demo');
-    return isDemoMutation(path, body) ? { code: 'DEMO_READONLY', message: DEMO_MUTATION_MESSAGE } : undefined;
-  }
-  return undefined;
-}
-
-/** Demo-д ашиглах: хоосон жагсаалт / `items` нь хоосон хуудас. */
-function isEmptyPayload(data: unknown): boolean {
-  if (Array.isArray(data)) return data.length === 0;
-  if (data && typeof data === 'object' && 'items' in data) {
-    const items = (data as { items: unknown }).items;
-    return Array.isArray(items) && items.length === 0;
-  }
-  return false;
 }
 
 /** Файл татах (PDF, CSV г.м). `api`-тай адил 401 бол refresh хийгээд нэг удаа давтана; энгийн `<a href>` token дууссан үед 401 авна. */
@@ -117,10 +83,7 @@ export async function apiDownload(path: string, filename: string): Promise<void>
   const send = () => fetch(`/api${path}`, { credentials: 'same-origin' });
   let res = await send();
   if (res.status === 401 && (await refreshOnce())) res = await send();
-  if (!res.ok) {
-    const text = await res.text();
-    throw new ApiRequestError(res.status, text ? (JSON.parse(text) as ApiErrorBody) : null);
-  }
+  if (!res.ok) throw new ApiRequestError(res.status, (await readJson(res)) as ApiErrorBody | null);
   const url = URL.createObjectURL(await res.blob());
   try {
     const a = document.createElement('a');
@@ -132,4 +95,36 @@ export async function apiDownload(path: string, filename: string): Promise<void>
   } finally {
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
+}
+
+/** Нэвтрэлт дууссан (refresh ч бүтээгүй) алдаа мөн эсэх. */
+export function isUnauthorized(err: unknown): err is ApiRequestError {
+  return err instanceof ApiRequestError && err.status === 401;
+}
+
+/** Алдааг хэрэглэгчид харуулах текст: API-ийн мессеж, эсвэл ерөнхий алдаа. */
+export function errorText(err: unknown): string {
+  return err instanceof ApiRequestError ? err.message : t('auth.genericError');
+}
+
+/**
+ * Хуудасны API алдааны нэг policy: 401 бол одоогийн хуудас руу буцах `?next=`-тэй login руу шилжүүлээд `null`,
+ * бусад үед харуулах текстийг буцаана.
+ *
+ *   const fail = useApiFailure();
+ *   api(...).catch((err) => { const msg = fail(err); if (msg) setError(msg); });
+ */
+export function useApiFailure(): (err: unknown) => string | null {
+  const router = useRouter();
+  const pathname = usePathname();
+  return useCallback(
+    (err: unknown) => {
+      if (isUnauthorized(err)) {
+        router.replace(withNext('/login', pathname));
+        return null;
+      }
+      return errorText(err);
+    },
+    [router, pathname],
+  );
 }

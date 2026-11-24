@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { formatUbDateTime, isoToUbLocal, type TeacherLiveItem } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { EmptyState } from '../../ui/empty-state';
 import { Skeleton } from '../../ui/skeleton';
@@ -22,7 +21,7 @@ function groupByDay(items: TeacherLiveItem[]): [string, TeacherLiveItem[]][] {
 
 /** Багшийн удахгүй болох шууд хичээлийн хуанли (SPEC story 63). */
 export default function TeacherLiveCalendarPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [items, setItems] = useState<TeacherLiveItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,10 +29,10 @@ export default function TeacherLiveCalendarPage() {
     api<TeacherLiveItem[]>('/teacher/live-lessons')
       .then((r) => setItems(r.data))
       .catch((err) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/live');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [router]);
+  }, [fail]);
 
   return (
     <div className={s.page}>

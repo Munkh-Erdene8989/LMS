@@ -2,9 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { BANKS, type BankAccountView, type BankCode, type MyTeacherApplication } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { Button, LinkButton } from '../../ui/button';
@@ -40,7 +39,7 @@ function formFrom(d: MyTeacherApplication): Form {
 }
 
 export default function TeacherApplyPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const { toast } = useToast();
   const [data, setData] = useState<MyTeacherApplication | null>(null);
   const [form, setForm] = useState<Form>(empty);
@@ -64,9 +63,9 @@ export default function TeacherApplyPage() {
     api<MyTeacherApplication>('/teacher/application')
       .then((r) => load(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
+        fail(err);
       });
-  }, [router]);
+  }, [fail]);
 
   const set = (k: keyof Form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -90,7 +89,7 @@ export default function TeacherApplyPage() {
       load(r.data);
       window.dispatchEvent(new Event('notifications:changed'));
     } catch (err) {
-      setMessage(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setMessage(errorText(err));
     } finally {
       setBusy(false);
     }
@@ -109,7 +108,7 @@ export default function TeacherApplyPage() {
       setSaved(form);
       toast(t('teacher.bankSaved'));
     } catch (err) {
-      setMessage(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setMessage(errorText(err));
     } finally {
       setBusy(false);
     }

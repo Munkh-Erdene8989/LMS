@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type {
   AnalyticsGranularity,
   CourseVideoAnalyticsView,
@@ -10,7 +9,7 @@ import type {
   SalesPoint,
   TeacherAnalyticsView,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../ui/button';
@@ -42,7 +41,7 @@ function duration(sec: number | null): ReactNode {
  * Орлогын дэлгэрэнгүй, payout — `/teacher/earnings`; referral линк — `/teacher/referral`.
  */
 export default function TeacherAnalyticsPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [view, setView] = useState<TeacherAnalyticsView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [granularity, setGranularity] = useState<AnalyticsGranularity>('day');
@@ -52,10 +51,10 @@ export default function TeacherAnalyticsPage() {
 
   const onError = useCallback(
     (err: unknown) => {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/analytics');
-      else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      const msg = fail(err);
+      if (msg) setError(msg);
     },
-    [router],
+    [fail],
   );
 
   const load = useCallback(
@@ -485,7 +484,7 @@ function VideoSection({ view }: { view: TeacherAnalyticsView }) {
       setError(null);
       api<CourseVideoAnalyticsView>(`/teacher/analytics/courses/${id}/video?from=${from}&to=${to}`)
         .then((r) => setData(r.data))
-        .catch((err: unknown) => setError(err instanceof ApiRequestError ? err.message : t('auth.genericError')))
+        .catch((err: unknown) => setError(errorText(err)))
         .finally(() => setLoading(false));
     },
     [from, to],

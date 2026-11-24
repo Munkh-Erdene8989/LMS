@@ -10,14 +10,13 @@ import {
   type ReviewView,
   type ReviewViewerState,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText } from '@/lib/client-api';
 import { formatDate, formatRating } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { withNext } from '@/lib/next-path';
 import { Button } from '../../ui/button';
 import styles from './reviews.module.css';
 
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 export function Stars({ rating }: { rating: number }) {
   return (

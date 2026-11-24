@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { ReferralLinkView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button } from '../../ui/button';
@@ -14,7 +13,7 @@ import s from '../teacher.module.css';
 
 /** Багшийн referral линк: хуулах товч, шимтгэлийн тайлбар, товч статистик. */
 export default function TeacherReferralPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const { toast, error: toastError } = useToast();
   const [view, setView] = useState<ReferralLinkView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,10 +24,10 @@ export default function TeacherReferralPage() {
     api<ReferralLinkView>('/teacher/referral')
       .then((r) => setView(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/referral');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [router]);
+  }, [fail]);
 
   if (!view) {
     return (

@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import type { AuthUser } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { LoadingRows } from './admin-ui';
 import { EmptyState } from '../ui/empty-state';
@@ -58,7 +58,7 @@ function isActive(pathname: string, href: string): boolean {
 
 /** Web-ийн шалгалт зөвхөн UX-д; бодит эрхийн шалгалт API дээр (`@Auth('ADMIN')`). */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
+  const fail = useApiFailure();
   const pathname = usePathname();
   const [state, setState] = useState<'loading' | 'ok' | 'forbidden'>('loading');
 
@@ -66,10 +66,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     api<AuthUser>('/me')
       .then((r) => setState(r.data.roles.includes('ADMIN') ? 'ok' : 'forbidden'))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-        else setState('forbidden');
+        if (fail(err) !== null) setState('forbidden');
       });
-  }, [router]);
+  }, [fail]);
 
   if (state === 'loading') {
     return (

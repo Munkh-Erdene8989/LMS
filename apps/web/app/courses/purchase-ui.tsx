@@ -11,7 +11,7 @@ import {
   type PurchaseResult,
   type ReferralLinkView,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, errorText } from '@/lib/client-api';
 import { formatCredits, formatNumber, formatPrice } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { withNext } from '@/lib/next-path';
@@ -349,7 +349,7 @@ function PurchaseDialog({
       .then((r) => setBalance(r.data.balance))
       .catch((err: unknown) => {
         if (err instanceof ApiRequestError && err.status === 401) router.push(withNext('/login', pathname));
-        else setMessage(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        else setMessage(errorText(err));
       });
   }, [router, pathname]);
 

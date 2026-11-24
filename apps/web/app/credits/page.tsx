@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type {
   CreditBalanceView,
   CreditEntryView,
@@ -10,7 +9,7 @@ import type {
   CreditPackageView,
   TopupView,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatCredits, formatDate, formatDelta, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { safeNext } from '@/lib/next-path';
@@ -73,7 +72,7 @@ function useCountUp(target: number): number {
 }
 
 export default function CreditsPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const { toast } = useToast();
   const [balance, setBalance] = useState<CreditBalanceView | null>(null);
   const [packages, setPackages] = useState<CreditPackageView[]>([]);
@@ -90,10 +89,10 @@ export default function CreditsPage() {
 
   const onError = useCallback(
     (err: unknown) => {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-      else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      const msg = fail(err);
+      if (msg) setError(msg);
     },
-    [router],
+    [fail],
   );
 
   const reload = useCallback(async () => {

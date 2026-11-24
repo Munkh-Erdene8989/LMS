@@ -11,7 +11,7 @@ import {
   type QuizAttemptView,
   type QuizContent,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, errorText } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { CheckIcon } from '../../../../learning/icons';
@@ -59,7 +59,7 @@ export function LessonLearning({
       .catch((err: unknown) => {
         if (!alive) return;
         if (err instanceof ApiRequestError && err.status === 401) setGuest(true);
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        else setError(errorText(err));
       });
     return () => {
       alive = false;
@@ -126,7 +126,7 @@ function CompleteButton({ lessonId, progress: initial }: { lessonId: string; pro
       toast(t('learning.markedComplete'));
       notifyProgress();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }
@@ -199,7 +199,7 @@ function QuizPlayer({ lessonId, quiz, initial }: { lessonId: string; quiz: QuizC
           setNow(Date.now());
         }
       }
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

@@ -1,7 +1,6 @@
 'use client';
 
 import { use, useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ASSIGNMENT_MAX_SCORE_LIMIT,
   AVAILABLE_LESSON_TYPES,
@@ -23,7 +22,7 @@ import {
   type VideoUploadTicket,
   videoUploadAllowed,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { uploadFile, uploadWithProgress } from '@/lib/upload';
 import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
@@ -44,7 +43,7 @@ type Run = (fn: () => Promise<{ data: CourseDetail } | void>) => Promise<boolean
 
 export default function CourseEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
+  const fail = useApiFailure();
   const { toast } = useToast();
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [categories, setCategories] = useState<CategoryNode[]>([]);
@@ -54,11 +53,11 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
     api<CourseDetail>(`/teacher/courses/${id}`)
       .then((r) => setCourse(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
     void api<CategoryNode[]>('/categories').then((r) => setCategories(r.data));
-  }, [id, router]);
+  }, [id, fail]);
 
   /** API дуудаад шинэ курсийн төлөвийг хүлээн авна; алдааг харуулна. */
   const run: Run = useCallback(async (fn) => {

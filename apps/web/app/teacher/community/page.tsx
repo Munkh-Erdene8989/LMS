@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { COMMUNITY_REMOVE_REASON_MAX, type AuthUser, type CommunityMember, type CommunityMemberPage } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button, LinkButton } from '../../ui/button';
@@ -14,7 +13,7 @@ import s from '../teacher.module.css';
 
 /** Багш: community-ийн гишүүд (худалдан авсан суралцагчид), хасах / сэргээх. */
 export default function TeacherCommunityPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [me, setMe] = useState<string | null>(null);
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
   const [page, setPage] = useState(1);
@@ -35,10 +34,10 @@ export default function TeacherCommunityPage() {
       setPageSize(m.data.pageSize);
       setMe(profile.data.id);
     } catch (err) {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/community');
-      else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      const msg = fail(err);
+      if (msg) setError(msg);
     }
-  }, [router, page]);
+  }, [fail, page]);
 
   useEffect(() => {
     void load();
@@ -52,7 +51,7 @@ export default function TeacherCommunityPage() {
       await api(`/teacher/community/members/${member.id}/${action}`, { method: 'POST', body });
       await load();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(null);
     }

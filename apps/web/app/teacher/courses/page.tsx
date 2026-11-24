@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CourseDetail, CourseSummary } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '../../course-ui';
@@ -15,6 +15,7 @@ import s from '../teacher.module.css';
 
 export default function TeacherCoursesPage() {
   const router = useRouter();
+  const fail = useApiFailure();
   const [courses, setCourses] = useState<CourseSummary[] | null>(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,10 +25,10 @@ export default function TeacherCoursesPage() {
     api<CourseSummary[]>('/teacher/courses')
       .then((r) => setCourses(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [router]);
+  }, [fail]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -37,7 +38,7 @@ export default function TeacherCoursesPage() {
       const r = await api<CourseDetail>('/teacher/courses', { method: 'POST', body: { title } });
       router.push(`/teacher/courses/${r.data.id}`);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
       setBusy(false);
     }
   }

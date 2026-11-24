@@ -10,7 +10,7 @@ import {
   type SubmissionView,
   type UploadTicket,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
@@ -40,7 +40,7 @@ export function SubmissionFileLink({ submissionId, file }: { submissionId: strin
             else window.location.href = r.data.url;
           } catch (err) {
             win?.close();
-            setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+            setError(errorText(err));
           }
         }}
       >
@@ -99,7 +99,7 @@ export function AssignmentPanel({ lessonId, initial }: { lessonId: string; initi
       toast(t('assignment.sent'));
       window.dispatchEvent(new Event(LESSON_PROGRESS_EVENT));
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

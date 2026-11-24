@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { PayoutView, TeacherPayoutsView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText } from '@/lib/client-api';
 import { formatDate, formatMnt, formatNumber } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../ui/button';
@@ -29,7 +29,7 @@ export function PayoutSection() {
       setItems(r.data.items);
       setCursor(r.data.nextCursor);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     }
   }, []);
 
@@ -44,7 +44,7 @@ export function PayoutSection() {
       setItems((prev) => [...prev, ...r.data.items]);
       setCursor(r.data.nextCursor);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     }
   }
 
@@ -63,7 +63,7 @@ export function PayoutSection() {
       await load();
       toast(t('teacherUi.payoutRequested'));
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

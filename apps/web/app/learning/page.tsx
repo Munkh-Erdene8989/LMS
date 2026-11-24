@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { formatUbDateTime, type CertificateView, type MyCourseCard } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { EmptyState } from '../ui/empty-state';
 import { LinkButton } from '../ui/button';
@@ -15,7 +14,7 @@ import styles from './learning.module.css';
 
 /** "Миний сургалт": эзэмшсэн курсууд (сүүлд үзсэн нь эхэнд), явцын хувь, нэг primary "Үргэлжлүүлэх". */
 export default function MyLearningPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const [items, setItems] = useState<MyCourseCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [certificates, setCertificates] = useState<CertificateView[]>([]);
@@ -30,10 +29,10 @@ export default function MyLearningPage() {
     api<MyCourseCard[]>('/learning/courses')
       .then((r) => setItems(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/learning');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       });
-  }, [router]);
+  }, [fail]);
 
   return (
     <div className={`page ${styles.page}`}>

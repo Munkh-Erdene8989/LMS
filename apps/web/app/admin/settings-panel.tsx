@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { SettingRevisionView, SettingView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { formatDate, formatNumber } from '@/lib/format';
 import { Button } from '../ui/button';
@@ -17,7 +17,7 @@ export function SettingsPanel() {
   useEffect(() => {
     api<SettingView[]>('/admin/settings')
       .then((r) => setSettings(r.data))
-      .catch((err: unknown) => setError(err instanceof ApiRequestError ? err.message : t('auth.genericError')));
+      .catch((err: unknown) => setError(errorText(err)));
   }, []);
 
   return (
@@ -56,7 +56,7 @@ function SettingRow({ setting, onSaved }: { setting: SettingView; onSaved: (s: S
       toast.toast(t('admin.saved'));
       if (history) await loadHistory();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setSaving(false);
     }

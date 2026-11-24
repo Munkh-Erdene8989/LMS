@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { NotificationItem, NotificationPage } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, useApiFailure } from '@/lib/client-api';
 import { formatDate, formatRelative } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button } from '../ui/button';
@@ -15,6 +15,7 @@ const changed = () => window.dispatchEvent(new Event('notifications:changed'));
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const fail = useApiFailure();
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -29,11 +30,10 @@ export default function NotificationsPage() {
         setItems((prev) => (before && prev ? [...prev, ...r.data.items] : r.data.items));
         setCursor(r.data.nextCursor);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-        else setError(true);
+        if (fail(err)) setError(true);
       }
     },
-    [router],
+    [fail],
   );
 
   useEffect(() => {

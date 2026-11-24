@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { formatCertificateCode, formatUbDateTime, type CertificateStatus, type CertificateView } from '@lms/shared';
-import { api, apiDownload, ApiRequestError } from '@/lib/client-api';
+import { api, apiDownload, errorText } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { Button, LinkButton } from '../../ui/button';
 import { useToast } from '../../ui/toast';
@@ -34,7 +34,7 @@ export function CertificateCard({ courseId }: { courseId: string }) {
     try {
       await fn();
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { LegalDocType, LegalStatus } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { Button } from '../../ui/button';
@@ -27,7 +27,7 @@ export function AcceptLegal({ slug, type, version }: { slug: string; type: Legal
       const r = await api<LegalStatus>(`/legal/${slug}/accept`, { method: 'POST', body: { version } });
       setStatus(r.data);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

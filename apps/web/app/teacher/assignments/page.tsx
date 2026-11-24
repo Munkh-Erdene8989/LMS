@@ -1,14 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useId, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ASSIGNMENT_COMMENT_MAX,
   type AssignmentInboxItem,
   type AssignmentInboxPage,
   type AssignmentInboxStatus,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { SubmissionFileLink } from '../../courses/[id]/lessons/[lessonId]/assignment-ui';
@@ -22,7 +21,7 @@ const STATUSES: AssignmentInboxStatus[] = ['UNREVIEWED', 'REVIEWED'];
 
 /** Багшийн даалгавар шалгах inbox: суралцагч × даалгавар бүрийн хамгийн сүүлийн илгээлт. */
 export default function AssignmentInboxPage() {
-  const router = useRouter();
+  const fail = useApiFailure();
   const uid = useId();
   const [status, setStatus] = useState<AssignmentInboxStatus>('UNREVIEWED');
   const [items, setItems] = useState<AssignmentInboxItem[] | null>(null);
@@ -38,11 +37,11 @@ export default function AssignmentInboxPage() {
         setCursor(r.data.nextCursor);
         setUnreviewed(r.data.unreviewedCount);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login?next=/teacher/assignments');
-        else setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+        const msg = fail(err);
+        if (msg) setError(msg);
       }
     },
-    [router, status],
+    [fail, status],
   );
 
   useEffect(() => {
@@ -133,7 +132,7 @@ function InboxCard({ item, onReviewed }: { item: AssignmentInboxItem; onReviewed
       toast(t('teacherUi.saved'));
       onReviewed(r.data);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

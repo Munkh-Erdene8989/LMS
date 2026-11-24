@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AuthUser, IdentifierType, NotificationPreferenceView } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { OtpFlow } from '../otp-flow';
 import { useUnsavedWarning } from '../teacher/use-unsaved';
@@ -14,6 +14,7 @@ import s from './me.module.css';
 
 export default function MePage() {
   const router = useRouter();
+  const fail = useApiFailure();
   const confirm = useConfirm();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [name, setName] = useState('');
@@ -28,10 +29,9 @@ export default function MePage() {
     api<AuthUser>('/me')
       .then((r) => load(r.data))
       .catch((err: unknown) => {
-        if (err instanceof ApiRequestError && err.status === 401) router.replace('/login');
-        else setStatus({ text: t('auth.genericError'), ok: false });
+        if (fail(err) !== null) setStatus({ text: t('auth.genericError'), ok: false });
       });
-  }, [router]);
+  }, [fail]);
 
   useEffect(() => {
     api<NotificationPreferenceView[]>('/notifications/preferences')

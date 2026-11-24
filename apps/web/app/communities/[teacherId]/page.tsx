@@ -2,7 +2,6 @@
 
 import { use, useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   COMMUNITY_COMMENT_MAX,
   COMMUNITY_IMAGE_MAX_BYTES,
@@ -19,7 +18,7 @@ import {
   type CommunityPostView,
   type UploadTicket,
 } from '@lms/shared';
-import { api, ApiRequestError } from '@/lib/client-api';
+import { api, ApiRequestError, errorText, useApiFailure } from '@/lib/client-api';
 import { formatDate, formatRelative } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { uploadFile } from '@/lib/upload';
@@ -33,12 +32,11 @@ import { Skeleton, SkeletonText } from '../../ui/skeleton';
 import s from '../communities.module.css';
 
 const MB = 1024 * 1024;
-const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
 
 /** Багшийн community: нийтлэл, сэтгэгдэл, like, pin, удахгүй болох live хичээлүүд. */
 export default function CommunityPage({ params }: { params: Promise<{ teacherId: string }> }) {
   const { teacherId } = use(params);
-  const router = useRouter();
+  const apiFail = useApiFailure();
   const [overview, setOverview] = useState<CommunityOverview | null>(null);
   const [pinned, setPinned] = useState<CommunityPostView[]>([]);
   const [posts, setPosts] = useState<CommunityPostView[] | null>(null);
@@ -49,12 +47,12 @@ export default function CommunityPage({ params }: { params: Promise<{ teacherId:
 
   const fail = useCallback(
     (err: unknown) => {
-      if (err instanceof ApiRequestError && err.status === 401) router.replace(`/login?next=/communities/${teacherId}`);
-      else if (err instanceof ApiRequestError && (err.code === 'COMMUNITY_MEMBERS_ONLY' || err.code === 'COMMUNITY_REMOVED'))
-        setDenied(err.code);
-      else setError(errorText(err));
+      if (err instanceof ApiRequestError && (err.code === 'COMMUNITY_MEMBERS_ONLY' || err.code === 'COMMUNITY_REMOVED'))
+        return setDenied(err.code);
+      const msg = apiFail(err);
+      if (msg) setError(msg);
     },
-    [router, teacherId],
+    [apiFail],
   );
 
   const loadPosts = useCallback(

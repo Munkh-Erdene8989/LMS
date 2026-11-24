@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
-import { ApiRequestError } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { Button } from '../ui/button';
 import { Dialog, DialogActions } from '../ui/dialog';
 import { Skeleton } from '../ui/skeleton';
 import styles from './admin.module.css';
 
-export const errorText = (err: unknown) => (err instanceof ApiRequestError ? err.message : t('auth.genericError'));
+export { errorText } from '@/lib/client-api';
 
 export function ErrorLine({ children }: { children: ReactNode }) {
   return (
