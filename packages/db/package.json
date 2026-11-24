@@ -12,7 +12,9 @@
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "migrate:deploy:prod": "prisma migrate deploy",
-    "studio": "dotenv -e ../../.env -- prisma studio"
+    "studio": "dotenv -e ../../.env -- prisma studio",
+    "demo:seed": "dotenv -e ../../.env -- node scripts/demo-course.mjs seed",
+    "demo:remove": "dotenv -e ../../.env -- node scripts/demo-course.mjs remove"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
