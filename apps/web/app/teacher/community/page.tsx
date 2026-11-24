@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { COMMUNITY_REMOVE_REASON_MAX, type AuthUser, type CommunityMember, type CommunityMemberPage } from '@lms/shared';
+import { COMMUNITY_REMOVE_REASON_MAX, type CommunityMember, type CommunityMemberPage } from '@lms/shared';
 import { api, errorText, useApiFailure } from '@/lib/client-api';
+import { useViewer } from '@/lib/viewer';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { Button, LinkButton } from '../../ui/button';
@@ -14,7 +15,7 @@ import s from '../teacher.module.css';
 /** Багш: community-ийн гишүүд (худалдан авсан суралцагчид), хасах / сэргээх. */
 export default function TeacherCommunityPage() {
   const fail = useApiFailure();
-  const [me, setMe] = useState<string | null>(null);
+  const me = useViewer().viewer.user?.id ?? null;
   const [members, setMembers] = useState<CommunityMember[] | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -25,14 +26,10 @@ export default function TeacherCommunityPage() {
 
   const load = useCallback(async () => {
     try {
-      const [m, profile] = await Promise.all([
-        api<CommunityMemberPage>(`/teacher/community/members?page=${page}`),
-        api<AuthUser>('/me'),
-      ]);
+      const m = await api<CommunityMemberPage>(`/teacher/community/members?page=${page}`);
       setMembers(m.data.items);
       setTotal(m.data.total);
       setPageSize(m.data.pageSize);
-      setMe(profile.data.id);
     } catch (err) {
       const msg = fail(err);
       if (msg) setError(msg);

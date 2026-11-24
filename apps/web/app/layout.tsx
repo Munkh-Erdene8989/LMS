@@ -6,6 +6,7 @@ import { Inter } from 'next/font/google';
 import { BRAND, LEGAL_DOC_TYPES, LEGAL_SLUGS } from '@lms/shared';
 import { t } from '@/lib/i18n';
 import { SiteHeader } from './site-header';
+import { ViewerProvider } from '@/lib/viewer';
 import { ConfirmProvider } from './ui/confirm';
 import { ToastProvider } from './ui/toast';
 import { DemoBadge } from './ui/demo-badge';
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
       <body>
+        <ViewerProvider>
         <ToastProvider>
         <ConfirmProvider>
         <a href="#main" className={styles.skip}>
@@ -71,6 +73,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </footer>
         </ConfirmProvider>
         </ToastProvider>
+        </ViewerProvider>
         <DemoBadge />
       </body>
     </html>

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BRAND, type AuthUser, type CreditBalanceView, type UnreadCount } from '@lms/shared';
+import { BRAND, type CreditBalanceView, type UnreadCount } from '@lms/shared';
 import { api } from '@/lib/client-api';
+import { useViewer } from '@/lib/viewer';
 import { t } from '@/lib/i18n';
 import { CreditPill } from './ui/credit-pill';
 import { Dialog } from './ui/dialog';
@@ -28,8 +29,10 @@ function isActive(pathname: string, href: string) {
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [authed, setAuthed] = useState<boolean | null>(null);
+  const { viewer, setUser } = useViewer();
+  const user = viewer.user;
+  // null = тодорхойгүй (уншиж байна); сүлжээний алдааг зочин мэт харуулна (өмнөхтэй адил).
+  const authed = viewer.status === 'loading' ? null : viewer.status === 'authed';
   const [unread, setUnread] = useState(0);
   const [balance, setBalance] = useState<number | null>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -38,25 +41,6 @@ export function SiteHeader() {
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const lastPoll = useRef(0);
-
-  // Auth төлөв: route бүрт шинэчилнэ.
-  useEffect(() => {
-    let alive = true;
-    api<AuthUser>('/me')
-      .then((r) => {
-        if (!alive) return;
-        setUser(r.data);
-        setAuthed(true);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setUser(null);
-        setAuthed(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [pathname]);
 
   // Unread + кредит: зөвхөн auth мэдэгдсэний дараа; interval + focus (throttle).
   const poll = useCallback(() => {
@@ -131,7 +115,6 @@ export function SiteHeader() {
     setSheetOpen(false);
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
     setUser(null);
-    setAuthed(false);
     setBalance(null);
     setUnread(0);
     router.replace('/login');
