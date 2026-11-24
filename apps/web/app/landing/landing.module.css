@@ -103,34 +103,47 @@
   text-wrap: balance;
 }
 
+/* Hero хөдөлгөөн: GSAP timeline (hero-motion.tsx). Нуугдсан эхний төлөв CSS-д БАЙХГҮЙ — JS-гүй бол бүгд харагдана. */
 .word {
   display: inline-block;
-  opacity: 0;
-  transform: translateY(0.4em);
-  animation: wordIn var(--d-hero) var(--ease-out) forwards;
-  animation-delay: calc(var(--i) * 70ms + 100ms);
 }
 
-@keyframes wordIn {
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.eyebrow {
+  margin-bottom: var(--s-2);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.heroLead,
-.heroCta {
-  opacity: 0;
-  animation: fadeIn var(--d-hero) var(--ease-out) forwards;
+.hero .eyebrow {
+  margin-bottom: var(--s-4);
+}
+
+.heroFrame {
+  max-width: 1088px;
+  margin: var(--s-7) auto 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-alt);
+  box-shadow: var(--shadow-3);
+  aspect-ratio: 1600 / 893;
+}
+
+.heroImg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .heroLead {
-  max-width: 34ch;
+  max-width: 40ch;
   margin: var(--s-5) auto 0;
   color: var(--fg-2);
   font-size: var(--fs-lead);
   line-height: 1.35;
-  animation-delay: 700ms;
 }
 
 .heroCta {
@@ -139,16 +152,9 @@
   gap: var(--s-4);
   justify-content: center;
   margin-top: var(--s-6);
-  animation-delay: 850ms;
 }
 
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
-}
-
-/* ===== LESSON STACK (--p) ===== */
+/* ===== LESSON STACK (GSAP scrub) ===== */
 .stage {
   position: relative;
   height: 130vh;
@@ -173,7 +179,6 @@
   border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: var(--shadow-3);
-  transform: scale(calc(0.82 + var(--p, 1) * 0.18));
   transform-origin: center top;
 }
 
@@ -234,8 +239,6 @@
   padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--bg-alt);
-  opacity: calc(0.35 + var(--p, 1) * 0.65);
-  transform: translateY(calc((1 - var(--p, 1)) * (var(--k) * 14px)));
 }
 
 .dot {
@@ -422,7 +425,7 @@
   transition: transform var(--d-base) var(--ease-out);
 }
 
-/* ===== STATEMENT (word highlight, --p × --n − --i) ===== */
+/* ===== STATEMENT (word highlight, GSAP scrub) ===== */
 .statement {
   padding-block: var(--s-10);
   background: var(--bg);
@@ -437,7 +440,7 @@
 }
 
 .sw {
-  color: color-mix(in srgb, var(--fg) calc(22% + clamp(0, var(--p, 1) * var(--n) - var(--i), 1) * 78%), transparent);
+  color: var(--fg);
 }
 
 /* ===== COURSES ===== */
@@ -471,33 +474,37 @@
   box-shadow: var(--shadow-1);
   color: inherit;
   text-decoration: none;
-  transition:
-    transform var(--d-slow) var(--spring),
-    box-shadow var(--d-slow) var(--spring);
 }
 
-@media (hover: hover) {
-  .course:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-2);
-  }
+.coverWrap {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  margin-bottom: var(--s-2);
+  border-radius: var(--r-lg);
+  background: var(--bg-alt);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow var(--d-base) var(--ease-out);
 }
 
 .cover {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  margin-bottom: var(--s-2);
-  border-radius: var(--r-md);
+  height: 100%;
   object-fit: cover;
+  transition: transform var(--d-base) var(--ease-out);
 }
 
-.coverGradient {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--h) 70% 52%),
-    hsl(calc(var(--h) + 50) 75% 38%)
-  );
+/* Hover: зөвхөн CSS — cover scale 1.03, shadow-2. */
+@media (hover: hover) and (pointer: fine) {
+  .course:hover .coverWrap {
+    box-shadow: var(--shadow-2);
+  }
+
+  .course:hover .cover {
+    transform: scale(1.03);
+  }
 }
 
 .courseTitle {
@@ -552,15 +559,23 @@
 
 .checks li {
   position: relative;
-  padding-left: 1.6em;
+  padding-left: 36px;
   color: var(--fg-2);
 }
 
 .checks li::before {
   content: '✓';
   position: absolute;
+  top: -0.05em;
   left: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-soft);
   color: var(--accent);
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 
@@ -712,10 +727,22 @@
 
 .planFeatured {
   border-color: var(--accent);
+  box-shadow: var(--shadow-2);
+}
+
+.planBadge {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .planPrice {
-  font-size: var(--fs-h2);
+  font-size: var(--fs-h1);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -773,14 +800,58 @@
 /* ===== CTA ===== */
 .cta {
   padding-block: var(--s-9);
-  background: var(--bg-alt);
-  text-align: center;
+  background: radial-gradient(ellipse at 20% 30%, var(--accent-soft), transparent 60%), var(--bg-alt);
 }
 
-.cta .wrap {
+.ctaGrid {
   display: grid;
-  justify-items: center;
+  gap: var(--s-7);
+  align-items: center;
+}
+
+.ctaCopy {
+  display: grid;
   gap: var(--s-4);
+  justify-items: start;
+}
+
+.photo,
+.ctaPhoto {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-alt);
+  box-shadow: var(--shadow-2);
+}
+
+.photoImg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Багшийн зураг: босоо зургийг өргөн хэлбэрт crop (дээд хэсгийг хадгална). */
+.photo {
+  aspect-ratio: 4 / 3;
+}
+
+.photo .photoImg {
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+
+.stack {
+  display: grid;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .ctaGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-8);
+  }
 }
 
 .cta h2 {
@@ -789,6 +860,7 @@
 
 .cta .lead {
   margin-top: 0;
+  max-width: 40ch;
 }
 
 @media (max-width: 640px) {
@@ -805,14 +877,6 @@
 
 /* ===== REDUCED MOTION: stack статик, бүх үг харагдана ===== */
 @media (prefers-reduced-motion: reduce) {
-  .word,
-  .heroLead,
-  .heroCta {
-    opacity: 1;
-    transform: none;
-    animation: none;
-  }
-
   .stage {
     height: auto;
   }
@@ -823,17 +887,8 @@
     padding-block: var(--s-6);
   }
 
-  .device,
-  .row {
-    transform: none;
-    opacity: 1;
-  }
-
-  .sw {
-    color: var(--fg);
-  }
-
-  .course,
+  .cover,
+  .coverWrap,
   .dots li,
   .calcBar i,
   .faqItem summary::after {

@@ -1,17 +1,9 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import type { CatalogCourseCard } from '@lms/shared';
 import { formatNumber, formatPrice, formatRating } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 import styles from './course-card.module.css';
-
-/** Cover-гүй курсийн gradient: id-ээс тодорхойлогдох (8 хувилбарын нэг). */
-const GRADIENTS = [styles.g0, styles.g1, styles.g2, styles.g3, styles.g4, styles.g5, styles.g6, styles.g7];
-
-function gradientFor(id: string): string | undefined {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return GRADIENTS[h % GRADIENTS.length];
-}
 
 export function levelLabel(level: string): string {
   return t(`course.level${level}` as MessageKey);
@@ -25,12 +17,21 @@ export function CourseCard({ course, owned = false }: { course: CatalogCourseCar
   const { teacher, rating } = course;
   return (
     <article className={styles.card}>
-      {course.coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- cover-ийн host тогтмол биш; width/height + aspect-ratio-оор CLS-гүй
-        <img className={styles.cover} src={course.coverUrl} alt="" width={640} height={400} loading="lazy" decoding="async" />
-      ) : (
-        <div className={`${styles.cover} ${styles.fallback} ${gradientFor(course.id) ?? ''}`} aria-hidden="true" />
-      )}
+      <div className={styles.media}>
+        {course.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- cover-ийн host тогтмол биш; width/height + aspect-ratio-оор CLS-гүй
+          <img className={styles.cover} src={course.coverUrl} alt="" width={640} height={400} loading="lazy" decoding="async" />
+        ) : (
+          <Image
+            className={styles.cover}
+            src="/images/course-cover-fallback.webp"
+            alt=""
+            aria-hidden="true"
+            fill
+            sizes="(min-width: 960px) 360px, (min-width: 640px) 50vw, 100vw"
+          />
+        )}
+      </div>
       <div className={styles.body}>
         {course.hasFreePreview && <span className={styles.preview}>{t('catalog.hasPreview')}</span>}
         <h3 className={styles.title}>

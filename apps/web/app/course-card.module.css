@@ -8,48 +8,34 @@
   border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: var(--shadow-1);
-  transition:
-    transform var(--d-slow) var(--spring),
-    box-shadow var(--d-base) var(--ease);
+  transition: box-shadow var(--d-base) var(--ease-out);
 }
 
-@media (hover: hover) {
+/* Hover: зөвхөн CSS — cover scale 1.03 (transform), card shadow. */
+@media (hover: hover) and (pointer: fine) {
   .card:hover {
-    transform: translateY(-4px);
     box-shadow: var(--shadow-2);
+  }
+
+  .card:hover .cover {
+    transform: scale(1.03);
   }
 }
 
-.card:has(:focus-visible) {
-  box-shadow: var(--ring);
-}
-
-.cover {
+.media {
   position: relative;
-  display: block;
-  width: 100%;
-  height: auto;
+  overflow: hidden;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
   background: var(--bg-alt);
 }
 
-.fallback {
-  display: flex;
-  align-items: flex-end;
-  padding: var(--s-4);
-  overflow: hidden;
-  color: #fff;
+.cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--d-base) var(--ease-out);
 }
-
-.g0 { background: linear-gradient(135deg, #0a58ca, #6f42c1); }
-.g1 { background: linear-gradient(135deg, #0f766e, #1d4ed8); }
-.g2 { background: linear-gradient(135deg, #b4236c, #c2410c); }
-.g3 { background: linear-gradient(135deg, #4338ca, #be185d); }
-.g4 { background: linear-gradient(135deg, #15803d, #0e7490); }
-.g5 { background: linear-gradient(135deg, #b45309, #be123c); }
-.g6 { background: linear-gradient(135deg, #1e40af, #0f766e); }
-.g7 { background: linear-gradient(135deg, #6d28d9, #0369a1); }
 
 .body {
   display: flex;

@@ -1,5 +1,5 @@
 import { t } from '@/lib/i18n';
-import { Reveal } from '../ui/reveal';
+import { ScrollReveal } from './scroll-reveal';
 import styles from './landing.module.css';
 
 const POSTS = [
@@ -11,7 +11,7 @@ const POSTS = [
 /** Нийгэмлэгийн жишээ feed (статик, тайлбарын зориулалттай). */
 export function CommunityPreview() {
   return (
-    <Reveal className={styles.feed}>
+    <ScrollReveal className={styles.feed}>
       <ul aria-label={t('landing.feedLabel')}>
         {POSTS.map((p) => (
           <li key={p.author + p.body} className={p.teacher ? undefined : styles.feedLearner}>
@@ -26,6 +26,6 @@ export function CommunityPreview() {
           </li>
         ))}
       </ul>
-    </Reveal>
+    </ScrollReveal>
   );
 }

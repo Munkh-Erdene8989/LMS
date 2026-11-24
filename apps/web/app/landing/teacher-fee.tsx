@@ -1,6 +1,6 @@
 import { formatCredits, formatMnt } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { Reveal } from '../ui/reveal';
+import { ScrollReveal } from './scroll-reveal';
 import { PLATFORM_FEE_PCT, REFERRAL_FEE_PCT, teacherEarningMnt, type VarStyle } from './constants';
 import styles from './landing.module.css';
 
@@ -13,7 +13,7 @@ export function TeacherFee() {
     { label: t('landing.feePlatform'), pct: PLATFORM_FEE_PCT, hi: false },
   ];
   return (
-    <Reveal className={styles.fee}>
+    <ScrollReveal className={styles.fee}>
       <p className={styles.feeTitle}>{t('landing.feeTitle', { credits: formatCredits(SAMPLE_CREDITS) })}</p>
       {rows.map((r) => (
         <div key={r.pct} className={`${styles.feeRow} ${r.hi ? styles.feeHi : ''}`}>
@@ -28,6 +28,6 @@ export function TeacherFee() {
         </div>
       ))}
       <p className={styles.note}>{t('landing.feeNote')}</p>
-    </Reveal>
+    </ScrollReveal>
   );
 }

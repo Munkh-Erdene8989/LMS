@@ -3,8 +3,7 @@
 import { useRef } from 'react';
 import { formatPrice } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { useScrollProgress } from '../ui/use-scroll-progress';
-import type { VarStyle } from './constants';
+import { gsap, onScrollTrigger, useGSAP } from '@/lib/gsap';
 import styles from './landing.module.css';
 
 const LESSONS = [
@@ -14,14 +13,32 @@ const LESSONS = [
   { title: 'landing.lesson4', meta: 'landing.lesson4Meta', price: 25, locked: true },
 ] as const;
 
-/** Moment 1: scroll-ээр card томорч, мөрүүд зэрэглэн орно (`--p`). Reduced-motion: статик. */
+/** Moment 1: scroll-ээр card томорч, мөрүүд зэрэглэн орно (GSAP scrub). Reduced-motion: статик. */
 export function LessonStack() {
   const ref = useRef<HTMLDivElement>(null);
-  useScrollProgress(ref);
+
+  useGSAP(
+    () =>
+      onScrollTrigger(() => {
+        const mm = gsap.matchMedia();
+        mm.add('(prefers-reduced-motion: no-preference)', () => {
+          gsap
+            .timeline({
+              defaults: { ease: 'none' },
+              scrollTrigger: { trigger: ref.current, start: 'top 90%', end: 'top 20%', scrub: 0.6 },
+            })
+            .fromTo('[data-m="device"]', { scale: 0.82 }, { scale: 1 }, 0)
+            .fromTo('[data-m="row"]', { y: (i: number) => (i + 1) * 14, opacity: 0.35 }, { y: 0, opacity: 1 }, 0);
+        });
+        return () => mm.revert();
+      }),
+    { scope: ref },
+  );
+
   return (
-    <div ref={ref} className={styles.stage}>
+    <div ref={ref} className={styles.stage} data-track-section="lesson_stack">
       <div className={styles.stageSticky}>
-        <div className={styles.device} role="group" aria-label={t('landing.stackLabel')}>
+        <div className={styles.device} data-m="device" role="group" aria-label={t('landing.stackLabel')}>
           <div className={styles.deviceTop}>
             <div>
               <p className={styles.deviceTitle}>{t('landing.stackTitle')}</p>
@@ -35,8 +52,8 @@ export function LessonStack() {
             </span>
           </div>
           <ul className={styles.rows}>
-            {LESSONS.map((l, i) => (
-              <li key={l.title} className={`${styles.row} ${l.locked ? styles.locked : ''}`} style={{ '--k': i + 1 } as VarStyle}>
+            {LESSONS.map((l) => (
+              <li key={l.title} className={`${styles.row} ${l.locked ? styles.locked : ''}`} data-m="row">
                 <span className={styles.dot} aria-hidden="true">
                   {l.locked ? '○' : '▶'}
                 </span>
