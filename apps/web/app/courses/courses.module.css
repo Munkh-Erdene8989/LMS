@@ -60,6 +60,10 @@
   scrollbar-width: none;
   overscroll-behavior-x: contain;
   padding-block: 2px;
+  /* Баруун ирмэгт fade: мөр scroll хийгддэгийг илтгэнэ; сүүлийн chip fade-ээс гарч ирэх зайтай. */
+  padding-inline-end: var(--s-6);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--s-6)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--s-6)), transparent);
 }
 
 .chips::-webkit-scrollbar {
