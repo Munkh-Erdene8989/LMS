@@ -5,7 +5,7 @@
  * бүх залгах цэг `if (DEMO_ENABLED)` хамгаалалттай тул энэ модуль (data.ts, cover.ts-тэй нь) bundle-д орохгүй.
  * Production-д энэ env-ийг ХЭЗЭЭ Ч тавихгүй.
  */
-import { analyticsPeriods, ubToday, addDays, type CatalogCourseCard, type CatalogPage, type SubscriptionOverview } from '@lms/shared';
+import { analyticsPeriods, DEFAULT_MONEY_RULES, ubToday, addDays, type CatalogCourseCard, type CatalogPage, type SubscriptionOverview } from '@lms/shared';
 import {
   DEMO_CATEGORIES,
   DEMO_COMMENTS,
@@ -108,13 +108,13 @@ function analytics(params: URLSearchParams) {
     sales: Math.round(totals.sales * 0.3),
     credits: Math.round(totals.credits * 0.3),
     grossMnt: Math.round(totals.grossMnt * 0.3),
-    earningMnt: Math.round(totals.grossMnt * 0.3 * 0.9),
+    earningMnt: Math.round((totals.grossMnt * 0.3 * (100 - DEFAULT_MONEY_RULES.commissionReferralPercent)) / 100),
   };
   const platform = {
     sales: totals.sales - referral.sales,
     credits: totals.credits - referral.credits,
     grossMnt: totals.grossMnt - referral.grossMnt,
-    earningMnt: Math.round((totals.grossMnt - referral.grossMnt) * 0.6),
+    earningMnt: Math.round(((totals.grossMnt - referral.grossMnt) * (100 - DEFAULT_MONEY_RULES.commissionPlatformPercent)) / 100),
   };
   return {
     range: { from, to, granularity, timezone: 'Asia/Ulaanbaatar' as const },

@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Prisma, PurchaseAttribution } from '@lms/db';
-import type { TeacherEarningEntryView, TeacherEarningsView } from '@lms/shared';
+import { saleEarning, type TeacherEarningEntryView, type TeacherEarningsView } from '@lms/shared';
 import { ApiError } from '../auth/errors';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Db } from './entitlements';
@@ -8,20 +8,10 @@ import type { Db } from './entitlements';
 type Tx = Prisma.TransactionClient;
 
 /**
- * Борлуулалтын орлого (₮). SPEC: зарцуулсан кредит × худалдах үеийн кредитийн ₮ үнэ × (1 − шимтгэл).
- * Бүхэл тоогоор: `gross = credits × creditPriceMnt`, `amount = floor(gross × (100 − commission%) / 100)`.
+ * Борлуулалтын орлогын томьёо `@lms/shared` (`money.ts`)-д — landing тооцоолуур ижил томьёог хэрэглэнэ.
  * Бутархай үлдэгдэл (≤ 0.99₮) платформд үлдэнэ — багшид хэзээ ч илүү бичигдэхгүй.
  */
-export function saleEarning(
-  credits: number,
-  creditPriceMnt: number,
-  commissionPercent: number,
-): { grossMnt: number; amountMnt: number } {
-  const grossMnt = credits * creditPriceMnt;
-  const amountMnt = Math.floor((grossMnt * (100 - commissionPercent)) / 100);
-  if (!Number.isSafeInteger(grossMnt) || grossMnt > 2_147_483_647) throw new Error('Earning amount overflow');
-  return { grossMnt, amountMnt };
-}
+export { saleEarning };
 
 export interface SaleEarningInput {
   teacherId: string;

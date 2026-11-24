@@ -1,11 +1,13 @@
 import {
   CATALOG_SORTS,
   COURSE_LEVELS,
+  DEFAULT_MONEY_RULES,
   type CatalogPage,
   type CatalogSort,
   type CategoryNode,
   type CourseLevel,
   type CourseReviewPage,
+  type MoneyRules,
   type PublicCourseDetail,
   type PublicLessonContent,
   type PublicTeacherProfile,
@@ -55,6 +57,10 @@ async function getPublic<T>(path: string, withViewer = false): Promise<T | null>
 export const fetchCategories = () => getPublic<CategoryNode[]>('/categories');
 export const fetchCourse = (id: string) =>
   getPublic<PublicCourseDetail>(`/catalog/courses/${encodeURIComponent(id)}`, true);
+/** Кредитийн ₮ үнэ ба шимтгэл (админы тохиргоо). API хүрэхгүй бол анхдагч утга — landing унахгүй. */
+export async function fetchMoneyRules(): Promise<MoneyRules> {
+  return (await getPublic<MoneyRules>('/catalog/money-rules').catch(() => null)) ?? DEFAULT_MONEY_RULES;
+}
 export const fetchTeacher = (id: string) => getPublic<PublicTeacherProfile>(`/catalog/teachers/${encodeURIComponent(id)}`);
 /** Lesson контент (PDF signed URL богино хугацаатай) — кэшлэхгүй. 403 = эрхгүй. */
 export async function fetchLesson(id: string): Promise<PublicLessonContent | 'locked' | null> {

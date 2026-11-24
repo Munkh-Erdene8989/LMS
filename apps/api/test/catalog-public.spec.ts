@@ -497,3 +497,23 @@ describe('End-to-end: зохиох → шалгах → каталог', () => {
     expect((await t.http().get(`/catalog/lessons/${newLesson.id}`).expect(200)).body.content).toEqual({ type: 'TEXT', markdown: 'Binary search' });
   });
 });
+
+describe('Мөнгөний дүрэм (landing)', () => {
+  afterEach(() => t.prisma.setting.deleteMany({ where: { key: { in: ['creditPriceMnt', 'commissionPlatformPercent'] } } }));
+
+  it('нэвтрэлтгүй, анхдагч утга', async () => {
+    const res = await t.http().get('/catalog/money-rules').expect(200);
+    expect(res.body).toEqual({ creditPriceMnt: 1000, commissionPlatformPercent: 40, commissionReferralPercent: 10 });
+  });
+
+  it('админы тохиргоог харуулна', async () => {
+    await t.prisma.setting.createMany({
+      data: [
+        { key: 'creditPriceMnt', value: 1200 },
+        { key: 'commissionPlatformPercent', value: 35 },
+      ],
+    });
+    const res = await t.http().get('/catalog/money-rules').expect(200);
+    expect(res.body).toEqual({ creditPriceMnt: 1200, commissionPlatformPercent: 35, commissionReferralPercent: 10 });
+  });
+});

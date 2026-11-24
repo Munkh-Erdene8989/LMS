@@ -5,7 +5,7 @@ import { formatCredits, formatMnt } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { gsap } from '@/lib/gsap';
 import { ScrollReveal } from './scroll-reveal';
-import { CREDIT_MNT, courseRemainingCredits, type VarStyle } from './constants';
+import { courseRemainingCredits, type VarStyle } from './constants';
 import styles from './landing.module.css';
 
 /** Жишээ курс (SPEC-д байхгүй, тайлбарын утга): 12 хичээл × 5 кр = 60, курс 45 кр. */
@@ -14,7 +14,7 @@ const LESSON_PRICE = 5;
 const COURSE_PRICE = 45;
 const MAX_OWNED = 9;
 
-export function CreditCalculator() {
+export function CreditCalculator({ creditPriceMnt }: { creditPriceMnt: number }) {
   const id = useId();
   const [owned, setOwned] = useState(2);
   const pay = courseRemainingCredits(COURSE_PRICE, owned, LESSON_PRICE);
@@ -53,7 +53,7 @@ export function CreditCalculator() {
     <ScrollReveal className={styles.calc}>
       <div className={styles.calcHead}>
         <span className={styles.calcLabel}>{t('landing.calcExample')}</span>
-        <span className={styles.calcRate}>{t('landing.calcRate', { mnt: formatMnt(CREDIT_MNT) })}</span>
+        <span className={styles.calcRate}>{t('landing.calcRate', { mnt: formatMnt(creditPriceMnt) })}</span>
       </div>
       <dl className={styles.calcRows}>
         <div>
@@ -95,7 +95,7 @@ export function CreditCalculator() {
           {formatCredits(pay)}
         </span>
         <span className={styles.calcSmall}>
-          {formatMnt(pay * CREDIT_MNT)} · {t('landing.calcSaved', { credits: formatCredits(saved) })}
+          {formatMnt(pay * creditPriceMnt)} · {t('landing.calcSaved', { credits: formatCredits(saved) })}
         </span>
       </div>
       <div className={styles.calcBar} aria-hidden="true">
