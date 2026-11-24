@@ -1,22 +1,30 @@
+/* Хөвөгч capsule: өндөр тогтмол (56px) → CLS 0. Урсгал дотор sticky тул агуулга доор нь орохгүй;
+   нийт эзлэх зай = margin 12 + 56 + 8 = --header-h (76px). */
 .header {
   position: sticky;
-  top: 0;
+  top: var(--s-3);
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: var(--s-4);
-  min-height: var(--header-h);
-  padding: 4px max(16px, env(safe-area-inset-right)) 4px max(16px, env(safe-area-inset-left));
-  padding-top: max(4px, env(safe-area-inset-top));
-  border-bottom: 1px solid transparent;
+  gap: var(--s-3);
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 1100px;
+  height: 56px;
+  margin: var(--s-3) auto var(--s-2);
+  padding: 0 var(--s-2) 0 var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
   background: var(--glass);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  transition: border-color var(--d-base) var(--ease);
+  box-shadow: var(--shadow-1), inset 0 1px 0 color-mix(in srgb, var(--fg) 8%, transparent);
+  transition: box-shadow var(--d-fast) var(--ease), background-color var(--d-fast) var(--ease);
 }
 
 .scrolled {
-  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  box-shadow: var(--shadow-2), inset 0 1px 0 color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 .header a:not(:global(.btn)) {
@@ -33,13 +41,12 @@
 .nav {
   display: none;
   gap: var(--s-1);
-  margin-right: auto;
 }
 
 .navLink {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 var(--s-3);
   border-radius: var(--r-pill);
   font-size: var(--fs-small);
@@ -57,6 +64,75 @@
 
 .navLink[aria-current='page'] {
   background: var(--bg-alt);
+}
+
+/* Хайлтын талбар: desktop дээр capsule дотор, mobile дээр icon товчоор нээгдэнэ */
+.search {
+  position: relative;
+  display: none;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 360px;
+  margin-left: auto;
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--s-3);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 var(--s-4) 0 calc(var(--s-3) + 16px + var(--s-2));
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-small);
+  transition: border-color var(--d-fast) var(--ease), background-color var(--d-fast) var(--ease), box-shadow var(--d-fast) var(--ease);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.searchInput::placeholder {
+  color: var(--muted);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.searchInput:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: var(--ring);
+}
+
+.searchClose,
+.searchBtn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.searchClose {
+  display: none;
+  flex: none;
 }
 
 .right {
@@ -192,17 +268,49 @@
   color: var(--accent);
 }
 
+/* Mobile: capsule = лого | хайлт icon | цэс. Хайлт нээгдэхэд лого/баруун тал нуугдаж input бүтэн өргөн болно */
+@media (max-width: 767.98px) {
+  .search {
+    max-width: none;
+  }
+
+  .right {
+    margin-left: auto;
+  }
+
+  .searching .brand,
+  .searching .right {
+    display: none;
+  }
+
+  .searching .search {
+    display: flex;
+  }
+
+  .searching .searchClose {
+    display: inline-grid;
+  }
+}
+
 @media (min-width: 768px) {
   .nav {
     display: flex;
   }
 
-  .account {
-    display: block;
+  .search {
+    display: flex;
+  }
+
+  .searchBtn {
+    display: none;
   }
 
   .right {
     margin-left: 0;
+  }
+
+  .account {
+    display: block;
   }
 
   .menuBtn {

@@ -40,7 +40,7 @@
 
 .bar {
   position: sticky;
-  top: var(--header-h);
+  top: calc(var(--header-h) - var(--s-2)); /* хөвөгч capsule-ийн ёроолтой шууд залгана */
   z-index: 5;
   display: grid;
   gap: var(--s-2);
@@ -60,6 +60,10 @@
   scrollbar-width: none;
   overscroll-behavior-x: contain;
   padding-block: 2px;
+  /* Баруун ирмэгт fade: мөр scroll хийгддэгийг илтгэнэ; сүүлийн chip fade-ээс гарч ирэх зайтай. */
+  padding-inline-end: var(--s-6);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--s-6)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--s-6)), transparent);
 }
 
 .chips::-webkit-scrollbar {
@@ -173,23 +177,26 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: var(--s-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.suggest {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+  color: var(--muted);
+  font-size: var(--fs-small);
 }
 
-@media (max-width: 600px) {
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.suggest .chips {
+  flex-wrap: wrap;
+  justify-content: center;
+  overflow: visible;
 }
 
 .pager {

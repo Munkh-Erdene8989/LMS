@@ -5,8 +5,9 @@
 
 .title {
   margin: 0;
-  font-size: var(--fs-h2);
-  letter-spacing: -0.03em;
+  font-size: var(--fs-h1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .muted {
