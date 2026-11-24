@@ -10,9 +10,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@gsap/react": "2.1.2",
     "@lms/shared": "workspace:*",
     "@mux/mux-player-react": "3.14.1",
     "@sentry/nextjs": "11.10.0",
+    "gsap": "3.15.1",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

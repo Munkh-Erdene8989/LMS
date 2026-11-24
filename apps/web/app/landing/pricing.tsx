@@ -7,7 +7,8 @@ import { formatCredits, formatMnt } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { EmptyState } from '../ui/empty-state';
 import { LinkButton } from '../ui/button';
-import { Reveal } from '../ui/reveal';
+import { TrackedLink } from './tracked-link';
+import { ScrollReveal } from './scroll-reveal';
 import { Skeleton } from '../ui/skeleton';
 import styles from './landing.module.css';
 
@@ -66,25 +67,28 @@ export function Pricing() {
   }
 
   return (
-    <Reveal className={styles.priceGrid}>
+    <ScrollReveal className={styles.priceGrid} each refresh>
       {state.packages.map((p) => (
         <article key={p.id} className={styles.plan}>
           <h3>{p.name}</h3>
           <p className={styles.planPrice}>{formatMnt(p.priceMnt)}</p>
           <p className={styles.planMeta}>{t('landing.packageMeta', { credits: formatCredits(p.credits) })}</p>
-          <LinkButton href="/credits" variant="secondary">
+          <TrackedLink id="pricing_package" href="/credits" variant="secondary">
             {t('landing.packageCta')}
-          </LinkButton>
+          </TrackedLink>
         </article>
       ))}
       {state.plans.map((p) => (
-        <article key={p.id} className={`${styles.plan} ${styles.planFeatured}`}>
+        <article key={p.id} className={`${styles.plan} ${styles.planFeatured}`} data-lift>
+          <span className={styles.planBadge}>{t('landing.planBadge')}</span>
           <h3>{p.name}</h3>
           <p className={styles.planPrice}>{formatMnt(p.priceMnt)}</p>
           <p className={styles.planMeta}>{t('landing.planMeta', { credits: formatCredits(p.credits) })}</p>
-          <LinkButton href="/subscription">{t('landing.planCta')}</LinkButton>
+          <TrackedLink id="pricing_plan" href="/subscription">
+            {t('landing.planCta')}
+          </TrackedLink>
         </article>
       ))}
-    </Reveal>
+    </ScrollReveal>
   );
 }

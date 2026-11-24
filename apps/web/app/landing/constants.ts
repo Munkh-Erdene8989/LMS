@@ -13,11 +13,4 @@ export function courseRemainingCredits(coursePrice: number, ownedLessons: number
   return Math.max(0, coursePrice - ownedLessons * lessonPrice);
 }
 
-/** Cover байхгүй үед курсийн id-аас тодорхойлогдох gradient-ийн өнгө (hue). */
-export function hueFromId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-  return h;
-}
-
 export type VarStyle = React.CSSProperties & Record<`--${string}`, string | number>;

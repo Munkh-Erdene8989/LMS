@@ -1,9 +1,10 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { formatCredits, formatMnt } from '@/lib/format';
 import { t } from '@/lib/i18n';
-import { Reveal } from '../ui/reveal';
+import { gsap } from '@/lib/gsap';
+import { ScrollReveal } from './scroll-reveal';
 import { CREDIT_MNT, courseRemainingCredits, type VarStyle } from './constants';
 import styles from './landing.module.css';
 
@@ -18,8 +19,38 @@ export function CreditCalculator() {
   const [owned, setOwned] = useState(2);
   const pay = courseRemainingCredits(COURSE_PRICE, owned, LESSON_PRICE);
   const saved = COURSE_PRICE - pay;
+
+  // Харагдах том тоо 0.5s counter-оор өөрчлөгдөнө; aria-live-д эцсийн утга шууд очно (доорх srOnly).
+  const bigRef = useRef<HTMLSpanElement>(null);
+  const shown = useRef(pay);
+  useLayoutEffect(() => {
+    const el = bigRef.current;
+    if (!el) return;
+    const from = shown.current;
+    shown.current = pay;
+    if (from === pay || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.textContent = formatCredits(pay);
+      return;
+    }
+    const counter = { v: from };
+    el.textContent = formatCredits(from);
+    const tween = gsap.to(counter, {
+      v: pay,
+      duration: 0.5,
+      ease: 'power2.out',
+      onUpdate: () => {
+        el.textContent = formatCredits(Math.round(counter.v));
+      },
+      onComplete: () => {
+        el.textContent = formatCredits(pay);
+      },
+    });
+    return () => {
+      tween.kill();
+    };
+  }, [pay]);
   return (
-    <Reveal className={styles.calc}>
+    <ScrollReveal className={styles.calc}>
       <div className={styles.calcHead}>
         <span className={styles.calcLabel}>{t('landing.calcExample')}</span>
         <span className={styles.calcRate}>{t('landing.calcRate', { mnt: formatMnt(CREDIT_MNT) })}</span>
@@ -59,7 +90,10 @@ export function CreditCalculator() {
       </div>
       <div className={styles.calcResult} id={`${id}-result`} aria-live="polite">
         <span className={styles.calcSmall}>{t('landing.calcPay')}</span>
-        <span className={styles.calcBig}>{formatCredits(pay)}</span>
+        <span className={styles.srOnly}>{formatCredits(pay)}</span>
+        <span ref={bigRef} className={styles.calcBig} aria-hidden="true">
+          {formatCredits(pay)}
+        </span>
         <span className={styles.calcSmall}>
           {formatMnt(pay * CREDIT_MNT)} · {t('landing.calcSaved', { credits: formatCredits(saved) })}
         </span>
@@ -68,6 +102,6 @@ export function CreditCalculator() {
         <i style={{ '--sx': pay / COURSE_PRICE } as VarStyle} />
       </div>
       <p className={styles.note}>{t('landing.calcNote')}</p>
-    </Reveal>
+    </ScrollReveal>
   );
 }

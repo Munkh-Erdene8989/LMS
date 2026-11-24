@@ -305,7 +305,8 @@ label,
 
 .btn-secondary {
   background: var(--accent-soft);
-  color: var(--accent);
+  /* Accent-ийг --fg руу хольж хоёр theme-д WCAG ≥4.5:1 (dark: илүү цайвар, light: илүү бараан). */
+  color: color-mix(in srgb, var(--accent) 70%, var(--fg));
 }
 
 .btn-ghost {
