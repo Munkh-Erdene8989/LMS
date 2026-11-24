@@ -16,7 +16,8 @@ import './globals.css';
 // next/font нь шрифтийг build-д татаж өөрийн домэйнээс (`/_next/static/media`) үйлчилнэ → CSP `font-src 'self'` зөрчигдөхгүй.
 const inter = Inter({
   subsets: ['latin', 'cyrillic', 'cyrillic-ext'],
-  display: 'swap',
+  // optional: шрифт солигдоход (swap) Cyrillic fallback-ийн өргөн өөр тул hero-ийн мөр шилжиж CLS үүсдэг. Preload-той тул ихэнхдээ шууд Inter.
+  display: 'optional',
   variable: '--font-inter',
 });
 

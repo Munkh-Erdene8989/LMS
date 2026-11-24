@@ -108,13 +108,22 @@
   display: inline-block;
 }
 
+/* Browser-ийн default h2/p margin-ийг арилгана (eyebrow→h2 зай хэт өргөн байсан). */
+.landing h2 {
+  margin: 0;
+}
+
 .eyebrow {
-  margin-bottom: var(--s-2);
+  margin: 0 0 var(--s-3);
   color: var(--accent);
   font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.copy .eyebrow {
+  margin-bottom: calc(var(--s-1) * -1);
 }
 
 .hero .eyebrow {
@@ -864,6 +873,17 @@
 }
 
 @media (max-width: 640px) {
+  /* Mobile: sticky stage-ийн 130dvh scroll зай хоосон зай үлдээдэг — sticky-гүй, scrub scroll-той хамт явна. */
+  .stage {
+    height: auto;
+    padding-block: var(--s-6);
+  }
+
+  .stageSticky {
+    position: static;
+    height: auto;
+  }
+
   .section {
     padding-block: var(--s-8);
   }

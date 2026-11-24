@@ -7,6 +7,10 @@ import styles from './landing.module.css';
 /** Гарчиг үгээр орно (GSAP timeline — hero-motion.tsx). JS-гүй ч бүх контент харагдана. */
 export function Hero() {
   const words = t('landing.heroTitle').split(' ');
+  // Сүүлийн хоёр үгийг салгахгүй (өнчин мөр гарахгүй).
+  if (words.length > 2) words.push(`${words.splice(-2).join(' ')}`);
+  // «QPay-аар» зэрэг hyphen-тэй үгийг таслахгүй.
+  const lead = t('landing.heroLead').split(/(S+-S+)/);
   return (
     <HeroMotion className={styles.hero}>
       <div className={styles.wrap}>
@@ -21,7 +25,15 @@ export function Hero() {
           ))}
         </h1>
         <p className={styles.heroLead} data-m="lead">
-          {t('landing.heroLead')}
+          {lead.map((part, i) =>
+            i % 2 === 1 ? (
+              <span key={i} style={{ whiteSpace: 'nowrap' }}>
+                {part}
+              </span>
+            ) : (
+              part
+            ),
+          )}
         </p>
         <div className={styles.heroCta} data-m="cta">
           <TrackedLink id="hero_browse" href="/courses">
