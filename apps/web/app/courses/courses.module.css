@@ -40,7 +40,7 @@
 
 .bar {
   position: sticky;
-  top: var(--header-h);
+  top: calc(var(--header-h) - var(--s-2)); /* хөвөгч capsule-ийн ёроолтой шууд залгана */
   z-index: 5;
   display: grid;
   gap: var(--s-2);

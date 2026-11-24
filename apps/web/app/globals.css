@@ -74,7 +74,7 @@
   --d-hero: 900ms;
 
   /* Layout */
-  --header-h: 52px;
+  --header-h: 76px; /* хөвөгч capsule: 12 + 56 + 8 */
   --wrap: 1120px;
 }
 

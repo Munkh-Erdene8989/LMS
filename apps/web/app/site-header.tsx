@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BRAND, type AuthUser, type CreditBalanceView, type UnreadCount } from '@lms/shared';
@@ -24,7 +24,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Дээд цэс: glass sticky, desktop nav, mobile sheet, кредит pill, avatar цэс. */
+/** Хөвөгч capsule цэс: glass, desktop nav + хайлт, mobile хайлт/sheet, кредит pill, avatar цэс. */
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,6 +35,9 @@ export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const lastPoll = useRef(0);
@@ -100,11 +103,40 @@ export function SiteHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Route солигдоход цэснүүд хаагдана.
+  // Route солигдоход цэснүүд хаагдана; /courses дээр хайлтын утгыг URL-ээс дүүргэнэ.
   useEffect(() => {
     setMenuOpen(false);
     setSheetOpen(false);
+    setSearchOpen(false);
+    setQuery(pathname === '/courses' ? (new URLSearchParams(window.location.search).get('q') ?? '') : '');
   }, [pathname]);
+
+  // `/` товч хайлт руу focus (бичих талбар дотор биш үед).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      e.preventDefault();
+      setSearchOpen(true);
+      searchRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Mobile дээр хайлт нээгдмэгц input-д focus.
+  useEffect(() => {
+    if (searchOpen) searchRef.current?.focus();
+  }, [searchOpen]);
+
+  function submitSearch(e: FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    setSearchOpen(false);
+    searchRef.current?.blur();
+    router.push(q ? `/courses?q=${encodeURIComponent(q)}` : '/courses');
+  }
 
   // Avatar цэс: Esc / гадна дарахад хаах.
   useEffect(() => {
@@ -159,7 +191,7 @@ export function SiteHeader() {
   );
 
   return (
-    <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
+    <header className={`${styles.header} ${scrolled ? styles.scrolled : ''} ${searchOpen ? styles.searching : ''}`}>
       <Link href="/" className={styles.brand}>
         {BRAND.name}
       </Link>
@@ -177,7 +209,44 @@ export function SiteHeader() {
         ))}
       </nav>
 
+      <form className={styles.search} role="search" onSubmit={submitSearch}>
+        <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          ref={searchRef}
+          type="search"
+          name="q"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              searchRef.current?.blur();
+              setSearchOpen(false);
+            }
+          }}
+          className={styles.searchInput}
+          placeholder={t('shell.searchPlaceholder')}
+          aria-label={t('shell.searchLabel')}
+          autoComplete="off"
+          enterKeyHint="search"
+          maxLength={100}
+        />
+        <button type="button" className={styles.searchClose} aria-label={t('shell.searchClose')} onClick={() => setSearchOpen(false)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </form>
+
       <div className={styles.right} aria-busy={authed === null}>
+        <button type="button" className={styles.searchBtn} aria-label={t('shell.searchOpen')} onClick={() => setSearchOpen(true)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </button>
         {authed === null && (
           <div className={styles.skeletons}>
             <Skeleton width={72} height={34} radius="999px" />
