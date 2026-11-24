@@ -62,6 +62,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/" className={styles.footBrand}>
                 {BRAND.name}
               </Link>
+              <p className={styles.tagline}>{t('shell.footerTagline')}</p>
             </div>
             <nav aria-label={t('shell.footerExplore')} className={styles.col}>
               <h2 className={styles.colTitle}>{t('shell.footerExplore')}</h2>

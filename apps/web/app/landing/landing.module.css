@@ -166,8 +166,8 @@
 /* ===== LESSON STACK (GSAP scrub) ===== */
 .stage {
   position: relative;
-  height: 130vh;
-  height: 130dvh;
+  height: 90vh;
+  height: 90dvh;
   padding-inline: var(--s-4);
 }
 

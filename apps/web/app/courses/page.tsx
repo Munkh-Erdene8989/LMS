@@ -217,7 +217,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
 
       <section aria-label={t('catalog.title')}>
         {result ? (
-          <Results params={params} result={result} anyFilter={anyFilter} />
+          <Results params={params} result={result} anyFilter={anyFilter} categories={categories} />
         ) : (
           <EmptyState title={t('courses.unavailableTitle')} description={t('courses.unavailableBody')} />
         )}
@@ -226,7 +226,17 @@ export default async function CoursesPage({ searchParams }: { searchParams: Sear
   );
 }
 
-function Results({ params, result, anyFilter }: { params: CatalogParams; result: CatalogPage; anyFilter: boolean }) {
+function Results({
+  params,
+  result,
+  anyFilter,
+  categories,
+}: {
+  params: CatalogParams;
+  result: CatalogPage;
+  anyFilter: boolean;
+  categories: { id: string; slug: string; name: string }[];
+}) {
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   return (
     <>
@@ -234,6 +244,7 @@ function Results({ params, result, anyFilter }: { params: CatalogParams; result:
         {params.q ? t('catalog.resultsFor', { q: params.q, count: result.total }) : t('catalog.results', { count: result.total })}
       </p>
       {result.items.length === 0 ? (
+        <>
         <EmptyState
           title={t('courses.emptyTitle')}
           description={t('courses.emptyBody')}
@@ -245,6 +256,19 @@ function Results({ params, result, anyFilter }: { params: CatalogParams; result:
             ) : undefined
           }
         />
+        {categories.length > 0 && (
+          <div className={styles.suggest}>
+            <span>{t('catalog.suggestCategories')}</span>
+            <nav className={styles.chips} aria-label={t('catalog.categories')}>
+              {categories.slice(0, 8).map((c) => (
+                <Link key={c.id} className={styles.chip} href={catalogHref({}, { category: c.slug })}>
+                  {c.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
+        </>
       ) : (
         <CourseGrid courses={result.items} />
       )}
