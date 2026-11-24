@@ -57,13 +57,27 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {children}
         </main>
         <footer className={styles.footer}>
-          <nav aria-label={t('shell.footerLegal')} className={styles.legal}>
-            {LEGAL_DOC_TYPES.map((type) => (
-              <Link key={type} href={`/legal/${LEGAL_SLUGS[type]}`}>
-                {t(`legal.${type}`)}
+          <div className={styles.cols}>
+            <div className={styles.about}>
+              <Link href="/" className={styles.footBrand}>
+                {BRAND.name}
               </Link>
-            ))}
-          </nav>
+            </div>
+            <nav aria-label={t('shell.footerExplore')} className={styles.col}>
+              <h2 className={styles.colTitle}>{t('shell.footerExplore')}</h2>
+              <Link href="/courses">{t('shell.courses')}</Link>
+              <Link href="/communities">{t('shell.community')}</Link>
+              <Link href="/learning">{t('shell.myLearning')}</Link>
+            </nav>
+            <nav aria-label={t('shell.footerLegal')} className={styles.col}>
+              <h2 className={styles.colTitle}>{t('shell.footerLegal')}</h2>
+              {LEGAL_DOC_TYPES.map((type) => (
+                <Link key={type} href={`/legal/${LEGAL_SLUGS[type]}`}>
+                  {t(`legal.${type}`)}
+                </Link>
+              ))}
+            </nav>
+          </div>
           <div className={styles.bottom}>
             <span>{t('shell.footerBrand', { year: new Date().getFullYear(), brand: BRAND.name })}</span>
             <ThemeToggle />
