@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { BRAND, type LessonAccessReason, type PublicCourseDetail } from '@lms/shared';
+import { BRAND, canOpenLesson, type LessonAccessReason, type PublicCourseDetail } from '@lms/shared';
 import { t, type MessageKey } from '@/lib/i18n';
 import { fetchCourse, fetchLesson } from '@/lib/catalog';
 import { LiveInfo } from '../../../../course-ui';
@@ -45,7 +45,7 @@ function frameSections(course: PublicCourseDetail, currentOpen: string | null): 
       type: l.type,
       priceCredits: l.priceCredits,
       isFreePreview: l.isFreePreview,
-      open: l.id === currentOpen || !!v?.ownsCourse || !!v?.canViewAll || !!v?.ownedLessonIds.includes(l.id),
+      open: l.id === currentOpen || canOpenLesson(v, l.id),
     })),
   }));
 }

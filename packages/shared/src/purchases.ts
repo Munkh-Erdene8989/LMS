@@ -55,6 +55,19 @@ export interface CourseViewerState {
   isTeacher: boolean;
 }
 
+/** Үзэгч lesson-ыг эзэмшиж буй эсэх: бүтэн курс эсвэл тухайн lesson-ыг авсан. */
+export function ownsLessonIn(viewer: CourseViewerState | null | undefined, lessonId: string): boolean {
+  return !!viewer && (viewer.ownsCourse || viewer.ownedLessonIds.includes(lessonId));
+}
+
+/**
+ * Lesson-ы контент үзэгчид нээлттэй эсэх: эзэмшил, эсвэл курсийн багш / админ. API-ийн `LessonAccessPolicy`-тэй
+ * ижил дараалал; free preview-г (lesson-ы шинж) энд тооцохгүй.
+ */
+export function canOpenLesson(viewer: CourseViewerState | null | undefined, lessonId: string): boolean {
+  return !!viewer && (viewer.canViewAll || ownsLessonIn(viewer, lessonId));
+}
+
 /** Lesson-ы контент яагаад нээлттэй вэ */
 export type LessonAccessReason = 'PREVIEW' | 'OWNED' | 'TEACHER' | 'ADMIN';
 

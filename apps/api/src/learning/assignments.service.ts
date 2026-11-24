@@ -14,7 +14,7 @@ import {
   type UploadTicket,
 } from '@lms/shared';
 import { STORAGE, type StorageAdapter } from '../adapters/storage';
-import { LessonAccessPolicy, type LessonViewer, type OpenedLesson } from '../catalog/lesson-access';
+import { LessonAccessPolicy, staffRole, type LessonViewer, type OpenedLesson } from '../catalog/lesson-access';
 import type { AssignmentContent } from '../catalog/lesson-types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -143,8 +143,7 @@ export class AssignmentsService {
       where: { id: submissionId },
       include: { course: { select: { teacherId: true } } },
     });
-    const allowed =
-      !!sub && (sub.userId === viewer.id || sub.course.teacherId === viewer.id || viewer.roles.includes('ADMIN'));
+    const allowed = !!sub && (sub.userId === viewer.id || staffRole(viewer, sub.course.teacherId) !== null);
     if (!sub || !allowed || !sub.fileKey) throw E.submissionNotFound();
     return {
       url: await this.storage.signedDownloadUrl('private', sub.fileKey, SUBMISSION_FILE_URL_TTL),

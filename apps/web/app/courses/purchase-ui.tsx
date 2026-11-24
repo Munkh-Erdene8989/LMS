@@ -4,7 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  canOpenLesson,
   formatUbDateTime,
+  ownsLessonIn,
   type CreditBalanceView,
   type PublicCourseDetail,
   type PublicLessonItem,
@@ -74,7 +76,7 @@ export function PurchaseProvider({ initial, children }: { initial: PublicCourseD
   }, [initial.viewer, reload, router]);
 
   const ownsLesson = useCallback(
-    (lessonId: string) => !!course.viewer && (course.viewer.ownsCourse || course.viewer.ownedLessonIds.includes(lessonId)),
+    (lessonId: string) => ownsLessonIn(course.viewer, lessonId),
     [course.viewer],
   );
 
@@ -134,7 +136,7 @@ export function LessonRow({ lesson }: { lesson: PublicLessonItem }) {
   const { course, ownsLesson, start } = usePurchase();
   const href = `/courses/${course.id}/lessons/${lesson.id}`;
   const owned = ownsLesson(lesson.id);
-  const canViewAll = !!course.viewer?.canViewAll;
+  const open = canOpenLesson(course.viewer, lesson.id);
   const sub = [
     t(`course.type${lesson.type}` as MessageKey),
     lesson.live?.startsAt ? formatUbDateTime(lesson.live.startsAt) : null,
@@ -151,7 +153,7 @@ export function LessonRow({ lesson }: { lesson: PublicLessonItem }) {
     </span>
   );
 
-  if (owned || canViewAll) {
+  if (open) {
     return (
       <li>
         <Link className={styles.lesson} href={href}>

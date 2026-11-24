@@ -20,7 +20,7 @@ import { courseOwnership, ownsFrom, type CourseOwnership } from '../purchases/en
 import { searchCatalog } from './catalog-search';
 import { toContent } from './course.view';
 import { CatalogErrors as E } from './errors';
-import { LessonAccessPolicy, type LessonViewer } from './lesson-access';
+import { LessonAccessPolicy, staffRole, type LessonViewer } from './lesson-access';
 import type { LiveContent } from './lesson-types';
 import { loadRatings, NO_RATING } from './ratings';
 
@@ -208,12 +208,11 @@ function viewerState(
   viewer: LessonViewer,
   o: CourseOwnership,
 ): CourseViewerState {
-  const isTeacher = course.teacherId === viewer.id;
   return {
     ownsCourse: o.ownsCourse,
     ownedLessonIds: course.lessons.filter((l) => ownsFrom(o, l.id)).map((l) => l.id),
-    canViewAll: isTeacher || viewer.roles.includes('ADMIN'),
-    isTeacher,
+    canViewAll: staffRole(viewer, course.teacherId) !== null,
+    isTeacher: course.teacherId === viewer.id,
   };
 }
 

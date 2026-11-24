@@ -20,6 +20,16 @@ export interface LessonViewer {
 export type OpenedLesson = Lesson & { course: { id: string; title: string; teacherId: string } };
 
 /**
+ * Курсийн ажилтны эрх: админ бүх курсийг, багш өөрийн курсийг худалдан авалтгүй үзэж, удирдана.
+ * Энэ дүрмийг (lesson контент, viewer state, playback, даалгаврын файл) ЗӨВХӨН эндээс уншина.
+ */
+export function staffRole(viewer: LessonViewer | null, teacherId: string): 'ADMIN' | 'TEACHER' | null {
+  if (!viewer) return null;
+  if (viewer.roles.includes('ADMIN')) return 'ADMIN';
+  return teacherId === viewer.id ? 'TEACHER' : null;
+}
+
+/**
  * Lesson-ы контентыг (текст, PDF signed URL, Mux token, live линк, quiz асуулт …) хэн үзэж болох —
  * ЦОРЫН ГАНЦ шалгалт. SPEC: "контент зөвхөн entitlement эсвэл free preview байгаа үед гарна";
  * "багш өөрийн курсийг, админ бүх курсийг үзнэ".
@@ -32,11 +42,9 @@ export class LessonAccessPolicy {
   constructor(private readonly prisma: PrismaService) {}
 
   async access(lesson: LessonAccessSubject, viewer: LessonViewer | null): Promise<LessonAccessReason | null> {
-    if (viewer) {
-      if (viewer.roles.includes('ADMIN')) return 'ADMIN';
-      if (lesson.course.teacherId === viewer.id) return 'TEACHER';
-      if (await ownsLesson(this.prisma, viewer.id, lesson)) return 'OWNED';
-    }
+    const staff = staffRole(viewer, lesson.course.teacherId);
+    if (staff) return staff;
+    if (viewer && (await ownsLesson(this.prisma, viewer.id, lesson))) return 'OWNED';
     return lesson.isFreePreview ? 'PREVIEW' : null;
   }
 

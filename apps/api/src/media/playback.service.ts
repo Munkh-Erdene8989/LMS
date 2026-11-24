@@ -8,7 +8,7 @@ import {
   type PlaybackGrant,
 } from '@lms/shared';
 import { MUX, type MuxAdapter } from '../adapters/mux';
-import { LessonAccessPolicy, type LessonViewer, type OpenedLesson } from '../catalog/lesson-access';
+import { LessonAccessPolicy, staffRole, type LessonViewer, type OpenedLesson } from '../catalog/lesson-access';
 import { CatalogErrors } from '../catalog/errors';
 import type { VideoContent } from '../catalog/lesson-types';
 import { ENV, type Env } from '../env';
@@ -85,7 +85,7 @@ export class PlaybackService {
         include: { course: { select: { id: true, title: true, teacherId: true } } },
       });
       if (!lesson) throw CatalogErrors.lessonNotFound();
-      if (viewer.roles.includes('ADMIN') || lesson.course.teacherId === viewer.id) return lesson;
+      if (staffRole(viewer, lesson.course.teacherId)) return lesson;
     }
     return (await this.access.open(lessonId, viewer)).lesson;
   }
