@@ -4,12 +4,14 @@ import {
   COURSE_LEVELS,
   type CatalogPage,
   type CatalogQuery,
+  type MoneyRules,
   type PublicCourseDetail,
   type PublicLessonContent,
   type PublicTeacherProfile,
 } from '@lms/shared';
 import { z } from 'zod';
 import { OptionalAuth, Viewer, type CurrentUserInfo } from '../auth/auth.guard';
+import { SettingsService } from '../admin/settings.service';
 import { ZodPipe } from '../zod-pipe';
 import { PublicCatalogService } from './public-catalog.service';
 
@@ -38,7 +40,21 @@ const CatalogQuerySchema = z.object({
  */
 @Controller('catalog')
 export class PublicCatalogController {
-  constructor(private readonly catalog: PublicCatalogService) {}
+  constructor(
+    private readonly catalog: PublicCatalogService,
+    private readonly settings: SettingsService,
+  ) {}
+
+  /** Кредитийн ₮ үнэ ба шимтгэл — landing тооцоолуур, шимтгэлийн тайлбар админы бодит тохиргоог харуулна. */
+  @Get('money-rules')
+  async moneyRules(): Promise<MoneyRules> {
+    const [creditPriceMnt, commissionPlatformPercent, commissionReferralPercent] = await Promise.all([
+      this.settings.get('creditPriceMnt'),
+      this.settings.get('commissionPlatformPercent'),
+      this.settings.get('commissionReferralPercent'),
+    ]);
+    return { creditPriceMnt, commissionPlatformPercent, commissionReferralPercent };
+  }
 
   @Get('courses')
   list(@Query(new ZodPipe(CatalogQuerySchema)) q: z.infer<typeof CatalogQuerySchema>): Promise<CatalogPage> {

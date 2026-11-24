@@ -1,11 +1,10 @@
 import type { CatalogCourseCard } from '@lms/shared';
-import { fetchCatalog } from '@/lib/catalog';
+import { fetchCatalog, fetchMoneyRules } from '@/lib/catalog';
 import { t } from '@/lib/i18n';
 import Image from 'next/image';
 import { LinkButton } from './ui/button';
 import { EmptyState } from './ui/empty-state';
 import { CommunityPreview } from './landing/community-preview';
-import { REFERRAL_FEE_PCT } from './landing/constants';
 import { CreditCalculator } from './landing/credit-calculator';
 import { Faq } from './landing/faq';
 import { FeaturedCourse } from './landing/featured-course';
@@ -41,7 +40,7 @@ function Points({ items }: { items: string[] }) {
 
 // Layout өөрөө main-ийг өгдөг тул энд <div>.
 export default async function HomePage() {
-  const featured = await loadFeatured();
+  const [featured, rules] = await Promise.all([loadFeatured(), fetchMoneyRules()]);
 
   return (
     <div className={styles.landing}>
@@ -61,7 +60,7 @@ export default async function HomePage() {
               <li>{t('landing.calcStep3')}</li>
             </ol>
           </div>
-          <CreditCalculator />
+          <CreditCalculator creditPriceMnt={rules.creditPriceMnt} />
         </div>
       </section>
 
@@ -100,7 +99,7 @@ export default async function HomePage() {
           <div className={styles.copy}>
             <p className={styles.eyebrow}>{t('landing.eyebrowTeachers')}</p>
             <h2 id="teachers-h">{t('landing.teachersTitle')}</h2>
-            <p className={styles.lead}>{t('landing.teachersLead', { pct: REFERRAL_FEE_PCT })}</p>
+            <p className={styles.lead}>{t('landing.teachersLead', { pct: rules.commissionReferralPercent })}</p>
             <Points items={[t('landing.teachersPoint1'), t('landing.teachersPoint2'), t('landing.teachersPoint3')]} />
             <div>
               <TrackedLink id="teachers_apply" href="/teacher/apply">
@@ -119,7 +118,7 @@ export default async function HomePage() {
                 className={styles.photoImg}
               />
             </div>
-            <TeacherFee />
+            <TeacherFee rules={rules} />
           </div>
         </div>
       </section>
@@ -160,7 +159,7 @@ export default async function HomePage() {
             <p className={styles.eyebrow}>{t('landing.eyebrowFaq')}</p>
             <h2 id="faq-h">{t('landing.faqTitle')}</h2>
           </div>
-          <Faq />
+          <Faq referralPercent={rules.commissionReferralPercent} />
         </div>
       </section>
 

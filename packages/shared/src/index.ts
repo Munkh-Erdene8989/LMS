@@ -8,6 +8,7 @@ export * from './i18n';
 export * from './notifications';
 export * from './teacher';
 export * from './purchases';
+export * from './money';
 export * from './subscriptions';
 export * from './referrals';
 export * from './learning';
