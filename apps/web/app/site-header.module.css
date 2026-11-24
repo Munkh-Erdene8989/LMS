@@ -18,13 +18,13 @@
   background: var(--glass);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-1), inset 0 1px 0 color-mix(in srgb, var(--fg) 8%, transparent);
   transition: box-shadow var(--d-fast) var(--ease), background-color var(--d-fast) var(--ease);
 }
 
 .scrolled {
   background: color-mix(in srgb, var(--bg) 88%, transparent);
-  box-shadow: var(--shadow-2);
+  box-shadow: var(--shadow-2), inset 0 1px 0 color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 .header a:not(:global(.btn)) {
@@ -89,9 +89,9 @@
   min-width: 0;
   height: 40px;
   padding: 0 var(--s-4) 0 calc(var(--s-3) + 16px + var(--s-2));
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--r-pill);
-  background: var(--bg-alt);
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
   color: var(--fg);
   font: inherit;
   font-size: var(--fs-small);
