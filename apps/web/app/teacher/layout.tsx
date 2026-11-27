@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { AuthUser } from '@lms/shared';
-import { api } from '@/lib/client-api';
+import { hasRole, useViewer } from '@/lib/viewer';
 import { t, type MessageKey } from '@/lib/i18n';
 import s from './teacher.module.css';
 
@@ -28,18 +27,7 @@ const APPLY = '/teacher/apply';
 export default function TeacherLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isApply = pathname === APPLY;
-  const [isTeacher, setIsTeacher] = useState(false);
-
-  useEffect(() => {
-    if (!isApply) return;
-    let alive = true;
-    api<AuthUser>('/me')
-      .then((r) => alive && setIsTeacher(r.data.roles.includes('TEACHER')))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [isApply]);
+  const isTeacher = hasRole(useViewer().viewer, 'TEACHER');
 
   if (isApply && !isTeacher) return <div className={s.bare}>{children}</div>;
 
