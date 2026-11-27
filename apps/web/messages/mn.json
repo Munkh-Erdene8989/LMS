@@ -649,7 +649,11 @@
     "markedComplete": "Дууссан гэж тэмдэглэлээ",
     "watched": "Үзсэн {percent}%",
     "bestScore": "Хамгийн өндөр оноо {percent}%",
-    "teacher": "Багш: {name}"
+    "teacher": "Багш: {name}",
+    "orgBadge": "{name}",
+    "orgBadgeUnknown": "Байгууллагын сургалт",
+    "lockedBadge": "Хаалттай — байгууллагын эрх дууссан",
+    "lockedHint": "Прогресс хадгалагдсан. Эрх сэргэвэл үргэлжлүүлнэ."
   },
   "quiz": {
     "passPercent": "Тэнцэх оноо: {percent}%",
@@ -779,6 +783,7 @@
     "publicPage": "Нийтийн шалгах хуудас",
     "requirementsIntro": "Курсийг дүүргэж, QR кодтой PDF сертификат аваарай:",
     "reqOwnsCourse": "Курсийг бүтнээр нь авсан",
+    "reqOrgAccess": "Байгууллагын эрхээр үзэж байгаа",
     "reqLessons": "Бүх хичээлийг дуусгасан ({completed}/{total})",
     "reqQuiz": "Тестийн дундаж оноо {min}%-иас багагүй (одоо {percent}%)",
     "reqQuizNone": "Тестийн дундаж оноо {min}%-иас багагүй (тест хараахан өгөөгүй)",

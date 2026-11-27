@@ -100,8 +100,8 @@ export function CertificateCard({ courseId }: { courseId: string }) {
   const rows: { ok: boolean; label: string; action?: ReactNode }[] = [
     {
       ok: e.ownsCourse,
-      label: t('certificate.reqOwnsCourse'),
-      action: !e.ownsCourse && <Link href={`/courses/${courseId}`}>{t('learning.openCourse')}</Link>,
+      label: t(e.viaOrganization ? 'certificate.reqOrgAccess' : 'certificate.reqOwnsCourse'),
+      action: !e.ownsCourse && !e.viaOrganization && <Link href={`/courses/${courseId}`}>{t('learning.openCourse')}</Link>,
     },
     {
       ok: e.completedLessonCount === e.lessonCount,

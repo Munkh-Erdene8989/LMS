@@ -90,14 +90,33 @@ export default function MyLearningPage() {
                   <Link href={`/learning/${c.id}`}>{c.title}</Link>
                 </h2>
                 <p className={styles.meta}>
-                  {t('learning.teacher', { name: c.teacher.name })} ·{' '}
-                  {c.ownsCourse
-                    ? t('learning.fullCourse')
-                    : t('learning.partialCourse', {
-                        owned: c.ownedLessonCount,
-                        total: c.lessonCount,
-                      })}
+                  {t('learning.teacher', { name: c.teacher.name })}
+                  {!c.isPrivate && (
+                    <>
+                      {' · '}
+                      {c.ownsCourse
+                        ? t('learning.fullCourse')
+                        : t('learning.partialCourse', {
+                            owned: c.ownedLessonCount,
+                            total: c.lessonCount,
+                          })}
+                    </>
+                  )}
                 </p>
+                {c.isPrivate && (
+                  <p className={styles.badges}>
+                    {c.organizations.length > 0 ? (
+                      c.organizations.map((o) => (
+                        <span key={o.id} className="pill">
+                          {t('learning.orgBadge', { name: o.name })}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="pill">{t('learning.orgBadgeUnknown')}</span>
+                    )}
+                    {c.locked && <span className="pill">{t('learning.lockedBadge')}</span>}
+                  </p>
+                )}
                 <ProgressBar percent={c.progressPercent} />
                 <p className={styles.progressText}>
                   {t('learning.progress', {
@@ -107,7 +126,9 @@ export default function MyLearningPage() {
                   })}
                 </p>
                 <div className={styles.actions}>
-                  {c.continueLessonId ? (
+                  {c.locked ? (
+                    <span className={styles.muted}>{t('learning.lockedHint')}</span>
+                  ) : c.continueLessonId ? (
                     <LinkButton href={`/courses/${c.id}/lessons/${c.continueLessonId}`}>
                       {c.lastViewedAt ? t('learning.continue') : t('learning.start')}
                     </LinkButton>

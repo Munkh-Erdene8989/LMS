@@ -39,6 +39,12 @@ export interface MyCourseCard extends CourseProgressSummary {
   coverUrl: string | null;
   teacher: { id: string; name: string };
   ownsCourse: boolean;
+  /** Байгууллагын эрхээр үзэж буй (эсвэл эрх нь дууссан) курсийн байгууллага(ууд); эзэмшсэн курст хоосон */
+  organizations: { id: string; name: string }[];
+  /** PRIVATE (байгууллагын хаалттай) курс — худалдан авах, үнэ, review, community харагдахгүй */
+  isPrivate: boolean;
+  /** Байгууллагын эрх дууссан (хасагдсан / байгууллага идэвхгүй, гэрээ дууссан / grant цуцлагдсан): явц харагдана, контент нээгдэхгүй */
+  locked: boolean;
   /** Курсийн нийт (идэвхтэй) lesson */
   lessonCount: number;
 }
@@ -62,6 +68,12 @@ export interface MyCourseDetail extends CourseProgressSummary {
   coverUrl: string | null;
   teacher: { id: string; name: string };
   ownsCourse: boolean;
+  /** Байгууллагын эрхээр үзэж буй (эсвэл эрх нь дууссан) курсийн байгууллага(ууд); эзэмшсэн курст хоосон */
+  organizations: { id: string; name: string }[];
+  /** PRIVATE (байгууллагын хаалттай) курс — худалдан авах, үнэ, review, community харагдахгүй */
+  isPrivate: boolean;
+  /** Байгууллагын эрх дууссан (хасагдсан / байгууллага идэвхгүй, гэрээ дууссан / grant цуцлагдсан): явц харагдана, контент нээгдэхгүй */
+  locked: boolean;
   sections: { id: string; title: string; lessons: MyCourseLesson[] }[];
 }
 

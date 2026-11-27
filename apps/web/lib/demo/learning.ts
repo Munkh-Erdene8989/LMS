@@ -193,6 +193,9 @@ function myCard(c: DemoCourse): MyCourseCard {
     coverUrl: null,
     teacher: teacherOf(c),
     ownsCourse: true,
+    organizations: [],
+    isPrivate: false,
+    locked: false,
     lessonCount: c.sections.reduce((n, s) => n + s.lessons.length, 0),
     ...summary(c),
   };
@@ -205,6 +208,9 @@ function myDetail(c: DemoCourse): MyCourseDetail {
     coverUrl: null,
     teacher: teacherOf(c),
     ownsCourse: true,
+    organizations: [],
+    isPrivate: false,
+    locked: false,
     ...summary(c),
     sections: c.sections.map((s) => ({
       id: s.id,
@@ -233,6 +239,7 @@ function certificateStatus(c: DemoCourse): CertificateStatus {
     certificate: null,
     eligibility: {
       ownsCourse: true,
+      viaOrganization: false,
       lessonCount: counted.length,
       completedLessonCount: completed,
       quizCount: counted.filter((l) => l.type === 'QUIZ').length,

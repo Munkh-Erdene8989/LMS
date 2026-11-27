@@ -15,6 +15,7 @@ import { teacherRef, teacherSelect } from '../catalog/public-catalog.service';
 import { ENV, type Env } from '../env';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasOrgCourseAccess } from '../organizations/org-access';
 import { ownsFullCourse, type Db } from '../purchases/entitlements';
 import { renderCertificatePdf } from './certificate-pdf';
 import { CertificateErrors as E } from './errors';
@@ -32,7 +33,7 @@ interface Evaluation {
 
 /**
  * Сертификат (ticket 15). Олгох нөхцөл:
- * 1. курсийг БҮТНЭЭР авсан (`CourseEntitlement`);
+ * 1. курсийг БҮТНЭЭР авсан (`CourseEntitlement`); PRIVATE курст — байгууллагын эрхтэй (`hasOrgCourseAccess`, ticket 47);
  * 2. курсийн архивлаагүй, шалгагдсан (APPROVED) бүх VIDEO/TEXT/PDF/QUIZ lesson дууссан (≥ 1 lesson);
  * 3. эдгээрийн доторх quiz-уудын хамгийн өндөр онооны дундаж ≥ 70% (quiz-гүй бол шаардахгүй);
  * 4. profile-д нэртэй.
@@ -86,7 +87,7 @@ export class CertificatesService {
         where: { userId_courseId: { userId, courseId } },
         select: { id: true },
       });
-      if (existing || !(await ownsFullCourse(this.prisma, userId, courseId))) return;
+      if (existing) return;
       const ev = await evaluate(this.prisma, userId, courseId);
       if (ev?.eligibility.eligible) await this.create(userId, courseId, ev);
     } catch (err) {
@@ -153,11 +154,12 @@ export class CertificatesService {
 
 /** Нөхцөлийн үнэлгээ + олгох үеийн snapshot. Курс нийтлэгдээгүй/байхгүй бол null. */
 async function evaluate(db: Db, userId: string, courseId: string): Promise<Evaluation | null> {
-  const [course, ownsCourse, user] = await Promise.all([
+  const [course, user] = await Promise.all([
     db.course.findFirst({
       where: { id: courseId, status: 'PUBLISHED' },
       select: {
         title: true,
+        visibility: true,
         teacher: { select: teacherSelect },
         lessons: {
           where: { reviewStatus: 'APPROVED', archivedAt: null, type: { in: [...CERTIFICATE_LESSON_TYPES] } },
@@ -165,10 +167,11 @@ async function evaluate(db: Db, userId: string, courseId: string): Promise<Evalu
         },
       },
     }),
-    ownsFullCourse(db, userId, courseId),
     db.user.findUnique({ where: { id: userId }, select: { name: true } }),
   ]);
   if (!course) return null;
+  const viaOrganization = course.visibility === 'PRIVATE';
+  const ownsCourse = viaOrganization ? await hasOrgCourseAccess(db, userId, courseId) : await ownsFullCourse(db, userId, courseId);
 
   const ids = course.lessons.map((l) => l.id);
   const progress = ids.length
@@ -187,6 +190,7 @@ async function evaluate(db: Db, userId: string, courseId: string): Promise<Evalu
 
   const base = {
     ownsCourse,
+    viaOrganization,
     lessonCount: course.lessons.length,
     completedLessonCount: completed,
     quizCount: quizzes.length,
@@ -219,6 +223,7 @@ function isEligible(e: Omit<CertificateEligibility, 'eligible'>): boolean {
 function emptyEligibility(): CertificateEligibility {
   return {
     ownsCourse: false,
+    viaOrganization: false,
     lessonCount: 0,
     completedLessonCount: 0,
     quizCount: 0,
