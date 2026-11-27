@@ -214,6 +214,19 @@
     "cardDeclined": "карт татгалзсан",
     "noCard": "карт холбоогүй"
   },
+  "orgReport": {
+    "colName": "Нэр",
+    "colContact": "Утас / имэйл",
+    "colCourse": "Курс",
+    "colProgress": "Явц (%)",
+    "colQuiz": "Quiz-ийн дундаж (%)",
+    "colCertCode": "Сертификатын код",
+    "colCertDate": "Сертификат олгосон огноо",
+    "colLastActive": "Сүүлд идэвхтэй",
+    "colStatus": "Гишүүнчлэл",
+    "statusActive": "Идэвхтэй",
+    "statusRemoved": "Хасагдсан"
+  },
   "certificate": {
     "pdf": {
       "title": "СЕРТИФИКАТ",

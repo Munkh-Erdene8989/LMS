@@ -1359,7 +1359,6 @@
     "tabCourses": "Курсууд",
     "tabReport": "Тайлан",
     "tabsLabel": "Байгууллагын хэсгүүд",
-    "tabSoon": "Энэ хэсэг удахгүй нэмэгдэнэ.",
     "inviteTitle": "Ажилтан урих",
     "inviteHint": "Утасны дугаар эсвэл имэйлийг мөр бүрт нэгийг бичнэ (олон мөрийг шууд paste хийж болно). Утсаар урьсан хүн тэр дугаараараа нэвтэрмэгц, имэйлээр урьсан хүн имэйл хаягаараа нэвтэрмэгц гишүүн болно.",
     "invitePlaceholder": "99112233\nname@company.mn",
@@ -1407,6 +1406,22 @@
     "colRoles": "Эрх",
     "colAmount": "Дүн",
     "tableOf": "Хүснэгт: {title}"
+  },
+  "orgReport": {
+    "course": "Курс",
+    "allCourses": "Бүх курс",
+    "includeRemoved": "Хасагдсан гишүүдийг оруулах",
+    "exportCsv": "CSV татах",
+    "empty": "Тайлангийн мөр алга. Гишүүн болон олгосон курс хоёулаа байх ёстой.",
+    "colPerson": "Ажилтан",
+    "colCourse": "Курс",
+    "colProgress": "Явц",
+    "colQuiz": "Quiz-ийн дундаж",
+    "colCertificate": "Сертификат",
+    "colLastActive": "Сүүлд идэвхтэй",
+    "progressOf": "{done}/{total} хичээл",
+    "removed": "Хасагдсан",
+    "noValue": "—"
   },
   "orgCourses": {
     "title": "Курсууд",

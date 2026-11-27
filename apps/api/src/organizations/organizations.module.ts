@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OrgInvitationsService } from './org-invitations.service';
+import { OrgReportService } from './org-report.service';
 import { OrganizationsController } from './organizations.controller';
 import { OrganizationsService } from './organizations.service';
 
@@ -9,7 +10,7 @@ import { OrganizationsService } from './organizations.service';
  */
 @Module({
   controllers: [OrganizationsController],
-  providers: [OrganizationsService, OrgInvitationsService],
+  providers: [OrganizationsService, OrgInvitationsService, OrgReportService],
   exports: [OrgInvitationsService],
 })
 export class OrganizationsModule {}

@@ -15,8 +15,9 @@ import styles from '../../admin.module.css';
 import { OrgForm, draftBody, draftFromRow } from '../org-form';
 import { ORG_STATUS_TONE } from '../org-status';
 import { OrgCoursesTab } from './org-courses-tab';
+import { OrgReportTab } from './org-report-tab';
 
-/** Хэсгүүд: `courses` (ticket 46); `report` (ticket 48) энд залгагдана. */
+/** Хэсгүүд: `courses` (ticket 46), `report` (ticket 48). */
 type Tab = 'members' | 'courses' | 'report';
 
 export default function AdminOrganizationDetailPage() {
@@ -91,7 +92,7 @@ export default function AdminOrganizationDetailPage() {
 
       {tab === 'members' && <MembersTab org={org} reload={load} />}
       {tab === 'courses' && <OrgCoursesTab organizationId={id} />}
-      {tab === 'report' && <EmptyState title={t('orgAdmin.tabSoon')} />}
+      {tab === 'report' && <OrgReportTab organizationId={id} />}
     </div>
   );
 }

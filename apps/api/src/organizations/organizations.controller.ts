@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Req } from '@nestjs/common';
-import type { OrgAdminDetail, OrgAdminRow, OrgInviteResult } from '@lms/shared';
-import type { Request } from 'express';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import type { OrgAdminDetail, OrgAdminRow, OrgInviteResult, OrgReport } from '@lms/shared';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { ZodPipe } from '../zod-pipe';
 import { OrgInvitationsService, splitInviteText } from './org-invitations.service';
+import { OrgReportService } from './org-report.service';
 import { OrganizationsService } from './organizations.service';
 
 const Uuid = new ParseUUIDPipe();
@@ -26,6 +27,13 @@ const InviteBody = z
   .object({ text: z.string().max(100_000).optional(), entries: z.array(z.string().max(300)).max(1000).optional() })
   .strict();
 
+const ReportQuery = z
+  .object({
+    courseId: z.string().uuid().optional(),
+    includeRemoved: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  })
+  .strict();
+
 /** `/admin/organizations/*` — зөвхөн ADMIN (байгууллагын менежер role байхгүй). Бүх үйлдэл audit log-д. */
 @Controller('admin/organizations')
 @Auth('ADMIN')
@@ -33,6 +41,7 @@ export class OrganizationsController {
   constructor(
     private readonly orgs: OrganizationsService,
     private readonly invitations: OrgInvitationsService,
+    private readonly reports: OrgReportService,
   ) {}
 
   @Get()
@@ -47,6 +56,30 @@ export class OrganizationsController {
     @Req() req: Request,
   ): Promise<OrgAdminRow> {
     return this.orgs.create(body, { id: user.id, ip: req.ip });
+  }
+
+  @Get(':id/report')
+  report(@Param('id', Uuid) id: string, @Query(new ZodPipe(ReportQuery)) q: z.infer<typeof ReportQuery>): Promise<OrgReport> {
+    return this.reports.report(id, q);
+  }
+
+  /** Excel-д нээгдэх CSV (UTF-8 BOM). Файлын нэр: ASCII fallback + `filename*` (байгууллагын нэр, огноо). */
+  @Get(':id/report.csv')
+  async reportCsv(
+    @Param('id', Uuid) id: string,
+    @Query(new ZodPipe(ReportQuery)) q: z.infer<typeof ReportQuery>,
+    @CurrentUser() user: CurrentUserInfo,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const { csv, orgName } = await this.reports.exportCsv(id, q, { id: user.id, ip: req.ip });
+    const date = new Date().toISOString().slice(0, 10);
+    const safeName = orgName.replace(/[\\/:*?"<>|\r\n]+/g, ' ').trim();
+    const utf8 = encodeURIComponent(`${safeName}-${date}.csv`);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="org-${id.slice(0, 8)}-report-${date}.csv"; filename*=UTF-8''${utf8}`);
+    res.setHeader('Cache-Control', 'no-store');
+    return csv;
   }
 
   @Get(':id')

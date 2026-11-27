@@ -67,3 +67,29 @@ export interface OrgInviteRowResult {
 export interface OrgInviteResult {
   results: OrgInviteRowResult[];
 }
+
+/** `GET /admin/organizations/:id/report` — мөр = гишүүн × олгосон курс (ticket 48) */
+export interface OrgReportRow {
+  memberId: string;
+  userId: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  /** Гишүүн хасагдсан эсэх (`includeRemoved` үед л харагдана) */
+  removed: boolean;
+  courseId: string;
+  courseTitle: string;
+  /** Дууссан lesson / архивлаагүй нийт lesson, floor % */
+  progressPercent: number;
+  completedLessonCount: number;
+  lessonCount: number;
+  /** Quiz-уудын хамгийн өндөр онооны дундаж (floor); quiz-гүй курст null */
+  quizAveragePercent: number | null;
+  certificateCode: string | null;
+  certificateIssuedAt: string | null;
+  lastActivityAt: string | null;
+}
+
+export interface OrgReport {
+  rows: OrgReportRow[];
+}
