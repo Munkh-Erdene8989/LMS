@@ -23,6 +23,7 @@ import { CommunityModule } from './community/community.module';
 import { AdminOpsModule } from './admin-ops/admin-ops.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { CourseGrantsModule } from './organizations/course-grants.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
     AnalyticsModule,
     CommunityModule,
     AdminOpsModule,
+    CourseGrantsModule,
     MaintenanceModule,
   ],
 })

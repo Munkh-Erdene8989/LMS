@@ -90,6 +90,7 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
   }
 
   const locked = course.status === 'IN_REVIEW';
+  const isPrivate = course.visibility === 'PRIVATE';
   const pendingNew = course.sections.flatMap((x) => x.lessons).filter((l) => !l.archived && (l.reviewStatus === 'DRAFT' || l.reviewStatus === 'REJECTED'));
   const canSubmit = !locked && (course.status !== 'PUBLISHED' || pendingNew.length > 0);
 
@@ -98,7 +99,9 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
       <div className={s.pageHead}>
         <h1 className={s.title}>{course.title}</h1>
         <StatusBadge status={course.status} />
+        {isPrivate && <span className="badge-status">{t('course.privateBadge')}</span>}
       </div>
+      {isPrivate && <p className="muted">{t('course.privateHint')}</p>}
 
       {course.reviewNote && course.status === 'REJECTED' && (
         <p className={`card ${s.cardDanger} ${s.pre}`}>
@@ -113,7 +116,7 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
       )}
 
       <CourseInfo course={course} categories={categories} locked={locked} run={run} />
-      <Curriculum course={course} locked={locked} run={run} />
+      <Curriculum course={course} locked={locked} run={run} isPrivate={isPrivate} />
 
       {canSubmit && (
         <section className={`card ${s.card}`}>
@@ -132,11 +135,11 @@ export default function CourseEditorPage({ params }: { params: Promise<{ id: str
             disabled={course.status !== 'PUBLISHED' && course.problems.length > 0}
             onClick={async () => {
               if (await run(() => api<CourseDetail>(`/teacher/courses/${id}/submit`, { method: 'POST' }))) {
-                toast(t('course.submitted'));
+                toast(t(isPrivate ? 'course.published' : 'course.submitted'));
               }
             }}
           >
-            {course.status === 'PUBLISHED' ? t('course.submitNew') : t('course.submit')}
+            {isPrivate ? t('course.publish') : course.status === 'PUBLISHED' ? t('course.submitNew') : t('course.submit')}
           </Button>
         </section>
       )}
@@ -252,6 +255,7 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
               </select>
             </label>
           </div>
+          {course.visibility !== 'PRIVATE' && (
           <label className={s.field}>
             {t('course.price')}
             <input
@@ -267,6 +271,7 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
             />
             <span className={s.hint}>{t('course.lessonsTotal', { count: course.lessonsTotalCredits })}</span>
           </label>
+          )}
           <div className={s.row}>
             <Button type="submit" loading={saving} loadingLabel={t('teacherUi.saving')}>
               {t('course.save')}
@@ -279,7 +284,7 @@ function CourseInfo({ course, categories, locked, run }: { course: CourseDetail;
   );
 }
 
-function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boolean; run: Run }) {
+function Curriculum({ course, locked, run, isPrivate }: { course: CourseDetail; locked: boolean; run: Run; isPrivate: boolean }) {
   const confirm = useConfirm();
   const [sectionTitle, setSectionTitle] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -330,8 +335,8 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
                 <div className={s.lessonRow}>
                   <span>
                     {l.title} <small className={s.lessonMeta}>· {t(`course.type${l.type}` as MessageKey)}</small>{' '}
-                    <small className={s.lessonMeta}>· {t('course.credits', { count: l.priceCredits })}</small>
-                    {l.isFreePreview && <small className={s.lessonMeta}> · preview</small>}
+                    {!isPrivate && <small className={s.lessonMeta}>· {t('course.credits', { count: l.priceCredits })}</small>}
+                    {!isPrivate && l.isFreePreview &&<small className={s.lessonMeta}> · preview</small>}
                   </span>
                   <span className={s.row}>
                     {l.archived ? <span className="badge-status">{t('course.archived')}</span> : <LessonStatusBadge status={l.reviewStatus} />}
@@ -372,6 +377,7 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
                     key={`${l.id}-${l.reviewStatus}-${l.type}`}
                     lesson={l}
                     sections={course.sections}
+                    isPrivate={isPrivate}
                     locked={locked || l.archived || l.reviewStatus === 'IN_REVIEW'}
                     run={run}
                     confirm={confirm}
@@ -381,7 +387,7 @@ function Curriculum({ course, locked, run }: { course: CourseDetail; locked: boo
               </li>
             ))}
           </ul>
-          {!locked && <AddLesson sectionId={sec.id} run={run} />}
+          {!locked && <AddLesson sectionId={sec.id} run={run} isPrivate={isPrivate} />}
         </div>
       ))}
       {!locked && (
@@ -480,7 +486,7 @@ function SectionHeader({
   );
 }
 
-function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
+function AddLesson({ sectionId, run, isPrivate }: { sectionId: string; run: Run; isPrivate: boolean }) {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<LessonType>('TEXT');
   useUnsavedWarning(title.trim() !== '');
@@ -510,7 +516,7 @@ function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
         onChange={(e) => setType(e.target.value as LessonType)}
         aria-label={t('teacherUi.lessonType')}
       >
-        {AVAILABLE_LESSON_TYPES.map((ty) => (
+        {AVAILABLE_LESSON_TYPES.filter((ty) => !(isPrivate && ty === 'ASSIGNMENT')).map((ty) => (
           <option key={ty} value={ty}>
             {t(`course.type${ty}` as MessageKey)}
           </option>
@@ -526,6 +532,7 @@ function AddLesson({ sectionId, run }: { sectionId: string; run: Run }) {
 function LessonEditor({
   lesson,
   sections,
+  isPrivate,
   locked,
   run,
   confirm,
@@ -533,6 +540,7 @@ function LessonEditor({
 }: {
   lesson: LessonView;
   sections: SectionView[];
+  isPrivate: boolean;
   locked: boolean;
   run: Run;
   confirm: ReturnType<typeof useConfirm>;
@@ -621,6 +629,7 @@ function LessonEditor({
           <input className="input" name="title" autoComplete="off" required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <div className={s.rowEnd}>
+          {!isPrivate && (
           <label className={s.field}>
             {t('course.lessonPrice')}
             <input
@@ -635,10 +644,13 @@ function LessonEditor({
               onChange={(e) => setPrice(e.target.value)}
             />
           </label>
+          )}
+          {!isPrivate && (
           <label className={s.inline}>
             <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
             {t('course.freePreview')}
           </label>
+          )}
           {sections.length > 1 && (
             <select
               className={`input ${s.autoWidth}`}
