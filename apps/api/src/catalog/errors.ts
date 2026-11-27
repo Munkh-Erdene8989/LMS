@@ -25,6 +25,10 @@ export const CatalogErrors = {
     new ApiError(HttpStatus.BAD_REQUEST, 'LESSON_TYPE_UNAVAILABLE', 'Энэ төрлийн хичээл удахгүй нэмэгдэнэ.'),
   sectionNotEmpty: () =>
     new ApiError(HttpStatus.CONFLICT, 'SECTION_NOT_EMPTY', 'Бүлэгт хичээл байгаа тул устгах боломжгүй.'),
+  houseTeacherOnly: () =>
+    new ApiError(HttpStatus.FORBIDDEN, 'HOUSE_TEACHER_ONLY', 'Хаалттай (private) курсийг зөвхөн house teacher үүсгэнэ.'),
+  privateCourseRestricted: (reason: string) =>
+    new ApiError(HttpStatus.BAD_REQUEST, 'PRIVATE_COURSE_RESTRICTED', `Хаалттай курсэд боломжгүй: ${reason}.`),
   courseNotDeletable: () =>
     new ApiError(HttpStatus.CONFLICT, 'COURSE_NOT_DELETABLE', 'Нийтлэгдсэн эсвэл шалгагдаж буй курсийг устгах боломжгүй.'),
   invalidCurriculum: () =>

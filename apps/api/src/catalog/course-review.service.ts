@@ -25,6 +25,8 @@ export class CourseReviewService {
   async queue(): Promise<ReviewQueueItem[]> {
     const rows = await this.prisma.course.findMany({
       where: {
+        // PRIVATE курс review-гүй (ticket 44) — дараалалд хэзээ ч орохгүй.
+        visibility: 'PUBLIC',
         OR: [
           { status: 'IN_REVIEW' },
           { status: 'PUBLISHED', lessons: { some: { reviewStatus: 'IN_REVIEW', archivedAt: null } } },

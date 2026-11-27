@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from '@lms/db';
+import { orgMemberIdsWithAccess } from '../organizations/org-access';
 
 /** PrismaService эсвэл transaction client */
 export type Db = Prisma.TransactionClient | PrismaClient;
@@ -87,15 +88,16 @@ export async function ownedCourses(db: Db, userId: string, courseId?: string): P
 }
 
 /**
- * Lesson-ыг эзэмшиж буй бүх хэрэглэгч (lesson-ы `Entitlement` ∪ курсийн `CourseEntitlement`) —
- * live сануулга (ticket 14) г.м олон хүнд мэдэгдэл илгээхэд.
+ * Lesson-ыг үзэх эрхтэй бүх хэрэглэгч (lesson-ы `Entitlement` ∪ курсийн `CourseEntitlement` ∪ байгууллагын
+ * гишүүд) — live сануулга (ticket 14) г.м олон хүнд мэдэгдэл илгээхэд.
  */
 export async function lessonOwnerIds(db: Db, lesson: { id: string; courseId: string }): Promise<string[]> {
   const [lessonRows, courseRows] = await Promise.all([
     db.entitlement.findMany({ where: { lessonId: lesson.id }, select: { userId: true } }),
     db.courseEntitlement.findMany({ where: { courseId: lesson.courseId }, select: { userId: true } }),
   ]);
-  return [...new Set([...lessonRows, ...courseRows].map((r) => r.userId))];
+  const orgIds = await orgMemberIdsWithAccess(db, lesson.courseId);
+  return [...new Set([...lessonRows, ...courseRows].map((r) => r.userId).concat(orgIds))];
 }
 
 // ---- багшийн түвшний эзэмшил (community, ticket 19) ---------------------------------------------

@@ -257,7 +257,7 @@ export class LearningService {
 
 /** Багш (өөрийн quiz-ийг шалгах), админд хурдны хязгаар үгүй — зөв хариултыг аль хэдийн мэднэ. */
 function rateLimited(access: LessonAccessReason): boolean {
-  return access === 'OWNED' || access === 'PREVIEW';
+  return access === 'OWNED' || access === 'ORG' || access === 'PREVIEW';
 }
 
 async function recentAttemptTimes(db: Db, userId: string, lessonId: string): Promise<Date[]> {

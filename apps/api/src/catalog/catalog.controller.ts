@@ -21,7 +21,7 @@ const Uuid = new ParseUUIDPipe();
 const title = z.string().trim().min(1).max(200);
 const credits = z.number().int().min(0).max(100_000);
 
-const CourseCreate = z.object({ title });
+const CourseCreate = z.object({ title, visibility: z.enum(['PUBLIC', 'PRIVATE']).optional() });
 const CourseUpdate = z
   .object({
     title,
@@ -72,7 +72,7 @@ export class TeacherCourseController {
 
   @Post('courses')
   create(@CurrentUser() u: CurrentUserInfo, @Body(new ZodPipe(CourseCreate)) b: z.infer<typeof CourseCreate>): Promise<CourseDetail> {
-    return this.courses.create(u.id, b.title);
+    return this.courses.create(u.id, b.title, b.visibility);
   }
 
   @Get('courses/:id')

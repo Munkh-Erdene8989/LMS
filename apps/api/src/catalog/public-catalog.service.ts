@@ -16,6 +16,7 @@ import {
 } from '@lms/shared';
 import { STORAGE, type StorageAdapter } from '../adapters/storage';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasOrgCourseAccess } from '../organizations/org-access';
 import { courseOwnership, ownsFrom, type CourseOwnership } from '../purchases/entitlements';
 import { searchCatalog } from './catalog-search';
 import { toContent } from './course.view';
@@ -51,6 +52,8 @@ type CardRow = Prisma.CourseGetPayload<{ include: typeof cardInclude }>;
 /**
  * Нийтийн (нэвтрэлтгүй) каталог. Дүрэм:
  * - Зөвхөн `PUBLISHED` курс; бусад төлөвийнх 404 (оршин буйг ч илчлэхгүй).
+ * - `PRIVATE` курс (ticket 44) каталог, хайлт, багшийн профайлд огт гарахгүй; хуудас нь зөвхөн эрхтэй хүнд
+ *   (байгууллагын гишүүн, багш, админ), бусдад 404.
  * - Зөвхөн `APPROVED`, архивлаагүй lesson (шалгалт хүлээж буй шинэ lesson харагдахгүй).
  * - Lesson-ы контент зөвхөн `LessonAccessPolicy` зөвшөөрвөл (preview, эзэмшил, багш, админ).
  * - Архивласан lesson нийтэд 404, харин эзэмшигч (болон багш, админ) контентоо үзсээр байна.
@@ -96,21 +99,26 @@ export class PublicCatalogService {
       },
     });
     if (!course) throw E.courseNotFound();
-    const [ratings, ownership] = await Promise.all([
+    const [ratings, ownership, orgAccess] = await Promise.all([
       loadRatings(this.prisma, [course.id]),
       viewer ? courseOwnership(this.prisma, viewer.id, course.id) : Promise.resolve(null),
+      viewer ? hasOrgCourseAccess(this.prisma, viewer.id, course.id) : Promise.resolve(false),
     ]);
+    if (course.visibility === 'PRIVATE' && !orgAccess && !(viewer && staffRole(viewer, course.teacherId))) {
+      throw E.courseNotFound();
+    }
     const { excerpt: _excerpt, teacher, ...card } = this.card(course, ratings.get(course.id));
     void _excerpt;
     return {
       ...card,
       description: course.description,
+      visibility: course.visibility,
       teacher: { ...teacher, bio: publicBio(course.teacher) },
       pricing: this.pricing(course, ownership),
       sections: course.sections
         .map((s) => ({ id: s.id, title: s.title, lessons: s.lessons.map(lessonItem) }))
         .filter((s) => s.lessons.length > 0),
-      viewer: viewer && ownership ? viewerState(course, viewer, ownership) : null,
+      viewer: viewer && ownership ? viewerState(course, viewer, ownership, orgAccess) : null,
     };
   }
 
@@ -175,7 +183,7 @@ export class PublicCatalogService {
   private async cards(ids: string[]): Promise<CatalogCourseCard[]> {
     if (ids.length === 0) return [];
     const [rows, ratings] = await Promise.all([
-      this.prisma.course.findMany({ where: { id: { in: ids }, status: 'PUBLISHED' }, include: cardInclude }),
+      this.prisma.course.findMany({ where: { id: { in: ids }, status: 'PUBLISHED', visibility: 'PUBLIC' }, include: cardInclude }),
       loadRatings(this.prisma, ids),
     ]);
     const byId = new Map(rows.map((r) => [r.id, r]));
@@ -207,11 +215,13 @@ function viewerState(
   course: { teacherId: string; lessons: { id: string }[] },
   viewer: LessonViewer,
   o: CourseOwnership,
+  orgAccess: boolean,
 ): CourseViewerState {
   return {
     ownsCourse: o.ownsCourse,
     ownedLessonIds: course.lessons.filter((l) => ownsFrom(o, l.id)).map((l) => l.id),
     canViewAll: staffRole(viewer, course.teacherId) !== null,
+    orgAccess,
     isTeacher: course.teacherId === viewer.id,
   };
 }

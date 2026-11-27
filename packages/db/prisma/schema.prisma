@@ -108,6 +108,8 @@ model User {
   quizAttempts       QuizAttempt[]
   certificates       Certificate[]
 
+  organizationMemberships OrganizationMember[]
+
   submissions       AssignmentSubmission[] @relation("SubmissionLearner")
   gradedSubmissions AssignmentSubmission[] @relation("SubmissionReviewer")
 
@@ -408,27 +410,36 @@ enum CourseStatus {
   REJECTED
 }
 
+/// PUBLIC = нийтийн каталог. PRIVATE = байгууллагын хаалттай сургалт (ticket 44): каталог/хайлт/профайл/landing-д
+/// гарахгүй, review-гүй шууд нийтлэгдэнэ, үнэгүй, эзэн нь house teacher.
+enum CourseVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 model Course {
-  id           String       @id @default(uuid()) @db.Uuid
-  teacherId    String       @map("teacher_id") @db.Uuid
+  id           String           @id @default(uuid()) @db.Uuid
+  teacherId    String           @map("teacher_id") @db.Uuid
   title        String
-  description  String       @default("")
+  description  String           @default("")
   /// Storage `public` bucket дахь зураг
-  coverKey     String?      @map("cover_key")
-  categoryId   String?      @map("category_id") @db.Uuid
-  level        CourseLevel  @default(ALL)
+  coverKey     String?          @map("cover_key")
+  categoryId   String?          @map("category_id") @db.Uuid
+  level        CourseLevel      @default(ALL)
   /// Курсийг бүтнээр нь авах үнэ (кредит). Худалдан авалтын үед өмнө төлсөн lesson-ы кредит хасагдана.
-  priceCredits Int?         @map("price_credits")
-  status       CourseStatus @default(DRAFT)
-  reviewNote   String?      @map("review_note")
-  reviewedById String?      @map("reviewed_by_id") @db.Uuid
-  reviewedAt   DateTime?    @map("reviewed_at")
-  submittedAt  DateTime?    @map("submitted_at")
-  publishedAt  DateTime?    @map("published_at")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  priceCredits Int?             @map("price_credits")
+  status       CourseStatus     @default(DRAFT)
+  /// Үүсгэх үед тогтоогдоно, дараа нь өөрчлөгдөхгүй.
+  visibility   CourseVisibility @default(PUBLIC)
+  reviewNote   String?          @map("review_note")
+  reviewedById String?          @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?        @map("reviewed_at")
+  submittedAt  DateTime?        @map("submitted_at")
+  publishedAt  DateTime?        @map("published_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
   /// Хайлтын денормчилсон текст (title, description, багшийн нэр). DB trigger-ээр синк хийгдэнэ — кодоос бүү бич (20261118110000_course_search_text).
-  searchText   String       @default("") @map("search_text")
+  searchText   String           @default("") @map("search_text")
 
   teacher    User      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   reviewedBy User?     @relation("CourseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -445,6 +456,8 @@ model Course {
   reviews            Review[]
 
   submissions AssignmentSubmission[]
+
+  organizationGrants OrganizationCourseGrant[]
 
   @@index([teacherId])
   @@index([status, submittedAt])
@@ -1394,4 +1407,57 @@ model CommunityRemoval {
   @@id([teacherId, userId])
   @@index([userId])
   @@map("community_removals")
+}
+
+// ---------------------------------------------------------------------------
+// Байгууллагын хаалттай сургалт (ticket 44)
+// ---------------------------------------------------------------------------
+
+/// Платформтой гэрээ байгуулсан байгууллага. Төлбөр системээс гадуур (гэрээ, нэхэмжлэл).
+/// Идэвхтэй = `active` ба `contractEndsAt` өнгөрөөгүй (apps/api/src/organizations/org-access.ts).
+model Organization {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  active         Boolean  @default(true)
+  contractEndsAt DateTime @map("contract_ends_at")
+  seatLimit      Int      @map("seat_limit")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  members      OrganizationMember[]
+  courseGrants OrganizationCourseGrant[]
+
+  @@map("organizations")
+}
+
+/// Байгууллагын гишүүнчлэл. Хасахад мөр устахгүй `removedAt` тавигдана (түүх). Нэг org × user-д идэвхтэй
+/// (`removed_at IS NULL`) мөр нэг л байна — partial unique index (migration), дахин нэмэхэд шинэ мөр.
+model OrganizationMember {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  removedAt      DateTime? @map("removed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+/// Private курсийг байгууллагад олгосон. Эрхийг үргэлж динамикаар тооцно (`Entitlement` мөр үүсгэхгүй).
+model OrganizationCourseGrant {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  courseId       String   @map("course_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, courseId])
+  @@index([courseId])
+  @@map("organization_course_grants")
 }

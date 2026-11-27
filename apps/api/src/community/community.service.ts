@@ -175,7 +175,7 @@ export class CommunityService {
           type: 'LIVE',
           reviewStatus: 'APPROVED',
           archivedAt: null,
-          course: { teacherId, status: 'PUBLISHED' },
+          course: { teacherId, status: 'PUBLISHED', visibility: 'PUBLIC' },
         },
         select: { id: true, courseId: true, title: true, content: true, course: { select: { title: true } } },
       }),

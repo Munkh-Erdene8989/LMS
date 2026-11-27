@@ -455,7 +455,9 @@
     "balanceAfter": "Үлдэгдэл: {count} кредит",
     "ownedBadge": "Таны хичээл",
     "teacherBadge": "Таны курс",
-    "adminBadge": "Админ үзэлт"
+    "adminBadge": "Админ үзэлт",
+    "orgBadge": "Байгууллагын эрх",
+    "orgAccess": "Таны байгууллагын эрхээр нээлттэй."
   },
   "earnings": {
     "title": "Миний орлого",

@@ -50,7 +50,8 @@ export async function searchCatalog(prisma: PrismaService, f: CatalogFilter): Pr
   const q = f.q?.trim().replace(/\s+/g, ' ').slice(0, 100) || null;
   const teacherName = Prisma.sql`COALESCE(ta.display_name, u.name, '')`;
 
-  const where: Prisma.Sql[] = [Prisma.sql`c.status = 'PUBLISHED'`];
+  // PRIVATE (байгууллагын хаалттай) курс каталог, хайлт, багшийн профайлд ХЭЗЭЭ Ч гарахгүй (ticket 44).
+  const where: Prisma.Sql[] = [Prisma.sql`c.status = 'PUBLISHED' AND c.visibility = 'PUBLIC'`];
   if (f.categoryIds) {
     if (f.categoryIds.length === 0) return { ids: [], total: 0 };
     where.push(Prisma.sql`c.category_id IN (${Prisma.join(f.categoryIds.map((id) => Prisma.sql`${id}::uuid`))})`);
