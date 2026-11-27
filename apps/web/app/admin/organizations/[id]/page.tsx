@@ -14,8 +14,9 @@ import { ErrorLine, FilterTabs, LoadingRows, Pill, errorText } from '../../admin
 import styles from '../../admin.module.css';
 import { OrgForm, draftBody, draftFromRow } from '../org-form';
 import { ORG_STATUS_TONE } from '../org-status';
+import { OrgCoursesTab } from './org-courses-tab';
 
-/** Хэсгүүд: `courses` (ticket 46) ба `report` (ticket 48) энд залгагдана. */
+/** Хэсгүүд: `courses` (ticket 46); `report` (ticket 48) энд залгагдана. */
 type Tab = 'members' | 'courses' | 'report';
 
 export default function AdminOrganizationDetailPage() {
@@ -89,7 +90,7 @@ export default function AdminOrganizationDetailPage() {
       />
 
       {tab === 'members' && <MembersTab org={org} reload={load} />}
-      {tab === 'courses' && <EmptyState title={t('orgAdmin.tabSoon')} />}
+      {tab === 'courses' && <OrgCoursesTab organizationId={id} />}
       {tab === 'report' && <EmptyState title={t('orgAdmin.tabSoon')} />}
     </div>
   );
