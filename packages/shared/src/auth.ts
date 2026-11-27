@@ -16,6 +16,8 @@ export interface AuthUser {
   avatarUrl: string | null;
   roles: Role[];
   identifiers: AuthIdentifier[];
+  /** Платформын house teacher аккаунт эсэх (private курс зохиох эрх) — зөвхөн `/me` хариунд */
+  isHouseTeacher?: boolean;
 }
 
 /** `POST /auth/otp/start`, `POST /me/identifiers/start` */
