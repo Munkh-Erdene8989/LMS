@@ -17,6 +17,7 @@ const GROUPS: { title: MessageKey; items: NavItem[] }[] = [
     title: 'adminUi.groupUsers',
     items: [
       ['/admin/users', 'adminOps.navUsers'],
+      ['/admin/organizations', 'orgAdmin.nav'],
       ['/admin/teacher-applications', 'teacher.navApplications'],
     ],
   },

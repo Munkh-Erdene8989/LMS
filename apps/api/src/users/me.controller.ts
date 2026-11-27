@@ -6,6 +6,7 @@ import { Auth, CurrentUser, type CurrentUserInfo } from '../auth/auth.guard';
 import { StartSchema, VerifySchema } from '../auth/auth.controller';
 import { OtpService } from '../auth/otp.service';
 import { ZodPipe } from '../zod-pipe';
+import { OrgInvitationsService } from '../organizations/org-invitations.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from './users.service';
 
@@ -23,6 +24,7 @@ export class MeController {
     private readonly users: UsersService,
     private readonly otp: OtpService,
     private readonly notifications: NotificationsService,
+    private readonly orgInvitations: OrgInvitationsService,
   ) {}
 
   @Get()
@@ -71,6 +73,7 @@ export class MeController {
       params: { value: result.value },
       link: '/me',
     });
+    await this.orgInvitations.acceptForIdentifierSafe(user.id, result.value);
     return { status: 'verified', user: updated };
   }
 }

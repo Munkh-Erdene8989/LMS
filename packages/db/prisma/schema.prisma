@@ -52,6 +52,12 @@ enum Role {
   ADMIN
 }
 
+enum OrgInvitationStatus {
+  PENDING
+  ACCEPTED
+  CANCELED
+}
+
 enum IdentifierType {
   PHONE
   EMAIL
@@ -1426,6 +1432,7 @@ model Organization {
 
   members      OrganizationMember[]
   courseGrants OrganizationCourseGrant[]
+  invitations  OrganizationInvitation[]
 
   @@map("organizations")
 }
@@ -1460,4 +1467,22 @@ model OrganizationCourseGrant {
   @@unique([organizationId, courseId])
   @@index([courseId])
   @@map("organization_course_grants")
+}
+
+/// Байгууллагын урилга (ticket 45). Утга нь normalize хийсэн утас/имэйл. Нэг org × identifier-д PENDING нэг л байна
+/// (partial unique index, migration). Тухайн identifier-ээр OTP нэвтрэх/холбох үед ACCEPTED болж гишүүнчлэл үүснэ.
+model OrganizationInvitation {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  identifierType IdentifierType      @map("identifier_type")
+  value          String
+  status         OrgInvitationStatus @default(PENDING)
+  invitedAt      DateTime            @default(now()) @map("invited_at")
+  acceptedAt     DateTime?           @map("accepted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([value])
+  @@map("organization_invitations")
 }
