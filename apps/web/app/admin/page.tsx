@@ -3,6 +3,7 @@ import { t } from '@/lib/i18n';
 import { pageMeta } from '@/lib/page-meta';
 import { AdminOverview } from './overview';
 import styles from './admin.module.css';
+import ds from '../ui/dashboard.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +21,12 @@ export default async function AdminOverviewPage() {
 
   return (
     <div className={styles.stackLg}>
-      <header className={styles.pageHead}>
+      <header className={ds.pageHead}>
         <h1 className={styles.title}>{t('adminUi.overviewTitle')}</h1>
-        <p className={styles.health} title={detail} data-testid="system-status">
-          <span className={`${styles.dot} ${ok ? '' : styles.dotErr}`} aria-hidden="true" />
+        <p className={ds.health} title={detail} data-testid="system-status">
+          <span className={`${ds.dot} ${ok ? '' : ds.dotErr}`} aria-hidden="true" />
           {ok ? t('adminUi.systemOk') : t('adminUi.systemDegraded')}
-          <span className={styles.visuallyHidden}> — {detail}</span>
+          <span className={ds.visuallyHidden}> — {detail}</span>
         </p>
       </header>
       <AdminOverview />

@@ -162,7 +162,7 @@ export function SiteHeader() {
       <Link href="/me">{t('shell.profile')}</Link>
       <Link href="/credits">{t('shell.credits')}</Link>
       {isTeacher ? (
-        <Link href="/teacher/courses">{t('shell.teacherDashboard')}</Link>
+        <Link href="/teacher">{t('shell.teacherDashboard')}</Link>
       ) : (
         <Link href="/teacher/apply">{t('shell.becomeTeacher')}</Link>
       )}
