@@ -1,9 +1,18 @@
 'use client';
 
-import { formatUbDateTime, liveState, type LessonView, type LiveLessonContent, type VideoLessonContent } from '@lms/shared';
+import {
+  formatUbDateTime,
+  liveState,
+  type LessonAttachmentView,
+  type LessonView,
+  type LiveLessonContent,
+  type VideoLessonContent,
+} from '@lms/shared';
+import { formatFileSize } from '@/lib/format';
 import { t, type MessageKey } from '@/lib/i18n';
 
 import { Markdown } from './markdown';
+import { Button } from './ui/button';
 import { EmptyValue } from './ui/empty-value';
 import { VideoPlayer } from './video-player';
 import styles from './course-ui.module.css';
@@ -130,5 +139,40 @@ export function VideoStatus({ content }: { content: VideoLessonContent }) {
       {content.durationSeconds !== null && <small className="muted">{t('video.duration', { duration: formatDuration(content.durationSeconds) })}</small>}
       {content.status === 'ERRORED' && content.error && <small className={styles.err}>{content.error}</small>}
     </div>
+  );
+}
+
+/**
+ * Багш/админы view-ийн материалын жагсаалт (`url` signed, татах нэртэй). `onRemove` өгвөл устгах товч.
+ * Learner-ийн хуудас URL-ийг татах мөчид авдаг тул өөр компонент (`lesson-attachments.tsx`).
+ */
+export function AttachmentList({
+  attachments,
+  onRemove,
+}: {
+  attachments: LessonAttachmentView[];
+  onRemove?: (attachment: LessonAttachmentView) => void;
+}) {
+  if (attachments.length === 0) return null;
+  return (
+    <ul className={styles.attachments}>
+      {attachments.map((a) => (
+        <li key={a.id} className={styles.attachment}>
+          {a.url ? (
+            <a href={a.url} download={a.fileName}>
+              {a.fileName}
+            </a>
+          ) : (
+            <span>{a.fileName}</span>
+          )}
+          <small className="muted">{formatFileSize(a.size)}</small>
+          {onRemove && (
+            <Button variant="ghost" size="sm" onClick={() => onRemove(a)}>
+              {t('course.remove')}
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

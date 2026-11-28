@@ -14,6 +14,82 @@ export const AVAILABLE_LESSON_TYPES: readonly LessonType[] = ['VIDEO', 'TEXT', '
 
 export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 export const COVER_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Хичээлийн татаж авах материал. Зөвшөөрөгдсөн MIME → storage key-ийн өргөтгөл. HTML, SVG, гүйцэтгэх файл
+ * зориуд ороогүй (storage-аас шууд нээгдэхэд XSS / хор хөнөөлтэй).
+ */
+export const LESSON_ATTACHMENT_TYPES: Readonly<Record<string, string>> = {
+  'application/pdf': 'pdf',
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+  'text/markdown': 'md',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'audio/mpeg': 'mp3',
+};
+/** `<input accept>`-д: өргөтгөлөөр (зарим OS MIME-ийг буруу/хоосон өгдөг). */
+export const LESSON_ATTACHMENT_ACCEPT = '.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.png,.jpg,.jpeg,.webp,.mp3';
+const ATTACHMENT_EXT_TYPES: Readonly<Record<string, string>> = {
+  pdf: 'application/pdf',
+  zip: 'application/zip',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  md: 'text/markdown',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  mp3: 'audio/mpeg',
+};
+
+/**
+ * Upload-д ашиглах Content-Type: browser-ийн өгсөн төрөл зөвшөөрөгдсөн бол түүнийг, үгүй бол (Windows дээр .md,
+ * .csv хоосон эсвэл `application/vnd.ms-excel` гэх мэт) өргөтгөлөөр. Танихгүй бол null.
+ */
+export function attachmentContentType(fileName: string, browserType: string): string | null {
+  if (browserType && LESSON_ATTACHMENT_TYPES[browserType]) {
+    const ext = fileName.toLowerCase().split('.').pop() ?? '';
+    // Windows .csv-г `application/vnd.ms-excel` гэдэг — өргөтгөл илүү найдвартай.
+    return ATTACHMENT_EXT_TYPES[ext] ?? browserType;
+  }
+  return ATTACHMENT_EXT_TYPES[fileName.toLowerCase().split('.').pop() ?? ''] ?? null;
+}
+
+export const LESSON_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
+export const LESSON_ATTACHMENTS_MAX = 10;
+
+/**
+ * Хичээлийн материал. `url` зөвхөн багш/админы засварлах view-д (богино хугацаатай signed URL);
+ * learner `GET /catalog/lessons/:id/attachments/:attachmentId/url`-аар татах мөчид шинэ URL авна.
+ */
+export interface LessonAttachmentView {
+  id: string;
+  fileName: string;
+  size: number;
+  contentType: string;
+  url?: string;
+}
+
+/** `GET /catalog/lessons/:id/attachments/:attachmentId/url` */
+export interface LessonAttachmentUrl {
+  url: string;
+}
 export const COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export interface CategoryNode {
@@ -119,6 +195,8 @@ export interface LessonView {
   /** Илгээхэд дутуу зүйл (хоосон бол бэлэн) */
   problems: string[];
   content: LessonContent;
+  /** Татаж авах материал (signed URL-тай) */
+  attachments: LessonAttachmentView[];
 }
 
 export interface SectionView {
@@ -299,6 +377,8 @@ export interface PublicLessonContent {
   course: { id: string; title: string };
   /** PDF-ийн `url` богино хугацаатай signed URL */
   content: LessonContent;
+  /** Татаж авах материал (`url`-гүй — татах үед тусад нь авна) */
+  attachments: LessonAttachmentView[];
 }
 
 /** `GET /catalog/teachers/:id` */

@@ -350,3 +350,95 @@ describe('Ангилал', () => {
     expect(actions).toEqual(['category.create', 'category.create', 'category.update']);
   });
 });
+
+describe('Хичээлийн татаж авах материал', () => {
+  const ZIP = 'application/zip';
+
+  async function attach(a: Agent, lessonId: string, fileName = 'code.zip', info = { size: 2048, contentType: ZIP }) {
+    const up = (await a.post(`/teacher/lessons/${lessonId}/attachment-upload`).send({ contentType: info.contentType }).expect(201)).body;
+    t.storage.put('private', up.key, info);
+    const d = (await a.post(`/teacher/lessons/${lessonId}/attachments`).send({ fileKey: up.key, fileName }).expect(201)).body;
+    return { key: up.key as string, detail: d };
+  }
+
+  const lessonOf = (d: { sections: { lessons: { id: string; attachments: unknown[] }[] }[] }, id: string) =>
+    d.sections.flatMap((s) => s.lessons).find((l) => l.id === id)!;
+
+  it('draft хичээлд нэмэх, шалгалт (төрөл, зам, хэмжээ, тоо), устгах; бусдын хичээлд 404', async () => {
+    const a = await admin();
+    const tch = await teacher();
+    const other = await teacher('other@example.mn');
+    const c = await readyCourse(tch.agent, await category(a.agent));
+
+    // зөвшөөрөгдөөгүй төрөл (HTML → XSS)
+    await tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachment-upload`).send({ contentType: 'text/html' }).expect(400);
+    const up = (await tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachment-upload`).send({ contentType: ZIP }).expect(201)).body;
+    expect(up.key).toMatch(new RegExp(`^lessons/${c.textLessonId}/attachments/.+\.zip$`));
+
+    const add = (fileKey: string) => tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachments`).send({ fileKey, fileName: 'код.zip' });
+    await add(up.key).expect(400); // upload хийгдээгүй
+    t.storage.put('private', up.key, { size: 1000, contentType: 'text/html' });
+    await add(up.key).expect(400); // storage-д өөр төрөлтэй
+    t.storage.put('private', up.key, { size: 60 * 1024 * 1024, contentType: ZIP });
+    await add(up.key).expect(400); // 50MB-аас их
+    t.storage.put('private', `lessons/${c.pdfLessonId}/attachments/x.zip`, { size: 1000, contentType: ZIP });
+    await add(`lessons/${c.pdfLessonId}/attachments/x.zip`).expect(400); // өөр хичээлийн зам
+
+    t.storage.put('private', up.key, { size: 1000, contentType: ZIP });
+    let d = (await add(up.key).expect(201)).body;
+    await add(up.key).expect(400); // давхар бүртгэхгүй
+    const [att] = lessonOf(d, c.textLessonId).attachments as { id: string; url: string }[];
+    expect(att).toMatchObject({ fileName: 'код.zip', size: 1000, contentType: ZIP });
+    expect(att.url).toContain(`download=${encodeURIComponent('код.zip')}`);
+
+    // бусдын хичээл
+    await other.agent.post(`/teacher/lessons/${c.textLessonId}/attachment-upload`).send({ contentType: ZIP }).expect(404);
+    await other.agent.delete(`/teacher/attachments/${att.id}`).expect(404);
+
+    // хязгаар 10
+    for (let i = 1; i < 10; i++) await attach(tch.agent, c.textLessonId, `f${i}.zip`);
+    const extra = (await tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachment-upload`).send({ contentType: ZIP }).expect(201)).body;
+    t.storage.put('private', extra.key, { size: 10, contentType: ZIP });
+    await tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachments`).send({ fileKey: extra.key, fileName: 'x.zip' }).expect(400);
+
+    d = (await tch.agent.delete(`/teacher/attachments/${att.id}`).expect(200)).body;
+    expect(lessonOf(d, c.textLessonId).attachments).toHaveLength(9);
+    expect(await t.storage.info('private', up.key)).toBeNull(); // файл ч устсан
+  });
+
+  it('нийтлэгдсэний дараа түгжигдэж, татах эрх lesson-ы контенттой ижил (preview, эзэмшил, багш)', async () => {
+    const a = await admin();
+    const tch = await teacher();
+    const c = await readyCourse(tch.agent, await category(a.agent));
+    const preview = await attach(tch.agent, c.textLessonId, 'slides.pdf', { size: 5000, contentType: 'application/pdf' });
+    const paid = await attach(tch.agent, c.pdfLessonId, 'дасгал.xlsx', {
+      size: 3000,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const previewId = (lessonOf(preview.detail, c.textLessonId).attachments[0] as { id: string }).id;
+    const paidId = (lessonOf(paid.detail, c.pdfLessonId).attachments[0] as { id: string }).id;
+    await tch.agent.post(`/teacher/courses/${c.id}/submit`).expect(200);
+    await a.agent.post(`/admin/courses/${c.id}/approve`).expect(200);
+
+    // түгжээ
+    const locked = await tch.agent.post(`/teacher/lessons/${c.textLessonId}/attachment-upload`).send({ contentType: ZIP }).expect(409);
+    expect(locked.body.code).toBe('LESSON_CONTENT_LOCKED');
+    await tch.agent.delete(`/teacher/attachments/${previewId}`).expect(409);
+
+    // free preview: нэвтрээгүй ч жагсаалт (URL-гүй) ба татах URL
+    const lesson = (await t.http().get(`/catalog/lessons/${c.textLessonId}`).expect(200)).body;
+    expect(lesson.attachments).toEqual([{ id: previewId, fileName: 'slides.pdf', size: 5000, contentType: 'application/pdf' }]);
+    const url = (await t.http().get(`/catalog/lessons/${c.textLessonId}/attachments/${previewId}/url`).expect(200)).body.url;
+    expect(url).toContain('/signed/private/lessons/');
+    expect(url).toContain('download=slides.pdf');
+
+    // төлбөртэй хичээлийн материал: эрхгүй 403, багш 200
+    await t.http().get(`/catalog/lessons/${c.pdfLessonId}/attachments/${paidId}/url`).expect(403);
+    const learner = await loginByEmail(t, 'learner@example.mn');
+    await learner.agent.get(`/catalog/lessons/${c.pdfLessonId}/attachments/${paidId}/url`).expect(403);
+    await tch.agent.get(`/catalog/lessons/${c.pdfLessonId}/attachments/${paidId}/url`).expect(200);
+
+    // өөр хичээлийн материалыг preview хичээлээр дамжуулж авахгүй
+    await t.http().get(`/catalog/lessons/${c.textLessonId}/attachments/${paidId}/url`).expect(404);
+  });
+});

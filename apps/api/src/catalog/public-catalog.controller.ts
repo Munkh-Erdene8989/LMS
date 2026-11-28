@@ -4,6 +4,7 @@ import {
   COURSE_LEVELS,
   type CatalogPage,
   type CatalogQuery,
+  type LessonAttachmentUrl,
   type MoneyRules,
   type PublicCourseDetail,
   type PublicLessonContent,
@@ -71,6 +72,17 @@ export class PublicCatalogController {
   @OptionalAuth()
   lesson(@Param('id', Uuid) id: string, @Viewer() viewer: CurrentUserInfo | null): Promise<PublicLessonContent> {
     return this.catalog.lesson(id, viewer);
+  }
+
+  /** Материал татах: эрх lesson-ы контенттой ижил; татах мөчид шинэ, богино хугацаатай signed URL. */
+  @Get('lessons/:id/attachments/:attachmentId/url')
+  @OptionalAuth()
+  attachmentUrl(
+    @Param('id', Uuid) id: string,
+    @Param('attachmentId', Uuid) attachmentId: string,
+    @Viewer() viewer: CurrentUserInfo | null,
+  ): Promise<LessonAttachmentUrl> {
+    return this.catalog.attachmentUrl(id, attachmentId, viewer);
   }
 
   @Get('teachers/:id')

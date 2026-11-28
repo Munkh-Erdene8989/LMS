@@ -43,6 +43,7 @@ const LessonUpdate = z
   .object({ title, priceCredits: credits, isFreePreview: z.boolean(), content: z.unknown() })
   .partial()
   .strict();
+const AttachmentCreate = z.object({ fileKey: z.string().min(1).max(300), fileName: z.string().trim().min(1).max(200) }).strict();
 const Reason = z.object({ reason: z.string().trim().min(1).max(2000) });
 const CategoryCreate = z.object({ name: z.string().trim().min(1).max(100), parentId: z.string().uuid().nullable().optional() });
 const CategoryUpdate = z
@@ -168,6 +169,30 @@ export class TeacherCourseController {
   @Post('lessons/:id/pdf-upload')
   pdfUpload(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string): Promise<UploadTicket> {
     return this.courses.pdfUpload(u.id, id);
+  }
+
+  /** Татаж авах материал: 1) signed upload URL авах → 2) storage руу PUT → 3) `POST attachments`-оор бүртгэх. */
+  @Post('lessons/:id/attachment-upload')
+  attachmentUpload(
+    @CurrentUser() u: CurrentUserInfo,
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(CoverUpload)) b: z.infer<typeof CoverUpload>,
+  ): Promise<UploadTicket> {
+    return this.courses.attachmentUpload(u.id, id, b.contentType);
+  }
+
+  @Post('lessons/:id/attachments')
+  addAttachment(
+    @CurrentUser() u: CurrentUserInfo,
+    @Param('id', Uuid) id: string,
+    @Body(new ZodPipe(AttachmentCreate)) b: z.infer<typeof AttachmentCreate>,
+  ): Promise<CourseDetail> {
+    return this.courses.addAttachment(u.id, id, b);
+  }
+
+  @Delete('attachments/:id')
+  removeAttachment(@CurrentUser() u: CurrentUserInfo, @Param('id', Uuid) id: string): Promise<CourseDetail> {
+    return this.courses.removeAttachment(u.id, id);
   }
 
   /** Дууссан live хичээлийг бичлэгийн (VIDEO) хичээл болгох (ticket 14). */

@@ -2,7 +2,7 @@
 
 import { useId, useState, type DragEvent } from 'react';
 import { t } from '@/lib/i18n';
-import { formatNumber } from '@/lib/format';
+import { formatFileSize as formatSize } from '@/lib/format';
 import styles from './file-drop.module.css';
 
 const MB = 1024 * 1024;
@@ -36,10 +36,6 @@ function matchesAccept(file: File, accept: string | undefined): boolean {
     .map((a) => a.trim().toLowerCase())
     .filter(Boolean)
     .some((a) => (a.startsWith('.') ? name.endsWith(a) : a.endsWith('/*') ? file.type.startsWith(a.slice(0, -1)) : file.type === a));
-}
-
-function formatSize(bytes: number): string {
-  return bytes >= MB ? `${formatNumber(Math.round((bytes / MB) * 10) / 10)} MB` : `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} KB`;
 }
 
 /**

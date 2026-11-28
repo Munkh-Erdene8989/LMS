@@ -7,13 +7,18 @@ import {
   COURSE_LEVELS,
   COVER_MAX_BYTES,
   COVER_TYPES,
+  attachmentContentType,
   isoToUbLocal,
+  LESSON_ATTACHMENT_ACCEPT,
+  LESSON_ATTACHMENT_MAX_BYTES,
+  LESSON_ATTACHMENTS_MAX,
   LIVE_DURATION_MAX,
   LIVE_DURATION_MIN,
   liveState,
   PDF_MAX_BYTES,
   type CategoryNode,
   type CourseDetail,
+  type LessonAttachmentView,
   type LessonType,
   type LessonView,
   type SectionView,
@@ -25,7 +30,7 @@ import {
 import { api, ApiRequestError, useApiFailure } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { uploadFile, uploadWithProgress } from '@/lib/upload';
-import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
+import { AttachmentList, LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
 import { Markdown } from '../../../markdown';
 import { Button } from '../../../ui/button';
 import { useConfirm } from '../../../ui/confirm';
@@ -809,6 +814,8 @@ function LessonEditor({
             </div>
           ))}
 
+        <LessonAttachments lesson={lesson} locked={locked} run={run} confirm={confirm} />
+
         {lesson.problems.length > 0 && !contentLocked && (
           <p className={s.error}>
             {t('course.problems')} {lesson.problems.join('; ')}
@@ -895,6 +902,77 @@ function VideoUpload({ lesson, content, locked, run }: { lesson: LessonView; con
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Хичээлийн татаж авах материал. Засах дүрэм контенттой ижил (API): шалгагдсан (APPROVED) хичээлд түгжигдэнэ.
+ * Upload: төрлийг өргөтгөлөөр ч тогтооно (`attachmentContentType`) → signed URL → storage → бүртгэх.
+ */
+function LessonAttachments({
+  lesson,
+  locked,
+  run,
+  confirm,
+}: {
+  lesson: LessonView;
+  locked: boolean;
+  run: Run;
+  confirm: ReturnType<typeof useConfirm>;
+}) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  useUnsavedWarning(uploading);
+  const frozen = locked || lesson.reviewStatus === 'APPROVED';
+  const full = lesson.attachments.length >= LESSON_ATTACHMENTS_MAX;
+  if (frozen && lesson.attachments.length === 0) return null;
+
+  async function upload(file: File) {
+    const contentType = attachmentContentType(file.name, file.type);
+    if (!contentType) return toast(t('course.attachmentWrongType'));
+    setUploading(true);
+    await run(async () => {
+      const ticket = (await api<UploadTicket>(`/teacher/lessons/${lesson.id}/attachment-upload`, { method: 'POST', body: { contentType } }))
+        .data;
+      await uploadFile(ticket, file, contentType);
+      return api<CourseDetail>(`/teacher/lessons/${lesson.id}/attachments`, {
+        method: 'POST',
+        body: { fileKey: ticket.key, fileName: file.name },
+      });
+    });
+    setUploading(false);
+  }
+
+  async function remove(a: LessonAttachmentView) {
+    const ok = await confirm({
+      title: t('course.removeAttachmentTitle'),
+      body: t('course.removeAttachmentConfirm', { name: a.fileName }),
+      confirmLabel: t('course.remove'),
+      danger: true,
+    });
+    if (ok) void run(() => api<CourseDetail>(`/teacher/attachments/${a.id}`, { method: 'DELETE' }));
+  }
+
+  return (
+    <div className={s.stack}>
+      <strong>{t('course.attachments')}</strong>
+      <small className="muted">{frozen ? t('course.attachmentsLocked') : t('course.attachmentsHint')}</small>
+      <AttachmentList attachments={lesson.attachments} onRemove={frozen ? undefined : (a) => void remove(a)} />
+      {!frozen &&
+        (full ? (
+          <small className="muted">{t('course.attachmentsFull', { max: LESSON_ATTACHMENTS_MAX })}</small>
+        ) : (
+          <FileDrop
+            label={t('course.uploadAttachment')}
+            hint={t('ui.fileHint', { types: t('course.attachmentTypes'), max: LESSON_ATTACHMENT_MAX_BYTES / MB })}
+            accept={LESSON_ATTACHMENT_ACCEPT}
+            maxBytes={LESSON_ATTACHMENT_MAX_BYTES}
+            progress={uploading || null}
+            progressLabel={t('course.uploading')}
+            onFile={(file) => void upload(file)}
+          />
+        ))}
     </div>
   );
 }

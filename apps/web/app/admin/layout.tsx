@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import type { AuthUser } from '@lms/shared';
-import { api, useApiFailure } from '@/lib/client-api';
+import { usePathname, useRouter } from 'next/navigation';
+import { withNext } from '@/lib/next-path';
+import { hasRole, useViewer } from '@/lib/viewer';
 import { t, type MessageKey } from '@/lib/i18n';
 import { LoadingRows } from './admin-ui';
 import { EmptyState } from '../ui/empty-state';
@@ -58,17 +58,15 @@ function isActive(pathname: string, href: string): boolean {
 
 /** Web-ийн шалгалт зөвхөн UX-д; бодит эрхийн шалгалт API дээр (`@Auth('ADMIN')`). */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const fail = useApiFailure();
+  const { viewer } = useViewer();
+  const router = useRouter();
   const pathname = usePathname();
-  const [state, setState] = useState<'loading' | 'ok' | 'forbidden'>('loading');
+  const state =
+    viewer.status === 'loading' || viewer.status === 'guest' ? 'loading' : hasRole(viewer, 'ADMIN') ? 'ok' : 'forbidden';
 
   useEffect(() => {
-    api<AuthUser>('/me')
-      .then((r) => setState(r.data.roles.includes('ADMIN') ? 'ok' : 'forbidden'))
-      .catch((err: unknown) => {
-        if (fail(err) !== null) setState('forbidden');
-      });
-  }, [fail]);
+    if (viewer.status === 'guest') router.replace(withNext('/login', pathname));
+  }, [viewer.status, router, pathname]);
 
   if (state === 'loading') {
     return (

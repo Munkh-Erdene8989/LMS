@@ -25,6 +25,13 @@ export function formatNumber(n: number): string {
   return numberFmt.format(n);
 }
 
+const MB = 1024 * 1024;
+
+/** `850 KB`, `12,5 MB` (хамгийн багадаа 1 KB). */
+export function formatFileSize(bytes: number): string {
+  return bytes >= MB ? `${formatNumber(Math.round((bytes / MB) * 10) / 10)} MB` : `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} KB`;
+}
+
 /** `2026 оны 11-р сарын 19 23:51` (Улаанбаатарын цаг; server, client ижил). */
 export function formatDate(iso: string): string {
   const [date = '', time = ''] = isoToUbLocal(iso).split('T');

@@ -41,3 +41,25 @@
 .err {
   color: var(--err);
 }
+
+/* --- Хичээлийн материал (багш/админ) --- */
+.attachments {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.attachment > a,
+.attachment > span {
+  overflow-wrap: anywhere;
+}

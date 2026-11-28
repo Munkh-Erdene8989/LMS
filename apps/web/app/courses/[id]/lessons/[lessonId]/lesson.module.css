@@ -571,3 +571,31 @@ a.row:focus-visible {
   margin: 0;
   white-space: pre-wrap;
 }
+
+/* --- Хичээлийн материал --- */
+.attachmentsTitle {
+  margin: 0;
+  font-size: var(--fs-h3);
+}
+
+.attachments {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  min-width: 0;
+}
+
+.attachmentName {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
