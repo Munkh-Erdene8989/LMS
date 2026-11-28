@@ -316,7 +316,7 @@ export class PaymentReconciliationService {
   }
 }
 
-function issueWhere(now: Date): Record<PaymentIssueKind, Prisma.PaymentWhereInput> {
+export function issueWhere(now: Date): Record<PaymentIssueKind, Prisma.PaymentWhereInput> {
   const ago = (minutes: number) => new Date(now.getTime() - minutes * MIN);
   return {
     CARD_UNSETTLED: {

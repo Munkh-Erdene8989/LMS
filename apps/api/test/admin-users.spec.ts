@@ -122,6 +122,7 @@ describe('Эрх', () => {
       ['post', `/admin/payments/${randomUUID()}/recheck`],
       ['post', `/admin/payments/${randomUUID()}/resolve`, { action: 'GRANT', note: 'өөртөө' }],
       ['get', '/admin/reports/summary'],
+      ['get', '/admin/overview'],
       ['get', '/admin/reports/expired-credits'],
     ];
     for (const [method, path, body] of calls) {
@@ -620,5 +621,29 @@ describe('Тайлан', () => {
         expect.objectContaining({ expiredCredits: 3, isTest: true }),
       ]),
     );
+  });
+});
+
+describe('Тойм', () => {
+  it('хүлээгдэж буй ажлын тоо: хуучирсан төлбөр, нээлттэй payout; шинэ төлбөр, шийдсэн payout тоологдохгүй', async () => {
+    const a = await admin();
+    const empty = { teacherApplications: 0, courseReviews: 0, payouts: 0, paymentIssues: 0 };
+    expect((await a.agent.get('/admin/overview').expect(200)).body).toEqual({ pending: empty });
+
+    const pkg = await createPackage(a.agent, {});
+    const u = await loginByEmail(t, 'learner@example.mn');
+    const stale = await startTopup(u.agent, pkg.id);
+    await startTopup(u.agent, pkg.id); // шинэ — асуудал биш
+    await t.prisma.payment.update({ where: { id: stale.id }, data: { createdAt: new Date(Date.now() - 2 * 60 * MIN) } });
+
+    const tch = await teacher();
+    const other = await teacher('teacher2@example.mn');
+    const payout = { amountMnt: 5_000, bank: BANK.bank, accountNumber: BANK.accountNumber, holderName: BANK.holderName };
+    await t.prisma.payout.create({ data: { ...payout, teacherId: tch.user.id } });
+    await t.prisma.payout.create({ data: { ...payout, teacherId: other.user.id, status: 'REJECTED', processedAt: new Date(), rejectReason: 'шалгалт' } });
+
+    expect((await a.agent.get('/admin/overview').expect(200)).body).toEqual({
+      pending: { ...empty, payouts: 1, paymentIssues: 1 },
+    });
   });
 });

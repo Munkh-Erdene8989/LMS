@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import type {
+  AdminOverview,
   AdminPaymentRow,
   AdminReportSummary,
   AdminUserDetail,
@@ -17,6 +18,7 @@ import { CreditsService } from '../credits/credits.service';
 import { PayoutsService } from '../payouts/payouts.service';
 import { ZodPipe } from '../zod-pipe';
 import { AdminUsersService } from './admin-users.service';
+import { AdminOverviewService } from './overview.service';
 import { PaymentReconciliationService } from './payment-reconciliation.service';
 import { AdminReportsService, reportBounds } from './reports.service';
 
@@ -174,5 +176,17 @@ export class AdminReportsController {
   @Get('expired-credits')
   expiredCredits(@Query(new ZodPipe(RangeQuery)) q: z.infer<typeof RangeQuery>): Promise<ExpiredCreditsReport> {
     return this.reports.expiredCredits(reportBounds(q.from, q.to));
+  }
+}
+
+/** Админы тойм: хүлээгдэж буй ажлын тоо (тойм хуудас, цэсний badge). */
+@Controller('admin/overview')
+@Auth('ADMIN')
+export class AdminOverviewController {
+  constructor(private readonly overviews: AdminOverviewService) {}
+
+  @Get()
+  overview(): Promise<AdminOverview> {
+    return this.overviews.overview();
   }
 }

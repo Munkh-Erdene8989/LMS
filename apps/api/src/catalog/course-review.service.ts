@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '@lms/db';
 import type { CourseDetail, ReviewQueueItem } from '@lms/shared';
 import { AuditService } from '../admin/audit.service';
 import { STORAGE, type StorageAdapter } from '../adapters/storage';
@@ -6,6 +7,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { courseDetailInclude, toCourseDetail, toCourseSummary } from './course.view';
 import { CatalogErrors as E } from './errors';
+
+/** Хяналтын дараалал: шинэ курс, эсвэл нийтлэгдсэн курсийн шинэ хичээл. Админы тоймын тоо ч үүнийг ашиглана. */
+export const REVIEW_QUEUE_WHERE = {
+  OR: [
+    { status: 'IN_REVIEW' },
+    { status: 'PUBLISHED', lessons: { some: { reviewStatus: 'IN_REVIEW', archivedAt: null } } },
+  ],
+} satisfies Prisma.CourseWhereInput;
 
 /**
  * Админы шалгалт. Хоёр төрөл:
@@ -24,12 +33,7 @@ export class CourseReviewService {
 
   async queue(): Promise<ReviewQueueItem[]> {
     const rows = await this.prisma.course.findMany({
-      where: {
-        OR: [
-          { status: 'IN_REVIEW' },
-          { status: 'PUBLISHED', lessons: { some: { reviewStatus: 'IN_REVIEW', archivedAt: null } } },
-        ],
-      },
+      where: REVIEW_QUEUE_WHERE,
       orderBy: { submittedAt: 'asc' },
       include: {
         teacher: { select: { id: true, name: true } },

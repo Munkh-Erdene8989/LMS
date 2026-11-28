@@ -1,40 +1,34 @@
 import { fetchHealth } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { pageMeta } from '@/lib/page-meta';
-import { SettingsPanel } from './settings-panel';
+import { AdminOverview } from './overview';
 import styles from './admin.module.css';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = pageMeta('admin.settingsTitle');
+export const metadata = pageMeta('adminUi.overviewTitle');
 
-export default async function AdminSettingsPage() {
+/** Тойм: KPI (7/30/90 хоног), хүлээгдэж буй ажил, системийн төлөв. Тохиргоо → `/admin/settings`. */
+export default async function AdminOverviewPage() {
   const health = await fetchHealth();
   const apiOk = health !== null;
   const dbOk = health?.db === 'ok';
+  const ok = apiOk && dbOk;
+  const detail = `${t('home.api')}: ${apiOk ? t('home.ok') : t('home.unreachable')} · ${t('home.db')}: ${
+    !apiOk ? '—' : dbOk ? t('home.ok') : t('home.error')
+  }`;
 
   return (
     <div className={styles.stackLg}>
-      <h1 className={styles.title}>{t('admin.title')}</h1>
-
-      <section className={styles.status} aria-labelledby="admin-status-title">
-        <h2 id="admin-status-title" className={styles.subtitle}>
-          {t('home.systemStatus')}
-        </h2>
-        <StatusRow label={t('home.api')} ok={apiOk} text={apiOk ? t('home.ok') : t('home.unreachable')} />
-        <StatusRow label={t('home.db')} ok={dbOk} text={!apiOk ? '—' : dbOk ? t('home.ok') : t('home.error')} />
-      </section>
-
-      <SettingsPanel />
+      <header className={styles.pageHead}>
+        <h1 className={styles.title}>{t('adminUi.overviewTitle')}</h1>
+        <p className={styles.health} title={detail} data-testid="system-status">
+          <span className={`${styles.dot} ${ok ? '' : styles.dotErr}`} aria-hidden="true" />
+          {ok ? t('adminUi.systemOk') : t('adminUi.systemDegraded')}
+          <span className={styles.visuallyHidden}> — {detail}</span>
+        </p>
+      </header>
+      <AdminOverview />
     </div>
-  );
-}
-
-function StatusRow({ label, ok, text }: { label: string; ok: boolean; text: string }) {
-  return (
-    <p className={styles.statusRow} data-testid={`status-${label}`}>
-      <span className={`${styles.dot} ${ok ? '' : styles.dotErr}`} aria-hidden="true" />
-      {label}: <strong>{text}</strong>
-    </p>
   );
 }
