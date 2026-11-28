@@ -20,6 +20,7 @@ import { STORAGE, type StorageAdapter } from '../adapters/storage';
 import { LessonAccessPolicy, type LessonViewer, type OpenedLesson } from '../catalog/lesson-access';
 import type { StoredQuiz } from '../catalog/lesson-types';
 import { teacherRef, teacherSelect } from '../catalog/public-catalog.service';
+import { orgCourseGrants } from '../organizations/org-access';
 import { PrismaService } from '../prisma/prisma.service';
 import { ownedCourses, ownsFrom, type Db, type OwnedCourse } from '../purchases/entitlements';
 import { CertificatesService } from './certificates.service';
@@ -66,31 +67,32 @@ export class LearningService {
   // ---- "Миний сургалт" -------------------------------------------------------
 
   async myCourses(userId: string): Promise<MyCourseCard[]> {
-    const owned = await ownedCourses(this.prisma, userId);
-    if (owned.size === 0) return [];
-    const ids = [...owned.keys()];
+    const access = await this.learnerAccess(userId);
+    if (access.size === 0) return [];
+    const ids = [...access.keys()];
     const [courses, progress] = await Promise.all([
       this.prisma.course.findMany({ where: { id: { in: ids }, status: 'PUBLISHED' }, include: courseInclude }),
       this.prisma.lessonProgress.findMany({ where: { userId, courseId: { in: ids } } }),
     ]);
     const cards = courses.map((c) => {
-      const o = owned.get(c.id)!;
-      const summary = summarize(c, o, progressByLesson(progress.filter((p) => p.courseId === c.id)));
+      const a = access.get(c.id)!;
+      const summary = summarizeFor(c, a, progressByLesson(progress.filter((p) => p.courseId === c.id)));
       const card: MyCourseCard = {
         ...this.head(c),
-        ownsCourse: o.ownsCourse,
+        ownsCourse: a.owned?.ownsCourse ?? false,
+        ...orgFields(c, a),
         lessonCount: allLessons(c).filter((l) => !l.archivedAt).length,
         ...summary,
       };
-      return { card, at: Math.max(o.since.getTime(), summary.lastViewedAt ? Date.parse(summary.lastViewedAt) : 0) };
+      return { card, at: Math.max(a.since.getTime(), summary.lastViewedAt ? Date.parse(summary.lastViewedAt) : 0) };
     });
     // Сүүлд үзсэн (эсвэл шинээр авсан) нь эхэндээ
     return cards.sort((a, b) => b.at - a.at).map((x) => x.card);
   }
 
   async myCourse(userId: string, courseId: string): Promise<MyCourseDetail> {
-    const o = (await ownedCourses(this.prisma, userId, courseId)).get(courseId);
-    if (!o) throw E.courseNotFound();
+    const a = (await this.learnerAccess(userId, courseId)).get(courseId);
+    if (!a) throw E.courseNotFound();
     const [course, progress] = await Promise.all([
       this.prisma.course.findFirst({ where: { id: courseId, status: 'PUBLISHED' }, include: courseInclude }),
       this.prisma.lessonProgress.findMany({ where: { userId, courseId } }),
@@ -99,15 +101,16 @@ export class LearningService {
     const byLesson = progressByLesson(progress);
     return {
       ...this.head(course),
-      ownsCourse: o.ownsCourse,
-      ...summarize(course, o, byLesson),
+      ownsCourse: a.owned?.ownsCourse ?? false,
+      ...orgFields(course, a),
+      ...summarizeFor(course, a, byLesson),
       sections: course.sections
         .map((s) => ({
           id: s.id,
           title: s.title,
           // Архивласан lesson зөвхөн эзэмшигчид (ticket 09-ийн үлдэгдэл)
           lessons: s.lessons
-            .filter((l) => !l.archivedAt || ownsFrom(o, l.id))
+            .filter((l) => !l.archivedAt || (a.owned && ownsFrom(a.owned, l.id)))
             .map((l): MyCourseLesson => ({
               id: l.id,
               title: l.title,
@@ -115,12 +118,53 @@ export class LearningService {
               priceCredits: l.priceCredits,
               isFreePreview: l.isFreePreview,
               archived: !!l.archivedAt,
-              owned: ownsFrom(o, l.id),
+              // Байгууллагын эрх архивласан lesson-д хүрэхгүй (LessonAccessPolicy-тэй ижил)
+              owned: !a.locked && ((a.owned !== null && ownsFrom(a.owned, l.id)) || (a.orgs.length > 0 && !l.archivedAt)),
               progress: byLesson.has(l.id) ? progressView(byLesson.get(l.id)!) : null,
             })),
         }))
         .filter((s) => s.lessons.length > 0),
     };
+  }
+
+  /**
+   * Суралцагчийн курсүүд: эзэмшсэн (худалдан авсан) ∪ идэвхтэй байгууллагын эрхтэй ∪ эрх нь дууссан (locked).
+   * Нэг курс нэг л мөр (эзэмшсэн + grant хоёулаа бол нэгдэнэ).
+   * Locked = PRIVATE курст явцын мөр байгаа, одоо эрх байхгүй, ямар нэг байгууллагад гишүүн байсан. Түүхийг
+   * явцын мөрөөр хязгаарласан — grant цуцлагдахад мөр устдаг тул курс "аль байгууллагаас" гэдэг нь заримдаа үл мэдэгдэнэ.
+   */
+  private async learnerAccess(userId: string, courseId?: string): Promise<Map<string, LearnerAccess>> {
+    const [owned, orgs] = await Promise.all([ownedCourses(this.prisma, userId, courseId), orgCourseGrants(this.prisma, userId, courseId)]);
+    const map = new Map<string, LearnerAccess>();
+    for (const [id, o] of owned) map.set(id, { owned: o, orgs: [], locked: false, since: o.since });
+    for (const [id, g] of orgs) {
+      const e = map.get(id) ?? { owned: null, orgs: [], locked: false, since: new Date(0) };
+      e.orgs = g.organizations;
+      map.set(id, e);
+    }
+    if (await this.prisma.organizationMember.findFirst({ where: { userId }, select: { id: true } })) {
+      const rows = await this.prisma.lessonProgress.findMany({
+        where: { userId, courseId, course: { visibility: 'PRIVATE', teacherId: { not: userId } } },
+        distinct: ['courseId'],
+        select: { courseId: true },
+      });
+      const lockedIds = rows.map((r) => r.courseId).filter((id) => !map.has(id));
+      if (lockedIds.length > 0) {
+        const grants = await this.prisma.organizationCourseGrant.findMany({
+          where: { courseId: { in: lockedIds }, organization: { members: { some: { userId } } } },
+          select: { courseId: true, organization: { select: { id: true, name: true } } },
+        });
+        for (const id of lockedIds) {
+          map.set(id, {
+            owned: null,
+            orgs: grants.filter((g) => g.courseId === id).map((g) => g.organization),
+            locked: true,
+            since: new Date(0),
+          });
+        }
+      }
+    }
+    return map;
   }
 
   // ---- lesson-ы явц ----------------------------------------------------------
@@ -257,7 +301,7 @@ export class LearningService {
 
 /** Багш (өөрийн quiz-ийг шалгах), админд хурдны хязгаар үгүй — зөв хариултыг аль хэдийн мэднэ. */
 function rateLimited(access: LessonAccessReason): boolean {
-  return access === 'OWNED' || access === 'PREVIEW';
+  return access === 'OWNED' || access === 'ORG' || access === 'PREVIEW';
 }
 
 async function recentAttemptTimes(db: Db, userId: string, lessonId: string): Promise<Date[]> {
@@ -268,6 +312,27 @@ async function recentAttemptTimes(db: Db, userId: string, lessonId: string): Pro
     select: { createdAt: true },
   });
   return rows.map((r) => r.createdAt);
+}
+
+interface LearnerAccess {
+  /** Худалдан авсан эзэмшил (байгууллагын эрхээр л байгаа бол null) */
+  owned: OwnedCourse | null;
+  /** Идэвхтэй эрх өгч буй байгууллагууд; locked үед — өмнө гишүүн байсан байгууллагууд (мэдэгдэж байвал) */
+  orgs: { id: string; name: string }[];
+  locked: boolean;
+  since: Date;
+}
+
+function orgFields(c: CourseRow, a: LearnerAccess) {
+  return { organizations: a.orgs, isPrivate: c.visibility === 'PRIVATE', locked: a.locked };
+}
+
+/** Байгууллагын эрх (идэвхтэй эсвэл дууссан) бүх архивлаагүй lesson-ыг эзэмшсэнтэй адил тооцно; locked үед үргэлжлүүлэх lesson үгүй. */
+function summarizeFor(c: CourseRow, a: LearnerAccess, progress: Map<string, LessonProgress>): CourseProgressSummary {
+  const viaOrg = a.orgs.length > 0 || a.locked;
+  const o: OwnedCourse = { ownsCourse: viaOrg || (a.owned?.ownsCourse ?? false), lessonIds: a.owned?.lessonIds ?? new Set(), since: a.since };
+  const summary = summarize(c, o, progress);
+  return a.locked ? { ...summary, continueLessonId: null } : summary;
 }
 
 function allLessons(c: CourseRow): LessonRow[] {

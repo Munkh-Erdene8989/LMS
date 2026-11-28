@@ -60,6 +60,20 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
       <header className={styles.hero}>
         <h1 className={styles.h1}>{course.title}</h1>
         <p className={styles.meta}>{t('learning.teacher', { name: course.teacher.name })}</p>
+        {course.isPrivate && (
+          <p className={styles.badges}>
+            {course.organizations.length > 0 ? (
+              course.organizations.map((o) => (
+                <span key={o.id} className="pill">
+                  {t('learning.orgBadge', { name: o.name })}
+                </span>
+              ))
+            ) : (
+              <span className="pill">{t('learning.orgBadgeUnknown')}</span>
+            )}
+            {course.locked && <span className="pill">{t('learning.lockedBadge')}</span>}
+          </p>
+        )}
         <ProgressBar percent={course.progressPercent} />
         <p className={styles.progressText}>
           {t('learning.progress', {
@@ -69,7 +83,9 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
           })}
         </p>
         <div className={styles.heroActions}>
-          {course.continueLessonId ? (
+          {course.locked ? (
+            <span className={styles.muted}>{t('learning.lockedHint')}</span>
+          ) : course.continueLessonId ? (
             <LinkButton href={`/courses/${course.id}/lessons/${course.continueLessonId}`}>
               {course.lastViewedAt ? t('learning.continue') : t('learning.start')}
             </LinkButton>
@@ -79,9 +95,11 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
               {t('learning.allDone')}
             </span>
           )}
-          <LinkButton variant="secondary" href={`/courses/${course.id}`}>
-            {t('learning.openCourse')}
-          </LinkButton>
+          {!course.isPrivate && (
+            <LinkButton variant="secondary" href={`/courses/${course.id}`}>
+              {t('learning.openCourse')}
+            </LinkButton>
+          )}
         </div>
       </header>
 
@@ -96,7 +114,7 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
             <h3 className={styles.sectionTitle}>{s.title}</h3>
             <ul className={styles.rows}>
               {s.lessons.map((l) => (
-                <LessonRow key={l.id} courseId={course.id} lesson={l} />
+                <LessonRow key={l.id} courseId={course.id} lesson={l} locked={course.locked} />
               ))}
             </ul>
           </div>
@@ -106,9 +124,9 @@ export default function MyCoursePage({ params }: { params: Promise<{ courseId: s
   );
 }
 
-function LessonRow({ courseId, lesson: l }: { courseId: string; lesson: MyCourseLesson }) {
+function LessonRow({ courseId, lesson: l, locked }: { courseId: string; lesson: MyCourseLesson; locked: boolean }) {
   const done = !!l.progress?.completed;
-  const accessible = l.owned || l.isFreePreview;
+  const accessible = !locked && (l.owned || l.isFreePreview);
   const body = (
     <span className={styles.rowBody}>
       <span className={`${styles.icon} ${done ? styles.iconDone : accessible ? styles.iconOpen : ''}`}>

@@ -6,6 +6,8 @@ import type { CourseViewerState, LessonAccessReason } from './purchases';
 export type CourseLevel = 'ALL' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 export const COURSE_LEVELS: readonly CourseLevel[] = ['ALL', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 export type CourseStatus = 'DRAFT' | 'IN_REVIEW' | 'PUBLISHED' | 'REJECTED';
+/** PRIVATE = байгууллагын хаалттай сургалт (ticket 44): каталогт гарахгүй, review-гүй, үнэгүй */
+export type CourseVisibility = 'PUBLIC' | 'PRIVATE';
 export type LessonType = 'VIDEO' | 'TEXT' | 'PDF' | 'QUIZ' | 'ASSIGNMENT' | 'LIVE';
 export type LessonReviewStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
@@ -210,6 +212,7 @@ export interface CourseSummary {
   id: string;
   title: string;
   status: CourseStatus;
+  visibility: CourseVisibility;
   coverUrl: string | null;
   priceCredits: number | null;
   lessonCount: number;
@@ -227,6 +230,7 @@ export interface CourseDetail {
   level: CourseLevel;
   priceCredits: number | null;
   status: CourseStatus;
+  visibility: CourseVisibility;
   reviewNote: string | null;
   submittedAt: string | null;
   publishedAt: string | null;
@@ -362,6 +366,8 @@ export interface CoursePricing {
 /** `GET /catalog/courses/:id` */
 export interface PublicCourseDetail extends Omit<CatalogCourseCard, 'excerpt' | 'teacher'> {
   description: string;
+  /** PRIVATE курсийг зөвхөн эрхтэй хэрэглэгч (байгууллагын гишүүн, багш, админ) хардаг; худалдан авах товч байхгүй */
+  visibility: CourseVisibility;
   teacher: PublicTeacherRef & { bio: string | null };
   pricing: CoursePricing;
   sections: PublicSection[];

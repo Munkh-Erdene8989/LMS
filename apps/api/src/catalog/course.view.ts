@@ -24,18 +24,24 @@ export function lessonProblems(lesson: Pick<LessonRow, 'type' | 'content' | 'tit
   return lesson.title.trim() ? problems : ['Гарчиг хоосон', ...problems];
 }
 
-/** Курс бүхэлдээ шалгуулахад бэлэн эсэх. */
+/**
+ * Курс бүхэлдээ шалгуулахад (private бол нийтлэхэд) бэлэн эсэх.
+ * PRIVATE курс үнэгүй, каталогт гарахгүй тул үнэ, ангилал, зургийг шаардахгүй.
+ */
 export function courseProblems(course: CourseWithCurriculum): string[] {
   const problems: string[] = [];
+  const isPrivate = course.visibility === 'PRIVATE';
   if (!course.title.trim()) problems.push('Курсийн гарчиг хоосон');
   if (!course.description.trim()) problems.push('Курсийн тайлбар хоосон');
-  if (!course.categoryId) problems.push('Ангилал сонгоогүй');
-  if (!course.coverKey) problems.push('Курсийн зураг оруулаагүй');
+  if (!isPrivate && !course.categoryId) problems.push('Ангилал сонгоогүй');
+  if (!isPrivate && !course.coverKey) problems.push('Курсийн зураг оруулаагүй');
   const lessons = activeLessons(course);
   if (lessons.length === 0) problems.push('Дор хаяж нэг хичээл нэмнэ үү');
-  if (course.priceCredits === null) problems.push('Курсийн бүтэн үнэ тогтоогоогүй');
-  else if (lessons.length > 0 && course.priceCredits > lessonsTotal(course)) {
-    problems.push('Курсийн бүтэн үнэ хичээлүүдийн нийт үнээс их байна');
+  if (!isPrivate) {
+    if (course.priceCredits === null) problems.push('Курсийн бүтэн үнэ тогтоогоогүй');
+    else if (lessons.length > 0 && course.priceCredits > lessonsTotal(course)) {
+      problems.push('Курсийн бүтэн үнэ хичээлүүдийн нийт үнээс их байна');
+    }
   }
   for (const l of lessons) {
     if (l.reviewStatus === 'APPROVED') continue;
@@ -70,6 +76,7 @@ export async function toCourseDetail(course: CourseWithCurriculum, storage: Stor
     level: course.level,
     priceCredits: course.priceCredits,
     status: course.status,
+    visibility: course.visibility,
     reviewNote: course.reviewNote,
     submittedAt: course.submittedAt?.toISOString() ?? null,
     publishedAt: course.publishedAt?.toISOString() ?? null,
@@ -89,6 +96,7 @@ export function toCourseSummary(
     id: course.id,
     title: course.title,
     status: course.status,
+    visibility: course.visibility,
     coverUrl: course.coverKey ? storage.publicUrl(course.coverKey) : null,
     priceCredits: course.priceCredits,
     lessonCount: lessons.length,

@@ -20,4 +20,5 @@ export * from './reviews';
 export * from './analytics';
 export * from './community';
 export * from './admin-ops';
+export * from './org-admin';
 export * from './sentry-scrub';

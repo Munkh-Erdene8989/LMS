@@ -1,4 +1,5 @@
 /** Админ хэсгийн API хариуны төрлүүд. */
+import type { CourseStatus } from './catalog';
 
 export type SettingUnit = 'MNT' | 'PERCENT' | 'DAYS' | 'MONTHS' | 'CREDITS';
 
@@ -76,4 +77,28 @@ export interface LegalStatus {
   acceptedVersion: number | null;
   acceptedAt: string | null;
   upToDate: boolean;
+}
+
+/** Private курс — байгууллагад олгох сонголтод (`GET /admin/private-courses`) */
+export interface PrivateCourseOption {
+  id: string;
+  title: string;
+  status: CourseStatus;
+}
+
+/** Байгууллагад олгосон курс (`GET /admin/organizations/:id/courses`) */
+export interface OrgCourseGrantView {
+  courseId: string;
+  title: string;
+  status: PrivateCourseOption['status'];
+  grantedAt: string;
+}
+
+/** Курсийг эзэмшиж буй байгууллага (`GET /admin/courses/:id/organizations`) */
+export interface CourseGrantOrgView {
+  organizationId: string;
+  name: string;
+  active: boolean;
+  contractEndsAt: string;
+  grantedAt: string;
 }

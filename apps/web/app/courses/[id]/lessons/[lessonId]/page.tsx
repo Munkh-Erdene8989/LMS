@@ -30,6 +30,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 const ACCESS_BADGE: Record<LessonAccessReason, MessageKey> = {
   PREVIEW: 'catalog.previewBadge',
   OWNED: 'purchase.ownedBadge',
+  ORG: 'purchase.orgBadge',
   TEACHER: 'purchase.teacherBadge',
   ADMIN: 'purchase.adminBadge',
 };

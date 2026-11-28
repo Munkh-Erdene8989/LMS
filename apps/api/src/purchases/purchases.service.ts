@@ -189,10 +189,10 @@ export class PurchasesService {
     return { purchase: toView(result.row), balance: result.balance };
   }
 
-  /** Lesson: зөвшөөрөгдсөн, архивлаагүй, нийтлэгдсэн курсийнх; өөрийн курс биш; эзэмшээгүй. */
+  /** Lesson: зөвшөөрөгдсөн, архивлаагүй, нийтлэгдсэн PUBLIC курсийнх (private курс худалдаж авагдахгүй — 404); өөрийн курс биш; эзэмшээгүй. */
   private async lessonItem(tx: Tx, userId: string, lessonId: string): Promise<Item> {
     const lesson = await tx.lesson.findFirst({
-      where: { id: lessonId, reviewStatus: 'APPROVED', archivedAt: null, course: { status: 'PUBLISHED' } },
+      where: { id: lessonId, reviewStatus: 'APPROVED', archivedAt: null, course: { status: 'PUBLISHED', visibility: 'PUBLIC' } },
       include: { course: { select: { id: true, title: true, teacherId: true } } },
     });
     if (!lesson) throw E.lessonNotFound();
@@ -215,7 +215,7 @@ export class PurchasesService {
   /** Бүтэн курс: нийтлэгдсэн, үнэтэй; өөрийнх биш; бүтнээр аваагүй. */
   private async courseItem(tx: Tx, userId: string, courseId: string): Promise<Item> {
     const course = await tx.course.findFirst({
-      where: { id: courseId, status: 'PUBLISHED' },
+      where: { id: courseId, status: 'PUBLISHED', visibility: 'PUBLIC' },
       include: { lessons: { where: { reviewStatus: 'APPROVED', archivedAt: null }, select: { id: true } } },
     });
     if (!course) throw E.courseNotFound();

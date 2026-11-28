@@ -82,7 +82,7 @@ export class PlaybackService {
     if (viewer) {
       const lesson = await this.prisma.lesson.findUnique({
         where: { id: lessonId },
-        include: { course: { select: { id: true, title: true, teacherId: true } } },
+        include: { course: { select: { id: true, title: true, teacherId: true, visibility: true } } },
       });
       if (!lesson) throw CatalogErrors.lessonNotFound();
       if (staffRole(viewer, lesson.course.teacherId)) return lesson;

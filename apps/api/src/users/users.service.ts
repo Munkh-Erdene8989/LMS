@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, type IdentifierType } from '@lms/db';
 import type { AuthUser } from '@lms/shared';
 import { AuthErrors } from '../auth/errors';
+import { isHouseTeacher } from '../organizations/house-teacher';
 import { PrismaService } from '../prisma/prisma.service';
 
 const userWithIdentifiers = { include: { identifiers: { orderBy: { createdAt: 'asc' } } } } as const;
@@ -13,7 +14,7 @@ export class UsersService {
 
   async get(id: string): Promise<AuthUser> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id }, ...userWithIdentifiers });
-    return toAuthUser(user);
+    return { ...toAuthUser(user), isHouseTeacher: await isHouseTeacher(this.prisma, user.id) };
   }
 
   /** Баталгаажсан identifier-ээр хэрэглэгчийг олно, байхгүй бол шинээр бүртгэнэ. */
@@ -59,7 +60,7 @@ export class UsersService {
 
   async updateProfile(id: string, data: { name?: string; avatarUrl?: string | null }): Promise<AuthUser> {
     const user = await this.prisma.user.update({ where: { id }, data, ...userWithIdentifiers });
-    return toAuthUser(user);
+    return { ...toAuthUser(user), isHouseTeacher: await isHouseTeacher(this.prisma, user.id) };
   }
 }
 

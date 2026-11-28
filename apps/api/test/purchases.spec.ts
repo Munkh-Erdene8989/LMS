@@ -134,7 +134,7 @@ describe('Lesson худалдан авалт', () => {
     await u.agent.get(`/catalog/lessons/${c.lessonIds[1]}`).expect(403);
 
     const detail = (await u.agent.get(`/catalog/courses/${c.id}`).expect(200)).body;
-    expect(detail.viewer).toEqual({ ownsCourse: false, ownedLessonIds: [c.lessonIds[0]], canViewAll: false, isTeacher: false });
+    expect(detail.viewer).toEqual({ ownsCourse: false, ownedLessonIds: [c.lessonIds[0]], canViewAll: false, orgAccess: false, isTeacher: false });
 
     const history = (await u.agent.get('/credits/history').expect(200)).body.items;
     expect(history[0]).toMatchObject({ type: 'SPEND', amount: -5, refType: 'lesson_purchase', refId: res.purchase.id });

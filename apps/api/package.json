@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "jest --runInBand",
-    "admin:grant": "tsc -p tsconfig.build.json && node dist/cli/grant-admin.js"
+    "admin:grant": "tsc -p tsconfig.build.json && node dist/cli/grant-admin.js",
+    "house-teacher:seed": "tsc -p tsconfig.build.json && node dist/cli/seed-house-teacher.js"
   },
   "dependencies": {
     "@lms/db": "workspace:*",

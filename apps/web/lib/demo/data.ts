@@ -241,11 +241,12 @@ function buildCourse(seed: CourseSeed): DemoCourse {
   const detail: PublicCourseDetail = {
     ...base,
     description: seed.description,
+    visibility: 'PUBLIC',
     teacher: { ...teacher.ref, bio: teacher.bio },
     pricing: { listCredits: price, lessonsTotalCredits: lessonsTotal, alreadySpentCredits: 0, payableCredits: price },
     sections,
     // Эзэмшсэн demo курс (`learning.ts`-ийн ENROLLED)
-    viewer: ENROLLED_SEEDS.includes(seed.n) ? { ownsCourse: true, ownedLessonIds: [], canViewAll: false, isTeacher: false } : null,
+    viewer: ENROLLED_SEEDS.includes(seed.n) ? { ownsCourse: true, ownedLessonIds: [], canViewAll: false, orgAccess: false, isTeacher: false } : null,
   };
   return { seed, id, sections, lessonsTotal, price, reviews, card, detail };
 }

@@ -245,6 +245,8 @@ export function CoursePriceBox() {
       )}
       {viewer?.canViewAll ? (
         <p className={styles.note}>{viewer.isTeacher ? t('purchase.yourCourse') : t('purchase.adminAccess')}</p>
+      ) : viewer?.orgAccess ? (
+        <p className={styles.note}>{t('purchase.orgAccess')}</p>
       ) : viewer?.ownsCourse ? (
         <p className={styles.note}>{t('purchase.ownedCourseHint')}</p>
       ) : forSale ? (
@@ -268,7 +270,7 @@ export function CoursePriceBox() {
 export function CourseMobileBar() {
   const { course, start } = usePurchase();
   const { pricing, viewer } = course;
-  if (viewer?.canViewAll || viewer?.ownsCourse || pricing.listCredits <= 0) return null;
+  if (viewer?.canViewAll || viewer?.orgAccess || viewer?.ownsCourse || pricing.listCredits <= 0) return null;
   return (
     <div className={styles.mobileBar} role="region" aria-label={t('courses.buyBar')}>
       <span className={styles.mobilePrice}>{formatPrice(pricing.payableCredits)}</span>

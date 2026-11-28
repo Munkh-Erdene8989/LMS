@@ -51,6 +51,8 @@ export interface CourseViewerState {
   ownedLessonIds: string[];
   /** Курсийн багш эсвэл админ — бүх lesson-ыг худалдан авалтгүй үзнэ */
   canViewAll: boolean;
+  /** Идэвхтэй байгууллагын гишүүн ба курс тэр байгууллагад олгогдсон (ticket 44) — бүх lesson нээлттэй, худалдан авалтгүй */
+  orgAccess: boolean;
   /** Багш өөрийн курсийг авах боломжгүй */
   isTeacher: boolean;
 }
@@ -65,11 +67,11 @@ export function ownsLessonIn(viewer: CourseViewerState | null | undefined, lesso
  * ижил дараалал; free preview-г (lesson-ы шинж) энд тооцохгүй.
  */
 export function canOpenLesson(viewer: CourseViewerState | null | undefined, lessonId: string): boolean {
-  return !!viewer && (viewer.canViewAll || ownsLessonIn(viewer, lessonId));
+  return !!viewer && (viewer.canViewAll || viewer.orgAccess || ownsLessonIn(viewer, lessonId));
 }
 
 /** Lesson-ы контент яагаад нээлттэй вэ */
-export type LessonAccessReason = 'PREVIEW' | 'OWNED' | 'TEACHER' | 'ADMIN';
+export type LessonAccessReason = 'PREVIEW' | 'OWNED' | 'ORG' | 'TEACHER' | 'ADMIN';
 
 export type TeacherEarningType = 'SALE_EARNING' | 'PAYOUT' | 'ADMIN_ADJUST';
 

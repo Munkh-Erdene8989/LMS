@@ -32,8 +32,10 @@ export interface CertificateView {
 
 /** Олгох нөхцөлийн явц (`GET /learning/courses/:id/certificate`). */
 export interface CertificateEligibility {
-  /** Курсийг бүтнээр нь авсан (`CourseEntitlement`) */
+  /** Курсийг бүтнээр нь авсан (`CourseEntitlement`); PRIVATE курст — байгууллагын эрхтэй */
   ownsCourse: boolean;
+  /** PRIVATE курс: "бүтнээр авсан" нөхцөлийг байгууллагын эрх орлоно */
+  viaOrganization: boolean;
   /** Нөхцөлд тооцогдох lesson (архивлаагүй, шалгагдсан; VIDEO/TEXT/PDF/QUIZ) */
   lessonCount: number;
   completedLessonCount: number;

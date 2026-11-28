@@ -10,6 +10,8 @@ import { CatalogErrors as E } from './errors';
 
 /** Хяналтын дараалал: шинэ курс, эсвэл нийтлэгдсэн курсийн шинэ хичээл. Админы тоймын тоо ч үүнийг ашиглана. */
 export const REVIEW_QUEUE_WHERE = {
+  // PRIVATE курс review-гүй (ticket 44) — дараалалд ч, тоймын тоонд ч орохгүй.
+  visibility: 'PUBLIC',
   OR: [
     { status: 'IN_REVIEW' },
     { status: 'PUBLISHED', lessons: { some: { reviewStatus: 'IN_REVIEW', archivedAt: null } } },

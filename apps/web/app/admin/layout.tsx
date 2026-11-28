@@ -19,6 +19,7 @@ function navGroups(p: AdminPendingCounts | null): DashboardNavGroup[] {
       title: 'adminUi.groupUsers',
       items: [
         { href: '/admin/users', label: 'adminOps.navUsers' },
+        { href: '/admin/organizations', label: 'orgAdmin.nav' },
         { href: '/admin/teacher-applications', label: 'teacher.navApplications', badge: p?.teacherApplications },
       ],
     },

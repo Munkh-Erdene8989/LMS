@@ -7,6 +7,7 @@ import type { CourseDetail, CourseSummary } from '@lms/shared';
 import { api, errorText, useApiFailure } from '@/lib/client-api';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { useViewer } from '@/lib/viewer';
 import { StatusBadge } from '../../course-ui';
 import { Button } from '../../ui/button';
 import { EmptyState } from '../../ui/empty-state';
@@ -16,6 +17,10 @@ import s from '../teacher.module.css';
 export default function TeacherCoursesPage() {
   const router = useRouter();
   const fail = useApiFailure();
+  const { viewer } = useViewer();
+  // Хаалттай (private) курс зохиох эрх зөвхөн house teacher-т (API ч шалгана).
+  const canPrivate = viewer.user?.isHouseTeacher === true;
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [courses, setCourses] = useState<CourseSummary[] | null>(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,7 +40,10 @@ export default function TeacherCoursesPage() {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<CourseDetail>('/teacher/courses', { method: 'POST', body: { title } });
+      const r = await api<CourseDetail>('/teacher/courses', {
+        method: 'POST',
+        body: canPrivate ? { title, visibility } : { title },
+      });
       router.push(`/teacher/courses/${r.data.id}`);
     } catch (err) {
       setError(errorText(err));
@@ -64,6 +72,18 @@ export default function TeacherCoursesPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          {canPrivate && (
+            <select
+              className={`input ${s.autoWidth}`}
+              name="visibility"
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'PRIVATE')}
+              aria-label={t('course.visibility')}
+            >
+              <option value="PUBLIC">{t('course.visibilityPUBLIC')}</option>
+              <option value="PRIVATE">{t('course.visibilityPRIVATE')}</option>
+            </select>
+          )}
           <Button type="submit" loading={busy}>
             {t('course.newCourse')}
           </Button>
@@ -107,6 +127,7 @@ export default function TeacherCoursesPage() {
                   </td>
                   <td>
                     <StatusBadge status={c.status} />
+                    {c.visibility === 'PRIVATE' && <span className="badge-status"> {t('course.privateBadge')}</span>}
                   </td>
                   <td className={s.num}>
                     {c.lessonCount}

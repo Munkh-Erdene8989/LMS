@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { Prisma, type Course, type CourseLevel, type Lesson, type LessonType } from '@lms/db';
+import { Prisma, type Course, type CourseLevel, type CourseVisibility, type Lesson, type LessonType } from '@lms/db';
 import {
   COVER_MAX_BYTES,
   COVER_TYPES,
@@ -26,6 +26,7 @@ import {
 import { CatalogErrors as E } from './errors';
 import { isAvailableType, LESSON_TYPES, type LiveContent, type PdfContent, type VideoContent } from './lesson-types';
 import { LiveLessonsService } from './live-lessons.service';
+import { isHouseTeacher } from '../organizations/house-teacher';
 
 export interface CourseUpdate {
   title?: string;
@@ -57,6 +58,8 @@ const COVER_EXT: Record<(typeof COVER_TYPES)[number], string> = {
  *   `APPROVED` lesson-ы агуулга түгжигдэнэ (худалдан авсан хүмүүст өөрчлөгдөхгүй), устгавал архивлана.
  *   Үл хамаарах: LIVE хичээлийн хуваарь, линк (ticket 14); бичлэг болгосон live-д бичлэг оруулах (ticket 10, `videoUploadAllowed`).
  * Бусдын курс 404 (оршин буйг ч илчлэхгүй).
+ * PRIVATE курс (ticket 44, байгууллагын хаалттай сургалт): зөвхөн house teacher үүсгэнэ (үгүй бол 403); үнэ, assignment,
+ * free preview байхгүй (400); "шалгуулах" нь review-гүй шууд PUBLISHED (шинэ lesson-ууд шууд APPROVED).
  */
 @Injectable()
 export class CourseAuthoringService {
@@ -77,8 +80,9 @@ export class CourseAuthoringService {
     return rows.map((r) => toCourseSummary(r, this.storage));
   }
 
-  async create(teacherId: string, title: string): Promise<CourseDetail> {
-    const course = await this.prisma.course.create({ data: { teacherId, title } });
+  async create(teacherId: string, title: string, visibility: CourseVisibility = 'PUBLIC'): Promise<CourseDetail> {
+    if (visibility === 'PRIVATE' && !(await isHouseTeacher(this.prisma, teacherId))) throw E.houseTeacherOnly();
+    const course = await this.prisma.course.create({ data: { teacherId, title, visibility } });
     return this.detail(teacherId, course.id);
   }
 
@@ -88,6 +92,7 @@ export class CourseAuthoringService {
 
   async update(teacherId: string, courseId: string, input: CourseUpdate): Promise<CourseDetail> {
     const course = await this.editableCourse(teacherId, courseId);
+    if (course.visibility === 'PRIVATE' && input.priceCredits != null) throw E.privateCourseRestricted('үнэ тавих');
     if (input.categoryId) await this.assertCategory(input.categoryId);
     if (input.coverKey) await this.assertCover(course.id, input.coverKey);
     await this.prisma.course.update({ where: { id: course.id }, data: input });
@@ -168,6 +173,10 @@ export class CourseAuthoringService {
   async addLesson(teacherId: string, sectionId: string, input: { title: string; type: LessonType }): Promise<CourseDetail> {
     const section = await this.ownSection(teacherId, sectionId);
     if (!isAvailableType(input.type)) throw E.lessonTypeUnavailable();
+    if (input.type === 'ASSIGNMENT') {
+      const course = await this.prisma.course.findUnique({ where: { id: section.courseId }, select: { visibility: true } });
+      if (course?.visibility === 'PRIVATE') throw E.privateCourseRestricted('даалгаврын хичээл');
+    }
     const last = await this.prisma.lesson.aggregate({ where: { sectionId }, _max: { position: true } });
     await this.prisma.lesson.create({
       data: {
@@ -188,6 +197,9 @@ export class CourseAuthoringService {
    */
   async updateLesson(teacherId: string, lessonId: string, input: LessonUpdate): Promise<CourseDetail> {
     const lesson = await this.editableLesson(teacherId, lessonId);
+    if (lesson.course.visibility === 'PRIVATE' && (input.priceCredits || input.isFreePreview)) {
+      throw E.privateCourseRestricted('хичээлийн үнэ, үнэгүй preview');
+    }
     const data: Prisma.LessonUpdateInput = {
       title: input.title,
       priceCredits: input.priceCredits,
@@ -308,6 +320,7 @@ export class CourseAuthoringService {
   /**
    * DRAFT/REJECTED курс → IN_REVIEW (бүх шинэ lesson-ын хамт).
    * PUBLISHED курс → зөвхөн шинэ (DRAFT/REJECTED) lesson-ууд IN_REVIEW; курс нийтлэгдсэн хэвээр.
+   * PRIVATE курс → review-гүй: курс шууд PUBLISHED, шинэ lesson-ууд шууд APPROVED.
    */
   async submit(teacherId: string, courseId: string): Promise<CourseDetail> {
     const course = await this.load(teacherId, courseId);
@@ -324,18 +337,22 @@ export class CourseAuthoringService {
     }
 
     const now = new Date();
+    const direct = course.visibility === 'PRIVATE';
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.course.updateMany({
         where: { id: course.id, status: course.status },
-        data:
-          course.status === 'PUBLISHED'
+        data: direct
+          ? { status: 'PUBLISHED', publishedAt: course.publishedAt ?? now, submittedAt: now, reviewNote: null }
+          : course.status === 'PUBLISHED'
             ? { submittedAt: now }
             : { status: 'IN_REVIEW', submittedAt: now, reviewNote: null },
       });
       if (count === 0) throw E.courseInReview();
       await tx.lesson.updateMany({
         where: { id: { in: pending.map((l) => l.id) } },
-        data: { reviewStatus: 'IN_REVIEW', reviewNote: null },
+        data: direct
+          ? { reviewStatus: 'APPROVED', approvedAt: now, reviewNote: null }
+          : { reviewStatus: 'IN_REVIEW', reviewNote: null },
       });
     });
     return this.detail(teacherId, courseId);
@@ -375,7 +392,7 @@ export class CourseAuthoringService {
   }
 
   /** Багшийн засварлаж болох lesson (өөрийн, архивлаагүй, шалгагдаагүй). Видео upload (media) ч ашиглана. */
-  async editableLesson(teacherId: string, lessonId: string): Promise<Lesson> {
+  async editableLesson(teacherId: string, lessonId: string): Promise<Lesson & { course: Course }> {
     const lesson = await this.prisma.lesson.findFirst({
       where: { id: lessonId, course: { teacherId } },
       include: { course: true },

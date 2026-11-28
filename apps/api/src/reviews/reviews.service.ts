@@ -276,7 +276,7 @@ export class ReviewsService {
 
   private async publishedCourse(id: string): Promise<PublishedCourse> {
     const course = await this.prisma.course.findFirst({
-      where: { id, status: 'PUBLISHED' },
+      where: { id, status: 'PUBLISHED', visibility: 'PUBLIC' },
       select: { id: true, title: true, teacherId: true },
     });
     if (!course) throw E.courseNotFound();
