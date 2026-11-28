@@ -1,59 +1,56 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import type { AdminPendingCounts } from '@lms/shared';
 import { withNext } from '@/lib/next-path';
 import { hasRole, useViewer } from '@/lib/viewer';
-import { t, type MessageKey } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
 import { LoadingRows } from './admin-ui';
+import { PendingProvider, usePending } from './pending';
+import { DashboardShell, type DashboardNavGroup } from '../ui/dashboard-shell';
 import { EmptyState } from '../ui/empty-state';
-import styles from './admin.module.css';
+import styles from '../ui/dashboard.module.css';
 
-type NavItem = [href: string, label: MessageKey];
-
-const GROUPS: { title: MessageKey; items: NavItem[] }[] = [
-  {
-    title: 'adminUi.groupUsers',
-    items: [
-      ['/admin/users', 'adminOps.navUsers'],
-      ['/admin/teacher-applications', 'teacher.navApplications'],
-    ],
-  },
-  {
-    title: 'adminUi.groupContent',
-    items: [
-      ['/admin/course-reviews', 'course.navReviews'],
-      ['/admin/categories', 'course.navCategories'],
-      ['/admin/reviews', 'review.navAdmin'],
-      ['/admin/community', 'communityAdmin.nav'],
-    ],
-  },
-  {
-    title: 'adminUi.groupMoney',
-    items: [
-      ['/admin/payments', 'adminOps.navPayments'],
-      ['/admin/payouts', 'payout.navAdmin'],
-      ['/admin/credit-packages', 'credits.navAdmin'],
-      ['/admin/subscription-plans', 'subscription.navAdmin'],
-      ['/admin/reports', 'adminOps.navReports'],
-    ],
-  },
-  {
-    title: 'adminUi.groupSystem',
-    items: [
-      ['/admin', 'admin.navSettings'],
-      ['/admin/audit', 'admin.navAudit'],
-      ['/admin/legal', 'admin.navLegal'],
-    ],
-  },
-];
-
-/** Курсийн дэлгэрэнгүй (`/admin/courses/[id]`) нь «Курсийн хяналт»-ын дэд хуудас. */
-function isActive(pathname: string, href: string): boolean {
-  if (href === '/admin') return pathname === '/admin';
-  if (href === '/admin/course-reviews' && pathname.startsWith('/admin/courses/')) return true;
-  return pathname === href || pathname.startsWith(`${href}/`);
+function navGroups(p: AdminPendingCounts | null): DashboardNavGroup[] {
+  return [
+    { items: [{ href: '/admin', label: 'adminUi.navOverview', exact: true }] },
+    {
+      title: 'adminUi.groupUsers',
+      items: [
+        { href: '/admin/users', label: 'adminOps.navUsers' },
+        { href: '/admin/teacher-applications', label: 'teacher.navApplications', badge: p?.teacherApplications },
+      ],
+    },
+    {
+      title: 'adminUi.groupContent',
+      items: [
+        // Курсийн дэлгэрэнгүй (`/admin/courses/[id]`) нь «Курсийн хяналт»-ын дэд хуудас.
+        { href: '/admin/course-reviews', label: 'course.navReviews', alsoMatches: ['/admin/courses/'], badge: p?.courseReviews },
+        { href: '/admin/categories', label: 'course.navCategories' },
+        { href: '/admin/reviews', label: 'review.navAdmin' },
+        { href: '/admin/community', label: 'communityAdmin.nav' },
+      ],
+    },
+    {
+      title: 'adminUi.groupMoney',
+      items: [
+        { href: '/admin/payments', label: 'adminOps.navPayments', badge: p?.paymentIssues },
+        { href: '/admin/payouts', label: 'payout.navAdmin', badge: p?.payouts },
+        { href: '/admin/credit-packages', label: 'credits.navAdmin' },
+        { href: '/admin/subscription-plans', label: 'subscription.navAdmin' },
+        { href: '/admin/reports', label: 'adminOps.navReports' },
+      ],
+    },
+    {
+      title: 'adminUi.groupSystem',
+      items: [
+        { href: '/admin/settings', label: 'admin.navSettings' },
+        { href: '/admin/audit', label: 'admin.navAudit' },
+        { href: '/admin/legal', label: 'admin.navLegal' },
+      ],
+    },
+  ];
 }
 
 /** Web-ийн шалгалт зөвхөн UX-д; бодит эрхийн шалгалт API дээр (`@Auth('ADMIN')`). */
@@ -84,27 +81,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}>
-        <p className={styles.brand}>{t('admin.title')}</p>
-        <nav className={styles.nav} aria-label={t('adminUi.navLabel')}>
-          {GROUPS.map((g) => (
-            <section key={g.title} aria-label={t(g.title)} className={styles.groupItem}>
-              <h2 className={styles.groupTitle}>{t(g.title)}</h2>
-              <ul className={styles.group}>
-                {g.items.map(([href, label]) => (
-                  <li key={href} className={styles.groupItem}>
-                    <Link href={href} className={styles.link} aria-current={isActive(pathname, href) ? 'page' : undefined}>
-                      {t(label)}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </nav>
-      </aside>
-      <div className={styles.content}>{children}</div>
-    </div>
+    <PendingProvider refreshKey={pathname}>
+      <AdminShell pathname={pathname}>{children}</AdminShell>
+    </PendingProvider>
+  );
+}
+
+function AdminShell({ pathname, children }: { pathname: string; children: ReactNode }) {
+  const pending = usePending();
+  return (
+    <DashboardShell title={t('admin.title')} navLabel={t('adminUi.navLabel')} groups={navGroups(pending)} pathname={pathname}>
+      {children}
+    </DashboardShell>
   );
 }

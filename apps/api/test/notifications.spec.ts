@@ -1,3 +1,4 @@
+import { BRAND } from '@lms/shared';
 import { CLEANUP_CRON, CLEANUP_JOB } from '../src/maintenance/maintenance.module';
 import { NOTIFICATION_EMAIL_JOB, NotificationsService } from '../src/notifications/notifications.service';
 import { codeFromEmail, createTestApp, loginByEmail, loginByPhone, type TestApp } from './harness';
@@ -24,7 +25,7 @@ describe('notify: in-app + имэйл', () => {
 
     const list = await agent.get('/notifications').expect(200);
     expect(list.body.items).toEqual([
-      expect.objectContaining({ type: 'WELCOME', title: 'LMS-д тавтай морил!', link: '/me', readAt: null }),
+      expect.objectContaining({ type: 'WELCOME', title: `${BRAND.name}-д тавтай морил!`, link: '/me', readAt: null }),
     ]);
     expect((await agent.get('/notifications/unread-count').expect(200)).body).toEqual({ count: 1 });
 
@@ -34,7 +35,7 @@ describe('notify: in-app + имэйл', () => {
     await t.queue.drain();
 
     const mail = t.email.last('new@example.mn');
-    expect(mail?.subject).toBe('LMS-д тавтай морил');
+    expect(mail?.subject).toBe(`${BRAND.name}-д тавтай морил`);
     expect(mail?.text).toContain('Таны бүртгэл амжилттай үүслээ');
     expect(mail?.text).toContain('http://localhost:3000/me');
     expect(mail?.html).toContain('<h2');

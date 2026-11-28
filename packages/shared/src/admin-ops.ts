@@ -240,3 +240,22 @@ export interface ExpiredCreditsReport {
   upcoming30d: { live: number; test: number };
   items: ExpiredLotRow[];
 }
+
+// ---- Тойм ------------------------------------------------------------------------------------
+
+/** Админы анхаарал хүлээж буй ажлын тоо — тойм болон цэсний badge. */
+export interface AdminPendingCounts {
+  /** SUBMITTED багшийн өргөдөл */
+  teacherApplications: number;
+  /** Хяналтын дараалал дахь курс (шинэ курс эсвэл нийтлэгдсэн курсийн шинэ хичээл) */
+  courseReviews: number;
+  /** REQUESTED payout */
+  payouts: number;
+  /** Шийдээгүй асуудалтай төлбөр (бүх төрөл) */
+  paymentIssues: number;
+}
+
+/** `GET /admin/overview` */
+export interface AdminOverview {
+  pending: AdminPendingCounts;
+}

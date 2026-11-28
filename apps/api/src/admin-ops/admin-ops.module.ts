@@ -2,7 +2,13 @@ import { Module } from '@nestjs/common';
 import { PayoutsModule } from '../payouts/payouts.module';
 import { PurchasesModule } from '../purchases/purchases.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
-import { AdminPaymentsController, AdminReportsController, AdminUsersController } from './admin-ops.controller';
+import {
+  AdminOverviewController,
+  AdminPaymentsController,
+  AdminReportsController,
+  AdminUsersController,
+} from './admin-ops.controller';
+import { AdminOverviewService } from './overview.service';
 import { AdminUsersService } from './admin-users.service';
 import { PaymentReconciliationService } from './payment-reconciliation.service';
 import { AdminReportsService } from './reports.service';
@@ -14,7 +20,7 @@ import { AdminReportsService } from './reports.service';
  */
 @Module({
   imports: [PurchasesModule, PayoutsModule, SubscriptionsModule],
-  controllers: [AdminUsersController, AdminPaymentsController, AdminReportsController],
-  providers: [AdminUsersService, PaymentReconciliationService, AdminReportsService],
+  controllers: [AdminUsersController, AdminPaymentsController, AdminReportsController, AdminOverviewController],
+  providers: [AdminUsersService, PaymentReconciliationService, AdminReportsService, AdminOverviewService],
 })
 export class AdminOpsModule {}
