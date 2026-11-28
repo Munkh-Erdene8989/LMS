@@ -34,6 +34,11 @@
 | **Attribution** | Худалдан авалт teacher-referral эсвэл platform-sourced эсэх |
 | **Earnings balance** | Багшийн гаргаж авах боломжтой орлогын үлдэгдэл (₮) |
 | **Payout** | Багшид банкаар гараар шилжүүлэх мөнгө |
+| **Organization** | Платформтой гэрээ байгуулж, ажилтнууддаа хаалттай сургалт авдаг байгууллага. Идэвхтэй эсэх, гэрээ дуусах огноо, суудлын дээд хязгаартай |
+| **Organization member** | Байгууллагад урилгаар нэгдсэн хэрэглэгч. Хувийн learner аккаунт нь хэвээр |
+| **Private course** | Marketplace-д гарахгүй, зөвхөн олгогдсон байгууллагын гишүүдэд нээлттэй курс |
+| **Course grant** | Private course-ыг тодорхой байгууллагад олгосон холбоос (нэг курс ↔ олон байгууллага) |
+| **House teacher** | Платформын брэндийн нэртэй дотоод teacher аккаунт; бүх private course-ын эзэн |
 
 ## User Stories
 
@@ -141,6 +146,20 @@
 77. As an admin, I want every admin action recorded in an audit log, so that changes are traceable.
 78. As an admin, I want to edit Terms, Privacy Policy and Teacher Agreement pages with versioning, so that legal text stays current.
 
+### Байгууллагын хаалттай сургалт
+79. As an admin, I want to create an organization with name, active flag, contract end date and seat limit, so that I can onboard a company after signing a contract offline.
+80. As an admin, I want to extend, deactivate or change the seat limit of an organization, so that access follows the contract.
+81. As an admin, I want to author private courses under the house teacher account with the existing course editor, without review, so that I can build company training quickly.
+82. As an admin, I want to grant a private course to one or more organizations and revoke it, so that I reuse the same content across companies.
+83. As an admin, I want to invite employees by phone or email (one by one or as a pasted list), bounded by the seat limit, so that only the right people get access.
+84. As an invited employee with an email, I want an invitation email with a sign-in link, so that I know how to join.
+85. As an invited employee, I want to become a member automatically when I sign in with the invited phone/email via OTP, so that joining needs no extra step.
+86. As an admin, I want to remove a member or cancel a pending invitation, so that people who leave lose access and free a seat.
+87. As an organization member, I want to see all of my organization's courses in "My learning" without any buy buttons, so that I can start learning immediately.
+88. As an organization member, I want to take quizzes and earn a certificate in private courses under the same rules as public courses, so that my training is recognised.
+89. As a former member (removed, or organization expired/deactivated), I want my progress and certificates kept even though lessons are locked, so that my history is not lost and comes back if access is restored.
+90. As an admin, I want a per-organization progress table (member × course: progress %, best quiz score, certificate) with CSV export, so that I can send reports to the company's HR.
+
 ## Implementation Decisions
 
 ### Архитектур
@@ -170,6 +189,7 @@
 - **Payouts** — хүсэлт (≥50,000₮), hold, export, mark paid.
 - **Analytics** — багшийн sales, per-lesson, Mux Data, completion, attribution ratio; админы тайлан.
 - **Admin** — тохиргоо (settings key-value, хувилбартай), audit log, legal page хувилбар.
+- **Organizations** — байгууллага (идэвх, гэрээ дуусах огноо, суудал), урилга, гишүүнчлэл, private course grant, байгууллагын эрхийн шалгалт (lesson нээх дүрэмд оролцоно), явцын тайлан + CSV.
 
 ### Мөнгөний дүрэм
 - Ledger нь **append-only**. Засах бол эсрэг бичилт (reversal) нэмнэ.
@@ -188,6 +208,16 @@
 - Mux signed playback token богино хугацаатай; зэрэг тоглуулалт ≤ 2.
 - Багш өөрийн курсийг, админ бүх курсийг үзнэ.
 
+### Байгууллагын хаалттай сургалт
+- **Төлбөр системээс гадуур** (гэрээ, нэхэмжлэл, дансаар). Ledger, Credits, Payments, Purchases модульд өөрчлөлт орохгүй; private course-ын үзэлтээс багшийн орлого үүсэхгүй.
+- **Удирдлага зөвхөн платформын админ.** Байгууллагын manager/HR эрх байхгүй; бүх үйлдэл audit log-т.
+- **Байгууллага идэвхтэй** = `active = true` ба `contract_ends_at` өнгөрөөгүй. Нэг хэрэглэгч олон байгууллагын гишүүн байж болно.
+- **Private course**: курс дээр `visibility` (public / private) тэмдэг. Private курс catalog, хайлт, багшийн профайл, landing, referral-д гарахгүй; үнэгүй (кредитийн үнэгүй); review workflow-гүйгээр шууд нийтлэгдэнэ; эзэн нь заавал house teacher. Private курст зөвхөн video, text, pdf, quiz, live lesson; **assignment, community, review байхгүй**.
+- **Lesson нээх дүрэм** (API-ийн нэг эрхийн шалгалт, web-ийн нэг lesson-open дүрэм): entitlement **эсвэл** free preview **эсвэл** (хэрэглэгч идэвхтэй байгууллагын гишүүн **ба** тухайн курс тэр байгууллагад grant-тай). Байгууллагын эрх нь `Entitlement` мөр үүсгэхгүй (purchase байхгүй тул) — үргэлж динамикаар тооцогдоно, тиймээс хасах/дуусахад тэр дороо хаагдана.
+- **Урилга**: identifier (утас/имэйл, normalize хийсэн) + байгууллага; төлөв `pending → accepted / canceled`. Тухайн identifier баталгаажсан хэрэглэгч OTP-гоор нэвтрэх, эсвэл identifier холбох үед pending урилгууд гишүүнчлэл болно. Pending урилга + гишүүд ≤ суудлын хязгаар; хэтэрвэл урилга татгалзана. Имэйл урилгад Resend имэйл; утсанд мэдэгдэл явуулахгүй (SMS зөвхөн OTP). Гишүүн болмогц in-app мэдэгдэл.
+- **Сертификат**: одоогийн нөхцөл (бүх lesson дууссан, quiz дундаж ≥70%) — private курст "full course эзэмшсэн" нөхцлийг байгууллагын эрхээр орлуулна. `teacherName` = house teacher (брэнд). Verify хуудас хэвээр.
+- **Хасалт/дуусгавар**: прогресс, quiz оролдлого, сертификат устахгүй; эрх сэргэвэл үргэлжилнэ. Хувийн худалдан авалтад нөлөөлөхгүй.
+
 ### Нэвтрэлт
 - OTP: 6 оронтой, 5 минут хүчинтэй, rate limit (identifier болон IP-ээр).
 - Худалдан авалт хийхэд ядаж нэг баталгаажсан identifier; багш болоход баталгаажсан утас заавал.
@@ -196,7 +226,7 @@
 
 - **Тест хийх seam:** NestJS API-ийн HTTP түвшин (integration тест, бодит Postgres-тэй, supertest). Гадны сервисүүдийг (QPay, Mux, verify.mn, Resend) adapter interface-ийн ард fake-ээр орлуулна. Энэ нь тест хийх цорын ганц seam байна.
 - Сайн тест нь зөвхөн гадаад зан төлөвийг шалгана (API хариу, баланс, эрх), дотоод implementation-ийг биш.
-- **Заавал тестлэх:** Credits (FIFO, дуусгавар, давхар зарцуулалтгүй), Payments (callback idempotency, дахин шалгалт, test flag), Purchases (курсийн хасалт, attribution, шимтгэлийн тооцоо), Subscriptions (renewal state machine), Payouts (босго, hold), эрхийн шалгалт (entitlement, role).
+- **Заавал тестлэх:** Credits (FIFO, дуусгавар, давхар зарцуулалтгүй), Payments (callback idempotency, дахин шалгалт, test flag), Purchases (курсийн хасалт, attribution, шимтгэлийн тооцоо), Subscriptions (renewal state machine), Payouts (босго, hold), эрхийн шалгалт (entitlement, role), байгууллагын эрх (гишүүнчлэл + grant, дуусгавар/идэвхгүй/хасалт, суудлын хязгаар, урилга → гишүүнчлэл, private курс catalog-д гарахгүй).
 - Бусад хэсэгт тест бичихгүй (UI, CRUD).
 - Prior art: одоогоор codebase хоосон; эхний ticket тестийн суурийг тавина.
 
@@ -211,6 +241,7 @@
 - Багшийн тусдаа брэндтэй сургуулийн хуудас / custom domain.
 - Англи хэл (i18n бүтэц бэлэн, орчуулга хийхгүй).
 - Mobile апп.
+- Байгууллагын: online төлбөр (QPay/суудлын subscription), manager/HR эрх, self-serve бүртгэл, хэлтэс/бүлэг, ажилтан бүрт курс оноох, нэгдэх код/линк, имэйл домэйноор нэгдэх, урилгын SMS, private курст assignment/community/review, public курсийг байгууллагад олгох.
 
 ## Further Notes
 
