@@ -254,6 +254,7 @@ export default function CreditsPage() {
             {t('credits.nav').toLowerCase()}
           </span>
         </p>
+        <span className={styles.heroCoin} aria-hidden="true" />
       </section>
 
       {error && (

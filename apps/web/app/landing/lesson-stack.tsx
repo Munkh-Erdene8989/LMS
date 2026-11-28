@@ -45,9 +45,7 @@ export function LessonStack() {
               <p className={styles.deviceSub}>{t('landing.stackSub', { count: 12 })}</p>
             </div>
             <span className={styles.pill} aria-label={t('landing.stackBalance', { count: 120 })}>
-              <span className={styles.coin} aria-hidden="true">
-                ₵
-              </span>
+              <span className={styles.coin} aria-hidden="true" />
               120
             </span>
           </div>

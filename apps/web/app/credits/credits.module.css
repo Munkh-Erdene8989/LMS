@@ -38,12 +38,54 @@
 
 /* --- Үлдэгдэл --- */
 .hero {
+  position: relative;
   display: grid;
   gap: var(--s-2);
   padding: var(--s-6) var(--s-5);
+  padding-right: calc(var(--s-5) + 120px);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--bg-alt);
+}
+
+/* 30° эргүүлсэн 3D зоос: үлдэгдлийн баруун талд зөөлөн хөвнө */
+.heroCoin {
+  position: absolute;
+  top: 50%;
+  right: var(--s-5);
+  width: 104px;
+  height: 104px;
+  margin-top: -52px;
+  background: url('/images/credit-coin-side.svg') center / contain no-repeat;
+  filter: drop-shadow(0 10px 14px rgba(0, 60, 140, 0.28));
+  animation: coinFloat 4s ease-in-out infinite;
+}
+
+@keyframes coinFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding-right: calc(var(--s-5) + 72px);
+  }
+  .heroCoin {
+    width: 64px;
+    height: 64px;
+    margin-top: -32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroCoin {
+    animation: none;
+  }
 }
 
 .heroLabel {

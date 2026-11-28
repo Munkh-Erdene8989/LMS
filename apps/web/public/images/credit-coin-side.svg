@@ -1,0 +1,77 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+  <title>Кредит</title>
+  <defs>
+    <!-- Нүүрний гэрэл: зүүн дээдээс тусна -->
+    <radialGradient id="cc-face" cx="36%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#4aa8ff" />
+      <stop offset=".45" stop-color="#0a78ea" />
+      <stop offset="1" stop-color="#0052b8" />
+    </radialGradient>
+    <!-- Хүрээ (товгор) -->
+    <linearGradient id="cc-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9ad3ff" />
+      <stop offset=".5" stop-color="#3a9dff" />
+      <stop offset="1" stop-color="#0d63c9" />
+    </linearGradient>
+    <!-- Зоосны зузаан (хажуу тал) -->
+    <linearGradient id="cc-edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a5fc4" />
+      <stop offset="1" stop-color="#003b8c" />
+    </linearGradient>
+    <linearGradient id="cc-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a6dbff" />
+      <stop offset="1" stop-color="#3c9eff" />
+    </linearGradient>
+    <linearGradient id="cc-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".45" />
+      <stop offset="1" stop-color="#fff" stop-opacity="0" />
+    </linearGradient>
+    <path id="cc-coin" fill-rule="evenodd" d="M512 12a500 500 0 1 1 0 1000 500 500 0 1 1 0-1000ZM404 404v216h216V404Z" />
+    <path id="cc-sq" fill-rule="evenodd" d="M386 368h252a18 18 0 0 1 18 18v252a18 18 0 0 1-18 18H386a18 18 0 0 1-18-18V386a18 18 0 0 1 18-18Zm18 36v216h216V404Z" />
+    <path id="cc-m" d="M510 78c-1-17 24-7 35 8 20 27 13 56-16 77 34 37 33 74-1 99 30 36 19 76-13 87-26 9-9-31-9-49 0-10-3-17-9-23-16 1-32 14-38 1-4-18 12-34 34-44 26-12 23-38 7-58-18 4-37 22-43 4-4-17 11-36 34-47 26-12 18-31 19-55Z" />
+    <g id="cc-marks">
+      <use href="#cc-m" />
+      <use href="#cc-m" transform="translate(-290 296)" />
+      <use href="#cc-m" transform="translate(306 296)" />
+      <use href="#cc-m" transform="translate(0 604)" />
+    </g>
+    <clipPath id="cc-clip">
+      <use href="#cc-coin" />
+    </clipPath>
+    <clipPath id="cc-top"><rect x="-100" y="0" width="1200" height="420" /></clipPath>
+  </defs>
+  <!-- 30° эргүүлсэн: нүүр cos30=0.866 нарийсна, зузаан нь зүүн тийш харагдана -->
+  <g transform="translate(538 512) scale(.83 .96) translate(-512 -512)">
+    <!-- Хажуу тал: арын хуулбаруудыг давхарлаж зузаан үүсгэнэ (нүхний дотор хана ч гарна) -->
+    <use href="#cc-coin" fill="#00347d" transform="translate(-64 0)" />
+    <use href="#cc-coin" fill="#013882" transform="translate(-60 0)" />
+    <use href="#cc-coin" fill="#033c88" transform="translate(-56 0)" />
+    <use href="#cc-coin" fill="#05408e" transform="translate(-52 0)" />
+    <use href="#cc-coin" fill="#074593" transform="translate(-48 0)" />
+    <use href="#cc-coin" fill="#094999" transform="translate(-44 0)" />
+    <use href="#cc-coin" fill="#0b4d9f" transform="translate(-40 0)" />
+    <use href="#cc-coin" fill="#0d51a4" transform="translate(-36 0)" />
+    <use href="#cc-coin" fill="#0f56aa" transform="translate(-32 0)" />
+    <use href="#cc-coin" fill="#115ab0" transform="translate(-28 0)" />
+    <use href="#cc-coin" fill="#135eb5" transform="translate(-24 0)" />
+    <use href="#cc-coin" fill="#1562bb" transform="translate(-20 0)" />
+    <use href="#cc-coin" fill="#1767c1" transform="translate(-16 0)" />
+    <use href="#cc-coin" fill="#196bc6" transform="translate(-12 0)" />
+    <use href="#cc-coin" fill="#1b6fcc" transform="translate(-8 0)" />
+    <use href="#cc-coin" fill="#1d73d2" transform="translate(-4 0)" />
+    <!-- Ирмэгийн дээд гэрэл -->
+    <use href="#cc-coin" fill="none" stroke="#9ad3ff" stroke-opacity=".35" stroke-width="6" transform="translate(-64 0)" clip-path="url(#cc-top)" />
+    <!-- Нүүр -->
+    <use href="#cc-coin" fill="url(#cc-face)" />
+    <circle cx="512" cy="512" r="478" fill="none" stroke="url(#cc-rim)" stroke-width="44" />
+    <circle cx="512" cy="512" r="455" fill="none" stroke="#003f94" stroke-opacity=".45" stroke-width="6" />
+    <circle cx="512" cy="512" r="498" fill="none" stroke="#cfeaff" stroke-opacity=".6" stroke-width="4" />
+    <use href="#cc-sq" fill="#003f94" fill-opacity=".45" transform="translate(6 8)" />
+    <use href="#cc-sq" fill="url(#cc-rim)" />
+    <use href="#cc-marks" fill="#00408f" fill-opacity=".55" transform="translate(7 9)" />
+    <use href="#cc-marks" fill="url(#cc-mark)" />
+    <g clip-path="url(#cc-clip)">
+      <ellipse cx="400" cy="230" rx="360" ry="230" fill="url(#cc-gloss)" transform="rotate(-24 400 230)" />
+    </g>
+  </g>
+</svg>
