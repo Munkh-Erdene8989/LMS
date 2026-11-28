@@ -518,12 +518,31 @@ model Lesson {
   quizAttempts  QuizAttempt[]
   liveReminders LiveReminder[]
   videos        LessonVideo[]
+  attachments   LessonAttachment[]
 
   submissions AssignmentSubmission[]
 
   @@index([courseId, reviewStatus])
   @@index([sectionId, position])
   @@map("lessons")
+}
+
+/// Хичээлийн татаж авах нэмэлт материал (слайд, жишээ код, дасгал …). Файл `private` bucket-д
+/// (`lessons/<lessonId>/attachments/…`); татах эрх нь lesson-ы контентын эрхтэй ижил (`LessonAccessPolicy`).
+/// Засах дүрэм lesson-ы контенттой ижил: шалгагдсан (APPROVED) lesson-д түгжигдэнэ.
+model LessonAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  lessonId    String   @map("lesson_id") @db.Uuid
+  fileKey     String   @map("file_key")
+  fileName    String   @map("file_name")
+  size        Int
+  contentType String   @map("content_type")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@map("lesson_attachments")
 }
 
 /// Live хичээлийн сануулгын төрөл (ticket 14): эхлэхээс 24 цаг / 15 минутын өмнө.

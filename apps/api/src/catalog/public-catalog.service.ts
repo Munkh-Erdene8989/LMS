@@ -6,6 +6,7 @@ import {
   type CatalogPage,
   type CatalogQuery,
   type CoursePricing,
+  type LessonAttachmentUrl,
   type CourseViewerState,
   type PublicCategoryRef,
   type PublicCourseDetail,
@@ -18,7 +19,7 @@ import { STORAGE, type StorageAdapter } from '../adapters/storage';
 import { PrismaService } from '../prisma/prisma.service';
 import { courseOwnership, ownsFrom, type CourseOwnership } from '../purchases/entitlements';
 import { searchCatalog } from './catalog-search';
-import { toContent } from './course.view';
+import { toAttachmentViews, toContent } from './course.view';
 import { CatalogErrors as E } from './errors';
 import { LessonAccessPolicy, staffRole, type LessonViewer } from './lesson-access';
 import type { LiveContent } from './lesson-types';
@@ -127,7 +128,19 @@ export class PublicCatalogService {
         revealAnswers: false,
         revealMeetingUrl: access !== 'PREVIEW',
       }),
+      attachments: await toAttachmentViews(
+        await this.prisma.lessonAttachment.findMany({ where: { lessonId: lesson.id }, orderBy: { createdAt: 'asc' } }),
+        this.storage,
+      ),
     };
+  }
+
+  /** Материал татах signed URL — эрх `lesson()`-тэй ижил (`LessonAccessPolicy.open`). Татах нэр = анхны файлын нэр. */
+  async attachmentUrl(lessonId: string, attachmentId: string, viewer: LessonViewer | null): Promise<LessonAttachmentUrl> {
+    const { lesson } = await this.access.open(lessonId, viewer);
+    const attachment = await this.prisma.lessonAttachment.findFirst({ where: { id: attachmentId, lessonId: lesson.id } });
+    if (!attachment) throw E.attachmentNotFound();
+    return { url: await this.storage.signedDownloadUrl('private', attachment.fileKey, PREVIEW_PDF_TTL, attachment.fileName) };
   }
 
   async teacher(id: string): Promise<PublicTeacherProfile> {

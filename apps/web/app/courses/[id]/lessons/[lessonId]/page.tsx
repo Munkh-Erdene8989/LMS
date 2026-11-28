@@ -10,6 +10,7 @@ import { PlayIcon } from '../../../../learning/icons';
 import { LockedLesson, PurchaseProvider } from '../../../purchase-ui';
 import { VideoPlayer } from '../../../../video-player';
 import { LessonFrame, type FrameSection } from './lesson-frame';
+import { LessonAttachments } from './lesson-attachments';
 import { LessonLearning } from './lesson-learning';
 import styles from './lesson.module.css';
 
@@ -138,6 +139,8 @@ export default async function LessonPage({ params }: { params: Params }) {
           <p className={styles.hint}>{t('catalog.pdfExpires')}</p>
         </div>
       )}
+
+      <LessonAttachments lessonId={data.lesson.id} attachments={data.attachments} />
 
       <LessonLearning
         lessonId={data.lesson.id}

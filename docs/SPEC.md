@@ -159,6 +159,7 @@
 88. As an organization member, I want to take quizzes and earn a certificate in private courses under the same rules as public courses, so that my training is recognised.
 89. As a former member (removed, or organization expired/deactivated), I want my progress and certificates kept even though lessons are locked, so that my history is not lost and comes back if access is restored.
 90. As an admin, I want a per-organization progress table (member × course: progress %, best quiz score, certificate) with CSV export, so that I can send reports to the company's HR.
+91. As a teacher, I want to attach downloadable materials (slides, sample code, worksheets) to any lesson, so that learners who can open the lesson can download them.
 
 ## Implementation Decisions
 

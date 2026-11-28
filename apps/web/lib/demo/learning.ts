@@ -133,6 +133,7 @@ export function demoLesson(id: string): PublicLessonContent | 'locked' | undefin
     access: own ? 'OWNED' : 'PREVIEW',
     course: { id: ref.course.id, title: ref.course.seed.title },
     content: contentFor(ref),
+    attachments: [],
   };
 }
 

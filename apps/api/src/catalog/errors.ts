@@ -5,6 +5,7 @@ export const CatalogErrors = {
   courseNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Курс олдсонгүй.'),
   sectionNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Бүлэг олдсонгүй.'),
   lessonNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Хичээл олдсонгүй.'),
+  attachmentNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Материал олдсонгүй.'),
   categoryNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Ангилал олдсонгүй.'),
   teacherNotFound: () => new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Багш олдсонгүй.'),
   lessonLocked: () =>

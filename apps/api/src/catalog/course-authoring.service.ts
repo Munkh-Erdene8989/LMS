@@ -4,6 +4,9 @@ import { Prisma, type Course, type CourseLevel, type Lesson, type LessonType } f
 import {
   COVER_MAX_BYTES,
   COVER_TYPES,
+  LESSON_ATTACHMENT_MAX_BYTES,
+  LESSON_ATTACHMENT_TYPES,
+  LESSON_ATTACHMENTS_MAX,
   liveEndsAt,
   PDF_MAX_BYTES,
   type CourseDetail,
@@ -244,6 +247,60 @@ export class CourseAuthoringService {
     const key = `lessons/${lesson.id}/${randomUUID()}.pdf`;
     const target = await this.storage.createUploadUrl('private', key);
     return { key, ...target };
+  }
+
+  // ---- татаж авах материал ----------------------------------------------------
+  // Засах дүрэм lesson-ы контенттой ижил: шалгагдсан (APPROVED) lesson-д түгжигдэнэ — худалдан авсан
+  // хүмүүст өөрчлөгдөхгүй, шинэ материал админы шалгалтгүйгээр гарахгүй.
+
+  async attachmentUpload(teacherId: string, lessonId: string, contentType: string): Promise<UploadTicket> {
+    const lesson = await this.attachableLesson(teacherId, lessonId);
+    const ext = LESSON_ATTACHMENT_TYPES[contentType];
+    if (!ext) throw E.invalidUpload('Энэ төрлийн файл хавсаргах боломжгүй.');
+    const key = `lessons/${lesson.id}/attachments/${randomUUID()}.${ext}`;
+    const target = await this.storage.createUploadUrl('private', key);
+    return { key, ...target };
+  }
+
+  async addAttachment(teacherId: string, lessonId: string, input: { fileKey: string; fileName: string }): Promise<CourseDetail> {
+    const lesson = await this.attachableLesson(teacherId, lessonId);
+    if (!input.fileKey.startsWith(`lessons/${lesson.id}/attachments/`)) throw E.invalidUpload('Файлын зам буруу.');
+    const info = await this.storage.info('private', input.fileKey);
+    if (!info) throw E.invalidUpload('Файл upload хийгдээгүй байна.');
+    if (!LESSON_ATTACHMENT_TYPES[info.contentType]) throw E.invalidUpload('Энэ төрлийн файл хавсаргах боломжгүй.');
+    if (info.size > LESSON_ATTACHMENT_MAX_BYTES) throw E.invalidUpload('Файл 50MB-аас ихгүй байх ёстой.');
+    await this.prisma.$transaction(async (tx) => {
+      // Хязгаарыг lesson-ы мөрийг түгжиж шалгана (зэрэг upload-ууд хязгаар давахгүй).
+      await tx.$queryRaw`SELECT id FROM lessons WHERE id = ${lesson.id}::uuid FOR UPDATE`;
+      if ((await tx.lessonAttachment.count({ where: { lessonId: lesson.id } })) >= LESSON_ATTACHMENTS_MAX) {
+        throw E.invalidUpload(`Нэг хичээлд ${LESSON_ATTACHMENTS_MAX}-аас ихгүй материал.`);
+      }
+      if (await tx.lessonAttachment.findFirst({ where: { lessonId: lesson.id, fileKey: input.fileKey } })) {
+        throw E.invalidUpload('Энэ файл аль хэдийн хавсаргагдсан.');
+      }
+      await tx.lessonAttachment.create({
+        data: { lessonId: lesson.id, fileKey: input.fileKey, fileName: input.fileName, size: info.size, contentType: info.contentType },
+      });
+    });
+    return this.detail(teacherId, lesson.courseId);
+  }
+
+  async removeAttachment(teacherId: string, attachmentId: string): Promise<CourseDetail> {
+    const attachment = await this.prisma.lessonAttachment.findFirst({
+      where: { id: attachmentId, lesson: { course: { teacherId } } },
+    });
+    if (!attachment) throw E.attachmentNotFound();
+    const lesson = await this.attachableLesson(teacherId, attachment.lessonId);
+    await this.prisma.lessonAttachment.delete({ where: { id: attachment.id } });
+    // Файлыг устгахад алдаа гарвал мөр аль хэдийн устсан — learner-т харагдахгүй тул хаяад өнгөрнө.
+    await this.storage.remove('private', attachment.fileKey).catch(() => undefined);
+    return this.detail(teacherId, lesson.courseId);
+  }
+
+  private async attachableLesson(teacherId: string, lessonId: string): Promise<Lesson> {
+    const lesson = await this.editableLesson(teacherId, lessonId);
+    if (lesson.reviewStatus === 'APPROVED') throw E.contentLocked();
+    return lesson;
   }
 
   // ---- шалгуулах -------------------------------------------------------------

@@ -24,7 +24,8 @@ export interface UploadTarget {
 export interface StorageAdapter {
   createUploadUrl(bucket: Bucket, key: string): Promise<UploadTarget>;
   info(bucket: Bucket, key: string): Promise<ObjectInfo | null>;
-  signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number): Promise<string>;
+  /** `downloadAs` — browser файлыг нээхийн оронд энэ нэрээр татна (Content-Disposition: attachment). */
+  signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number, downloadAs?: string): Promise<string>;
   publicUrl(key: string): string;
   remove(bucket: Bucket, key: string): Promise<void>;
 }
@@ -86,13 +87,15 @@ export class SupabaseStorage implements StorageAdapter {
     };
   }
 
-  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number): Promise<string> {
+  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number, downloadAs?: string): Promise<string> {
     const res = await this.request('POST', `/object/sign/${this.bucket(bucket)}/${encodePath(key)}`, {
       expiresIn: expiresInSeconds,
     });
     if (!res.ok) throw new StorageError(`signed url ${res.status}: ${await res.text()}`);
     const data = (await res.json()) as { signedURL: string };
-    return `${this.base}${data.signedURL}`;
+    const url = `${this.base}${data.signedURL}`;
+    // Supabase: `download` query → Content-Disposition: attachment; filename=…
+    return downloadAs === undefined ? url : `${url}${url.includes('?') ? '&' : '?'}download=${encodeURIComponent(downloadAs)}`;
   }
 
   publicUrl(key: string): string {
@@ -151,7 +154,8 @@ export class LocalDiskStorage implements StorageAdapter {
     }
   }
 
-  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number): Promise<string> {
+  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number, downloadAs?: string): Promise<string> {
+    void downloadAs; // dev: browser нээж/татахыг өөрөө шийднэ
     return this.url('file', bucket, key, expiresInSeconds);
   }
 
@@ -212,8 +216,9 @@ export class FakeStorage implements StorageAdapter {
     return this.objects.get(`${bucket}/${key}`) ?? null;
   }
 
-  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number): Promise<string> {
-    return `https://fake-storage.test/signed/${bucket}/${key}?expiresIn=${expiresInSeconds}`;
+  async signedDownloadUrl(bucket: Bucket, key: string, expiresInSeconds: number, downloadAs?: string): Promise<string> {
+    const download = downloadAs === undefined ? '' : `&download=${encodeURIComponent(downloadAs)}`;
+    return `https://fake-storage.test/signed/${bucket}/${key}?expiresIn=${expiresInSeconds}${download}`;
   }
 
   publicUrl(key: string): string {

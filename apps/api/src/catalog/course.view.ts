@@ -1,5 +1,5 @@
-import type { Prisma } from '@lms/db';
-import type { CourseDetail, CourseSummary, LessonContent, LessonView, QuizContent } from '@lms/shared';
+import type { LessonAttachment, Prisma } from '@lms/db';
+import type { CourseDetail, CourseSummary, LessonAttachmentView, LessonContent, LessonView, QuizContent } from '@lms/shared';
 import { liveEndsAt } from '@lms/shared';
 import type { StorageAdapter } from '../adapters/storage';
 import { LESSON_TYPES, type AssignmentContent, type LiveContent, type PdfContent, type StoredQuiz, type TextContent, type VideoContent } from './lesson-types';
@@ -8,7 +8,7 @@ export const courseDetailInclude = {
   teacher: { select: { id: true, name: true } },
   sections: {
     orderBy: { position: 'asc' },
-    include: { lessons: { orderBy: { position: 'asc' } } },
+    include: { lessons: { orderBy: { position: 'asc' }, include: { attachments: { orderBy: { createdAt: 'asc' } } } } },
   },
 } as const satisfies Prisma.CourseInclude;
 
@@ -112,6 +112,7 @@ async function toLessonView(l: LessonRow, storage: StorageAdapter): Promise<Less
     problems: lessonProblems(l),
     // Багш/админы view — quiz-ийн зөв хариулттай.
     content: await toContent(l, storage, PREVIEW_URL_TTL, { revealAnswers: true }),
+    attachments: await toAttachmentViews(l.attachments, storage, PREVIEW_URL_TTL),
   };
 }
 
@@ -179,4 +180,21 @@ export function quizContent(c: StoredQuiz, revealAnswers: boolean): QuizContent 
   const view: QuizContent = { type: 'QUIZ', passPercent: c.passPercent ?? 0, questions };
   if (revealAnswers) view.answerKey = Object.fromEntries((c.questions ?? []).map((q) => [q.id, [...q.correctOptionIds]]));
   return view;
+}
+
+/** Хичээлийн материал. `ttlSeconds` өгвөл signed URL-тай (багш/админы view), үгүй бол зөвхөн мета (learner). */
+export async function toAttachmentViews(
+  rows: Pick<LessonAttachment, 'id' | 'fileKey' | 'fileName' | 'size' | 'contentType'>[],
+  storage: StorageAdapter,
+  ttlSeconds?: number,
+): Promise<LessonAttachmentView[]> {
+  return Promise.all(
+    rows.map(async (a) => ({
+      id: a.id,
+      fileName: a.fileName,
+      size: a.size,
+      contentType: a.contentType,
+      ...(ttlSeconds === undefined ? {} : { url: await storage.signedDownloadUrl('private', a.fileKey, ttlSeconds, a.fileName) }),
+    })),
+  );
 }

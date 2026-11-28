@@ -5,7 +5,7 @@ import type { CourseDetail } from '@lms/shared';
 import { api } from '@/lib/client-api';
 import { t, type MessageKey } from '@/lib/i18n';
 import { Button } from '../../../ui/button';
-import { LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
+import { AttachmentList, LessonContentPreview, LessonStatusBadge, StatusBadge } from '../../../course-ui';
 import { Markdown } from '../../../markdown';
 import { ErrorLine, LoadingRows, ReasonDialog, errorText } from '../../admin-ui';
 import styles from '../../admin.module.css';
@@ -70,6 +70,7 @@ export default function AdminCoursePage({ params }: { params: Promise<{ id: stri
                 <LessonStatusBadge status={l.reviewStatus} />
               </div>
               <LessonContentPreview lesson={l} />
+              <AttachmentList attachments={l.attachments} />
               {l.reviewStatus === 'IN_REVIEW' && course.status === 'PUBLISHED' && (
                 <div>
                   <Button variant="secondary" size="sm" onClick={() => setRejecting({ kind: 'lesson', id: l.id })}>
